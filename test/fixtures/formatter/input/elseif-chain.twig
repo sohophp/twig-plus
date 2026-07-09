@@ -1,0 +1,7 @@
+{% if   user.isAdmin %}
+<strong>admin</strong>
+{% elseif   user.isEditor %}
+<strong>editor</strong>
+{% else %}
+<strong>guest</strong>
+{% endif %}

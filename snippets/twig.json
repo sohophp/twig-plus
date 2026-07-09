@@ -1,0 +1,86 @@
+{
+  "Twig if": {
+    "prefix": "twig-if",
+    "body": [
+      "{% if ${1:condition} %}",
+      "  $0",
+      "{% endif %}"
+    ],
+    "description": "Twig if block"
+  },
+  "Twig block": {
+    "prefix": "twig-block",
+    "body": [
+      "{% block ${1:name} %}",
+      "  $0",
+      "{% endblock %}"
+    ],
+    "description": "Twig block"
+  },
+  "Twig for": {
+    "prefix": "twig-for",
+    "body": [
+      "{% for ${1:item} in ${2:items} %}",
+      "  $0",
+      "{% endfor %}"
+    ],
+    "description": "Twig for block"
+  },
+  "Twig include": {
+    "prefix": "twig-include",
+    "body": [
+      "{% include '${1:partials/example.html.twig}' %}"
+    ],
+    "description": "Twig include tag"
+  },
+  "Twig extends": {
+    "prefix": "twig-extends",
+    "body": [
+      "{% extends '${1:base.html.twig}' %}"
+    ],
+    "description": "Twig extends tag"
+  },
+  "Twig embed": {
+    "prefix": "twig-embed",
+    "body": [
+      "{% embed '${1:components/card.html.twig}' %}",
+      "  $0",
+      "{% endembed %}"
+    ],
+    "description": "Twig embed block"
+  },
+  "Twig set": {
+    "prefix": "twig-set",
+    "body": [
+      "{% set ${1:name} = ${2:value} %}"
+    ],
+    "description": "Twig set tag"
+  },
+  "Twig macro": {
+    "prefix": "twig-macro",
+    "body": [
+      "{% macro ${1:name}(${2:args}) %}",
+      "  $0",
+      "{% endmacro %}"
+    ],
+    "description": "Twig macro"
+  },
+  "Twig with": {
+    "prefix": "twig-with",
+    "body": [
+      "{% with ${1:context} %}",
+      "  $0",
+      "{% endwith %}"
+    ],
+    "description": "Twig with block"
+  },
+  "Twig apply": {
+    "prefix": "twig-apply",
+    "body": [
+      "{% apply ${1:filter} %}",
+      "  $0",
+      "{% endapply %}"
+    ],
+    "description": "Twig apply block"
+  }
+}

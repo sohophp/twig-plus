@@ -1,0 +1,79 @@
+{
+  "scopeName": "text.html.twigplus",
+  "name": "TwigPlus",
+  "patterns": [
+    {
+      "include": "#twig-comment"
+    },
+    {
+      "include": "#twig-output"
+    },
+    {
+      "include": "#twig-tag"
+    },
+    {
+      "include": "text.html.basic"
+    }
+  ],
+  "repository": {
+    "twig-comment": {
+      "begin": "\\{#",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.comment.twig"
+        }
+      },
+      "end": "#\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.comment.twig"
+        }
+      },
+      "name": "comment.block.twig"
+    },
+    "twig-output": {
+      "begin": "\\{\\{",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.begin.twig"
+        }
+      },
+      "end": "\\}\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.end.twig"
+        }
+      },
+      "name": "meta.interpolation.twig"
+    },
+    "twig-tag": {
+      "begin": "\\{%",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.begin.twig"
+        }
+      },
+      "end": "%\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.end.twig"
+        }
+      },
+      "name": "meta.tag.twig",
+      "patterns": [
+        {
+          "match": "\\b(if|elseif|else|endif|for|endfor|block|endblock|extends|include|embed|endembed|set|macro|endmacro|with|endwith|apply|endapply|filter|endfilter|autoescape|endautoescape)\\b",
+          "name": "keyword.control.twig"
+        },
+        {
+          "match": "\\b(true|false|null)\\b",
+          "name": "constant.language.twig"
+        },
+        {
+          "match": "'[^']*'|\"[^\"]*\"",
+          "name": "string.quoted.twig"
+        }
+      ]
+    }
+  }
+}

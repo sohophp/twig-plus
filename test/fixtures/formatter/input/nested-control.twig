@@ -1,0 +1,11 @@
+<section>
+{% for group in groups %}
+{% if group.visible %}
+<div>
+{{group.name}}
+</div>
+{% else %}
+<aside>hidden</aside>
+{% endif %}
+{% endfor %}
+</section>
