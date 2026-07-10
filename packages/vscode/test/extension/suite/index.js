@@ -6,6 +6,7 @@ async function run() {
   await openHomeDocument();
 
   const tests = [
+    testTwigPlusCommandsRegistered,
     testTwigDelimiterTyping,
     testTwigParenthesisTyping,
     testTwigBraceTypingInsideCall,
@@ -22,6 +23,19 @@ async function run() {
   for (const test of tests) {
     await test();
   }
+}
+
+async function testTwigPlusCommandsRegistered() {
+  const commands = await vscode.commands.getCommands(true);
+
+  assert.ok(
+    commands.includes("twigPlus.applyRecommendedSettings"),
+    "recommended settings command should be registered"
+  );
+  assert.ok(
+    commands.includes("twigPlus.showStatus"),
+    "status command should be registered"
+  );
 }
 
 async function openHomeDocument() {

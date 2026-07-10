@@ -16,7 +16,8 @@
     {% block main %}
     {% endblock %}
     <p class="a">
-    <a href="s.html">{{ item.value| replace({}) }}</a>
+        <a href="s.html">{{ item.value| replace({}) }}</a>
     </p>
 
+    <p>{{ url({}) }}</p>
 {% endif %}

@@ -31,6 +31,12 @@ TwigPlus: Apply Recommended Twig Settings
 
 The command writes the recommended settings to the current workspace. TwigPlus does not silently change global settings during installation.
 
+To inspect the active file and effective TwigPlus settings, run:
+
+```text
+TwigPlus: Show Status
+```
+
 ## Features
 
 - Formats Twig files that mix Twig tags, HTML markup, embedded `<script>`, and embedded `<style>`
@@ -75,12 +81,20 @@ TwigPlus also contributes this language default:
 
 TwigPlus does not require Prettier, PHP CS Fixer, PHP Intelephense, or GitHub Copilot to work.
 
-- Prettier is vendored for TwigPlus formatting internals. Installing the Prettier extension is optional.
+- Prettier is bundled into TwigPlus formatting internals. Installing the Prettier extension is optional.
 - PHP CS Fixer affects PHP files, not TwigPlus formatting.
 - PHP Intelephense affects PHP language features, not TwigPlus Twig providers.
 - GitHub Copilot may add suggestions while typing, but it should not replace TwigPlus formatter, completion, or definition providers.
 
 If another extension formats Twig files unexpectedly, set `editor.defaultFormatter` for `[twig]` to `sohophp.twig-plus`.
+
+GitHub Copilot does not register a Twig formatter, definition provider, or Twig template path provider. It can affect inline suggestions while typing, but it should not prevent TwigPlus formatting or template navigation. If TwigPlus appears inactive, check these first:
+
+1. The active file language mode must be `Twig`, not `HTML`.
+2. `TwigPlus: Show Status` should report `Language mode: twig`.
+3. `[twig].editor.defaultFormatter` should be `sohophp.twig-plus`.
+4. Run `Developer: Reload Window` after installing or switching profiles.
+5. If the command is missing, the installed extension package is stale; reinstall the latest VSIX or run from source with `F5`.
 
 ## Development And Verification
 
@@ -90,6 +104,8 @@ Use the Extension Development Host when testing local changes:
 2. Open a `.twig` or `.html.twig` file in the Extension Development Host window.
 3. Confirm the language mode is `Twig`.
 4. Run `Format Document`, Twig completion, template path completion, and `Go to Definition`.
+
+When running from source, the Extension Development Host uses `packages/vscode/dist/extension.js`. Run `npm run build --workspace packages/vscode` or use the provided `F5` launch task before testing a newly added command.
 
 Release verification commands:
 
@@ -135,4 +151,12 @@ TwigPlus: Apply Recommended Twig Settings
 
 这个命令会把推荐配置写入当前 workspace。扩展安装时不会静默修改你的全局 VSCode 设置。
 
-TwigPlus 不依赖 Prettier、PHP CS Fixer、PHP Intelephense 或 GitHub Copilot。Prettier 作为运行时依赖已经随扩展打包；其它扩展最多会影响各自负责的语言或建议来源。如果 Twig 文件格式化结果混乱，请优先确认 `[twig]` 的 `editor.defaultFormatter` 是 `sohophp.twig-plus`。
+如果怀疑扩展没有生效，先执行：
+
+```text
+TwigPlus: Show Status
+```
+
+重点看当前文件的 `Language mode` 是否为 `twig`，以及 `[twig]` 的 `editor.defaultFormatter` 是否为 `sohophp.twig-plus`。
+
+TwigPlus 不依赖 Prettier、PHP CS Fixer、PHP Intelephense 或 GitHub Copilot。Prettier 作为运行时依赖已经随扩展打包；其它扩展最多会影响各自负责的语言或建议来源。Copilot 可能影响输入时的 inline suggestion，但不会注册 Twig formatter，也不会替代 TwigPlus 的模板路径跳转。如果 Twig 文件格式化结果混乱，请优先确认 `[twig]` 的 `editor.defaultFormatter` 是 `sohophp.twig-plus`，并确认文件语言模式不是 `HTML`。

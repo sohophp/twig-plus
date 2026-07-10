@@ -58,9 +58,10 @@ npm run package:vsix --workspace packages/vscode
 
 This will:
 
-1. vendor workspace runtime packages into `packages/vscode/node_modules/@twig-plus`
-2. package the extension without resolving external workspace dependencies
-3. create a `.vsix` file inside `packages/vscode`
+1. run the VSCode prepublish step
+2. verify `dist/extension.js` contains the bundled runtime formatter/parser code
+3. package the extension without runtime `node_modules`
+4. create a `.vsix` file inside `packages/vscode`
 
 ## Marketplace Publish
 

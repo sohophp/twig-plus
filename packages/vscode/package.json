@@ -2,10 +2,9 @@
   "name": "twig-plus",
   "displayName": "TwigPlus",
   "description": "Twig formatter and editor tooling for VSCode.",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "publisher": "sohophp",
   "license": "MIT",
-  "icon": "assets/logo.png",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sohophp/twig-plus.git"
@@ -31,13 +30,11 @@
   ],
   "activationEvents": [
     "onLanguage:twig",
-    "onCommand:twigPlus.applyRecommendedSettings"
+    "onCommand:twigPlus.applyRecommendedSettings",
+    "onCommand:twigPlus.showStatus",
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
-  "dependencies": {
-    "@twig-plus/formatter": "file:../formatter",
-    "@twig-plus/parser": "file:../parser"
-  },
   "contributes": {
     "languages": [
       {
@@ -71,7 +68,12 @@
     "commands": [
       {
         "command": "twigPlus.applyRecommendedSettings",
-        "title": "TwigPlus: Apply Recommended Twig Settings",
+        "title": "Apply Recommended Twig Settings",
+        "category": "TwigPlus"
+      },
+      {
+        "command": "twigPlus.showStatus",
+        "title": "Show Status",
         "category": "TwigPlus"
       }
     ],
@@ -148,7 +150,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --external:prettier --outfile=dist/extension.js",
     "test": "vitest run test",
     "vscode:test": "npm run build && node ./test/extension/runTest.js",
     "prepare-release": "node ./scripts/prepare-release.js",

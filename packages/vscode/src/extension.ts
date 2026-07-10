@@ -90,30 +90,66 @@ function registerRecommendedSettingsCommand(
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("twigPlus.applyRecommendedSettings", async () => {
-      const config = vscode.workspace.getConfiguration();
-      const twigLanguageSettings = config.get<Record<string, unknown>>("[twig]") ?? {};
-
-      await config.update(
-        "[twig]",
-        {
-          ...twigLanguageSettings,
-          "editor.defaultFormatter": "sohophp.twig-plus",
-          "editor.formatOnSave": true
-        },
-        vscode.ConfigurationTarget.Workspace
-      );
-      await config.update("twigPlus.format.enable", true, vscode.ConfigurationTarget.Workspace);
-      await config.update(
-        "twigPlus.format.profile",
-        "phpstorm",
-        vscode.ConfigurationTarget.Workspace
-      );
+      await applyRecommendedSettings();
 
       void vscode.window.showInformationMessage(
         "TwigPlus recommended workspace settings were applied."
       );
+    }),
+    vscode.commands.registerCommand("twigPlus.showStatus", async () => {
+      await showTwigPlusStatus(context);
     })
   );
+}
+
+async function applyRecommendedSettings(): Promise<void> {
+  const config = vscode.workspace.getConfiguration();
+  const twigLanguageSettings = config.get<Record<string, unknown>>("[twig]") ?? {};
+
+  await config.update(
+    "[twig]",
+    {
+      ...twigLanguageSettings,
+      "editor.defaultFormatter": "sohophp.twig-plus",
+      "editor.formatOnSave": true
+    },
+    vscode.ConfigurationTarget.Workspace
+  );
+  await config.update("twigPlus.format.enable", true, vscode.ConfigurationTarget.Workspace);
+  await config.update(
+    "twigPlus.format.profile",
+    "phpstorm",
+    vscode.ConfigurationTarget.Workspace
+  );
+}
+
+async function showTwigPlusStatus(context: vscode.ExtensionContext): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  const config = vscode.workspace.getConfiguration();
+  const twigLanguageSettings = config.get<Record<string, unknown>>("[twig]") ?? {};
+  const formatConfig = vscode.workspace.getConfiguration("twigPlus.format");
+  const completionConfig = vscode.workspace.getConfiguration("twigPlus.completion");
+  const document = editor?.document;
+  const fileName = document ? document.uri.fsPath || document.uri.toString() : "(no active editor)";
+
+  const lines = [
+    `TwigPlus ${context.extension.packageJSON.version ?? "(unknown version)"}`,
+    `Active file: ${fileName}`,
+    `Language mode: ${document?.languageId ?? "(none)"}`,
+    `Twig default formatter: ${String(twigLanguageSettings["editor.defaultFormatter"] ?? "(unset)")}`,
+    `Twig format on save: ${String(twigLanguageSettings["editor.formatOnSave"] ?? "(unset)")}`,
+    `twigPlus.format.enable: ${String(formatConfig.get("enable", true))}`,
+    `twigPlus.format.profile: ${String(formatConfig.get("profile", "phpstorm"))}`,
+    `twigPlus.completion.autoInsertClosingTag: ${String(
+      completionConfig.get("autoInsertClosingTag", false)
+    )}`
+  ];
+
+  const documentUri = await vscode.workspace.openTextDocument({
+    language: "plaintext",
+    content: lines.join("\n")
+  });
+  await vscode.window.showTextDocument(documentUri, { preview: true });
 }
 
 function registerTwigTagAutoCloseHandler(
