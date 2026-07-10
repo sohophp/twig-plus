@@ -1,0 +1,17 @@
+{% extends 'layout.twig' %}
+
+{% block sidebar %}
+  {% if navigation %}
+    <aside class="sidebar">
+      <ul>
+        {% for item in navigation %}
+          <li><a href="{{ item.url }}" title="{{ item.title }}">{{ item.title }}</a></li>
+        {% else %}
+          <li>{{ __('Empty') }}</li>
+        {% endfor %}
+      </ul>
+    </aside>
+  {% else %}
+    <aside class="sidebar">{{ __('No navigation') }}</aside>
+  {% endif %}
+{% endblock %}

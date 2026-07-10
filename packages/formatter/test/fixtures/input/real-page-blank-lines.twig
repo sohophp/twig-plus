@@ -1,0 +1,16 @@
+{% extends 'layout.twig' %}
+
+{% block content %}
+<section class="feature">
+{% if hero %}
+
+<div class="hero">{{ hero.content|raw }}</div>
+
+{% else %}
+
+<style>.feature-empty { color: {{ theme.color }}; }</style>
+<script>const featureState = "{{ __('empty') }}";</script>
+
+{% endif %}
+</section>
+{% endblock %}

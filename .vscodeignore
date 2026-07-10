@@ -1,9 +1,0 @@
-.agents/**
-.codex/**
-.git/**
-.vscode/**
-coverage/**
-dist/**/*.map
-src/**
-test/**
-tsconfig.json

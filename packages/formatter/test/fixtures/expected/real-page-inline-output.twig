@@ -1,0 +1,12 @@
+{% block body %}
+  <section class="hero">
+    <div class="copy">
+      <h1>{{ title }}</h1>
+      <p>{{ content.summary }}</p>
+      <div class="actions">
+        {% include 'partials/cta.twig' %}
+        <span>{{ __('More') }}</span>
+      </div>
+    </div>
+  </section>
+{% endblock %}

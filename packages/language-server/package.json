@@ -1,0 +1,15 @@
+{
+  "name": "@twig-plus/language-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Future TwigPlus language server package.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@twig-plus/formatter": "file:../formatter",
+    "@twig-plus/parser": "file:../parser"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

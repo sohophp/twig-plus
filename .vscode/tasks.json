@@ -8,7 +8,6 @@
         "kind": "build",
         "isDefault": true
       },
-      "problemMatcher": "$tsc",
       "label": "npm: build"
     }
   ]

@@ -1,9 +1,8 @@
 {
-  "name": "twig-plus",
-  "displayName": "TwigPlus",
-  "description": "Twig formatter and editor tooling for VSCode.",
+  "name": "twig-plus-workspace",
+  "private": true,
+  "description": "Monorepo workspace for TwigPlus packages.",
   "version": "1.0.0",
-  "publisher": "sohophp",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -13,108 +12,14 @@
   "bugs": {
     "url": "https://github.com/sohophp/twig-plus/issues"
   },
-  "keywords": [
-    "twig",
-    "symfony",
-    "vscode",
-    "formatter",
-    "templates"
+  "workspaces": [
+    "packages/*"
   ],
-  "engines": {
-    "vscode": "^1.90.0"
-  },
-  "categories": [
-    "Formatters",
-    "Programming Languages",
-    "Snippets"
-  ],
-  "activationEvents": [
-    "onLanguage:twig"
-  ],
-  "main": "./dist/extension.js",
-  "contributes": {
-    "languages": [
-      {
-        "id": "twig",
-        "aliases": [
-          "Twig",
-          "twig"
-        ],
-        "extensions": [
-          ".twig"
-        ],
-        "filenames": [],
-        "filenamePatterns": [
-          "*.html.twig"
-        ],
-        "configuration": "./language-configuration.json"
-      }
-    ],
-    "grammars": [
-      {
-        "language": "twig",
-        "scopeName": "text.html.twigplus",
-        "path": "./syntaxes/twig.tmLanguage.json"
-      }
-    ],
-    "snippets": [
-      {
-        "language": "twig",
-        "path": "./snippets/twig.json"
-      }
-    ],
-    "configuration": {
-      "title": "TwigPlus",
-      "properties": {
-        "twigPlus.format.enable": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable TwigPlus document formatting."
-        },
-        "twigPlus.format.indentSize": {
-          "type": "integer",
-          "default": 2,
-          "minimum": 0,
-          "description": "Number of spaces used for indentation when tabs are disabled."
-        },
-        "twigPlus.format.printWidth": {
-          "type": "integer",
-          "default": 100,
-          "minimum": 40,
-          "description": "Preferred maximum line width for embedded CSS and JavaScript formatting."
-        },
-        "twigPlus.format.useTabs": {
-          "type": "boolean",
-          "default": false,
-          "description": "Use tabs instead of spaces for indentation."
-        },
-        "twigPlus.format.twigTagSpacing": {
-          "type": "boolean",
-          "default": true,
-          "description": "Normalize spacing inside Twig tags."
-        },
-        "twigPlus.format.htmlAttributeWrap": {
-          "type": "string",
-          "enum": [
-            "preserve",
-            "auto",
-            "force"
-          ],
-          "default": "auto",
-          "description": "Control whether long HTML opening tags are wrapped to one attribute per line."
-        },
-        "twigPlus.format.preserveSingleLineBlocks": {
-          "type": "boolean",
-          "default": true,
-          "description": "Keep simple single-line HTML blocks such as <span>{{ value }}</span> on one line."
-        }
-      }
-    }
-  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run build --workspace packages/parser && npm run build --workspace packages/formatter && npm run build --workspace packages/vscode && npm run build --workspace packages/language-server",
+    "test": "npm run test --workspace packages/parser && npm run test --workspace packages/formatter && npm run test --workspace packages/vscode && npm run build --workspace packages/parser && npm run build --workspace packages/formatter && npm run build --workspace packages/vscode && vitest run tests/integration",
     "check": "npm run build && npm run test",
-    "test": "vitest run"
+    "clean": "rm -rf dist packages/*/dist"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

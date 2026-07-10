@@ -1,0 +1,18 @@
+{% block head %}
+  <section class="theme-preview">
+    {% if theme %}
+      <style>
+        .theme-{{ theme.slug }} {
+          color: {{ theme.color }};
+          background: linear-gradient(90deg, {{ theme.start }}, {{ theme.end }});
+        }
+      </style>
+    {% else %}
+      <style>
+        .theme-default {
+          color: #111;
+        }
+      </style>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% block footer %}
+<section class="footer-cta">
+{% if app.user %}
+<script>const profileUrl = "{{ path('profile') }}"; const labels = ["{{ __('Account') }}", "{{ __('Logout') }}"];</script>
+{% else %}
+<script>const loginUrl = "{{ path('login') }}";</script>
+{% endif %}
+</section>
+{% endblock %}

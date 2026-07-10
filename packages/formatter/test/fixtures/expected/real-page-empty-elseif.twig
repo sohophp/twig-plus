@@ -1,0 +1,17 @@
+{% block content %}
+  <section class="faq">
+    {% if groups %}
+      <ul class="faq-list">
+        {% for group in groups %}
+          <li><a href="{{ group.url }}">{{ group.title }}</a></li>
+        {% empty %}
+          <li>{{ __('Empty') }}</li>
+        {% endfor %}
+      </ul>
+    {% elseif archived %}
+      <p>{{ __('Archived') }}</p>
+    {% else %}
+      <p>{{ __('Nothing') }}</p>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,150 @@
+{
+  "name": "twig-plus",
+  "displayName": "TwigPlus",
+  "description": "Twig formatter and editor tooling for VSCode.",
+  "version": "1.0.0",
+  "publisher": "sohophp",
+  "license": "MIT",
+  "icon": "assets/logo.png",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sohophp/twig-plus.git"
+  },
+  "homepage": "https://github.com/sohophp/twig-plus#readme",
+  "bugs": {
+    "url": "https://github.com/sohophp/twig-plus/issues"
+  },
+  "keywords": [
+    "twig",
+    "symfony",
+    "vscode",
+    "formatter",
+    "templates"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Formatters",
+    "Programming Languages",
+    "Snippets"
+  ],
+  "activationEvents": [
+    "onLanguage:twig"
+  ],
+  "main": "./dist/extension.js",
+  "dependencies": {
+    "@twig-plus/formatter": "file:../formatter",
+    "@twig-plus/parser": "file:../parser"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "twig",
+        "aliases": [
+          "Twig",
+          "twig"
+        ],
+        "extensions": [
+          ".twig"
+        ],
+        "filenamePatterns": [
+          "*.html.twig"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "twig",
+        "scopeName": "text.html.twigplus",
+        "path": "./syntaxes/twig.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "twig",
+        "path": "./snippets/twig.json"
+      }
+    ],
+    "configuration": {
+      "title": "TwigPlus",
+      "properties": {
+        "twigPlus.format.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable TwigPlus document formatting."
+        },
+        "twigPlus.format.profile": {
+          "type": "string",
+          "enum": [
+            "phpstorm",
+            "compact"
+          ],
+          "default": "phpstorm",
+          "description": "Formatting profile baseline. Use phpstorm to keep TwigPlus aligned with PHPStorm-style whitespace and line breaking."
+        },
+        "twigPlus.format.indentSize": {
+          "type": "integer",
+          "default": 4,
+          "minimum": 0,
+          "description": "Number of spaces used for indentation when tabs are disabled."
+        },
+        "twigPlus.format.printWidth": {
+          "type": "integer",
+          "default": 100,
+          "minimum": 40,
+          "description": "Preferred maximum line width for embedded CSS and JavaScript formatting."
+        },
+        "twigPlus.format.useTabs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use tabs instead of spaces for indentation."
+        },
+        "twigPlus.format.twigTagSpacing": {
+          "type": "boolean",
+          "default": true,
+          "description": "Normalize spacing inside Twig tags."
+        },
+        "twigPlus.format.htmlAttributeWrap": {
+          "type": "string",
+          "enum": [
+            "preserve",
+            "auto",
+            "force"
+          ],
+          "default": "auto",
+          "description": "Control whether long HTML opening tags are wrapped to one attribute per line."
+        },
+        "twigPlus.format.preserveSingleLineBlocks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep simple single-line HTML blocks such as <span>{{ value }}</span> on one line."
+        },
+        "twigPlus.format.lineBreakAfterTwigControlTag": {
+          "type": "boolean",
+          "default": true,
+          "description": "Break lines after Twig control tags like block, if, else, and endblock when markup or text follows on the same line."
+        },
+        "twigPlus.completion.autoInsertClosingTag": {
+          "type": "boolean",
+          "default": false,
+          "description": "When completing opening Twig control tags, also insert the matching closing tag snippet. Disabled by default to match PHPStorm."
+        }
+      }
+    },
+    "configurationDefaults": {
+      "[twig]": {
+        "editor.defaultFormatter": "sohophp.twig-plus"
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run test",
+    "prepare-release": "node ./scripts/prepare-release.js",
+    "vscode:prepublish": "npm run prepare-release",
+    "package:vsix": "npm run prepare-release && npx @vscode/vsce package --no-dependencies",
+    "publish:marketplace": "npm run prepare-release && npx @vscode/vsce publish --no-dependencies"
+  }
+}

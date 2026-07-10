@@ -1,0 +1,296 @@
+import * as vscode from "vscode";
+
+import { registerTwigDiagnosticProvider } from "./diagnostics/diagnosticProvider";
+import { formatTwig, type FormatterOptions } from "@twig-plus/formatter";
+import { registerTwigCompletionProvider } from "./language/completionProvider";
+import { registerTwigDefinitionProvider } from "./language/definitionProvider";
+import { registerTwigDocumentSymbolProvider } from "./language/documentSymbolProvider";
+import { registerTwigSelectionRangeProvider } from "./language/selectionRangeProvider";
+import {
+  getTwigAutoCloseEdit,
+  getTwigAutoCloseBacktrack,
+  getTwigEnterEdit,
+  getTwigSpacingEdit
+} from "./language/autoClose";
+
+export function activate(context: vscode.ExtensionContext): void {
+  registerTwigTagAutoCloseHandler(context);
+
+  const provider: vscode.DocumentFormattingEditProvider = {
+    async provideDocumentFormattingEdits(document) {
+      const config = vscode.workspace.getConfiguration("twigPlus");
+      const enabled = config.get<boolean>("format.enable", true);
+
+      if (!enabled) {
+        return [];
+      }
+
+      const source = document.getText();
+      const options: FormatterOptions = {
+        profile: config.get<"phpstorm" | "compact">(
+          "format.profile",
+          "phpstorm"
+        ),
+        indentSize: config.get<number>("format.indentSize", 4),
+        printWidth: config.get<number>("format.printWidth", 100),
+        useTabs: config.get<boolean>("format.useTabs", false),
+        twigTagSpacing: config.get<boolean>("format.twigTagSpacing", true),
+        htmlAttributeWrap: config.get<"preserve" | "auto" | "force">(
+          "format.htmlAttributeWrap",
+          "auto"
+        ),
+        preserveSingleLineBlocks: config.get<boolean>(
+          "format.preserveSingleLineBlocks",
+          true
+        ),
+        lineBreakAfterTwigControlTag: config.get<boolean>(
+          "format.lineBreakAfterTwigControlTag",
+          true
+        )
+      };
+      const formatted = await formatTwig(source, options);
+
+      if (formatted === source) {
+        return [];
+      }
+
+      const lastLine = document.lineAt(document.lineCount - 1);
+      const range = new vscode.Range(
+        new vscode.Position(0, 0),
+        lastLine.range.end
+      );
+
+      return [vscode.TextEdit.replace(range, formatted)];
+    }
+  };
+
+  context.subscriptions.push(
+    vscode.languages.registerDocumentFormattingEditProvider(
+      { language: "twig" },
+      provider
+    )
+  );
+
+  registerTwigCompletionProvider(context);
+  registerTwigDefinitionProvider(context);
+  registerTwigDocumentSymbolProvider(context);
+  registerTwigSelectionRangeProvider(context);
+  registerTwigDiagnosticProvider(context);
+}
+
+export function deactivate(): void {}
+
+function registerTwigTagAutoCloseHandler(
+  context: vscode.ExtensionContext
+): void {
+  let applyingEdit = false;
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      void handleTwigEditorAutoClose(event, () => applyingEdit, (value) => {
+        applyingEdit = value;
+      }).catch((error) => {
+        console.error("[TwigPlus] auto-close handler failed:", error);
+      });
+    })
+  );
+}
+
+async function handleTwigEditorAutoClose(
+  event: vscode.TextDocumentChangeEvent,
+  getApplyingEdit: () => boolean,
+  setApplyingEdit: (value: boolean) => void
+): Promise<void> {
+  if (getApplyingEdit() || event.document.languageId !== "twig") {
+    return;
+  }
+
+  if (event.contentChanges.length === 0) {
+    return;
+  }
+
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || editor.document.uri.toString() !== event.document.uri.toString()) {
+    return;
+  }
+
+  const change = event.contentChanges[event.contentChanges.length - 1];
+  if (change.text === "\n" || change.text === "\r\n") {
+    await handleTwigEnterBetweenTags(event, editor, change, setApplyingEdit);
+    return;
+  }
+
+  const autoCloseStartOffset = getTwigAutoCloseStartOffset(event.document, change);
+  if (autoCloseStartOffset === null) {
+    await handleTwigTokenSpacing(event, editor, change, setApplyingEdit);
+    return;
+  }
+
+  const startOffset = autoCloseStartOffset;
+  const startPosition = event.document.positionAt(startOffset);
+  const currentRange = new vscode.Range(
+    startPosition,
+    event.document.positionAt(
+      Math.min(startOffset + 5, event.document.getText().length)
+    )
+  );
+  const currentText = event.document.getText(currentRange);
+
+  const autoCloseEdit = getTwigAutoCloseEdit(currentText);
+  if (!autoCloseEdit) {
+    return;
+  }
+
+  setApplyingEdit(true);
+
+  try {
+    const applied = await editor.edit((editBuilder) => {
+      editBuilder.replace(
+        new vscode.Range(
+          startPosition,
+          event.document.positionAt(startOffset + autoCloseEdit.replaceLength)
+        ),
+        autoCloseEdit.replacement
+      );
+    });
+
+    if (!applied) {
+      return;
+    }
+
+    const cursor = editor.document.positionAt(startOffset + autoCloseEdit.cursorOffset);
+    editor.selection = new vscode.Selection(cursor, cursor);
+  } finally {
+    setApplyingEdit(false);
+  }
+}
+
+async function handleTwigTokenSpacing(
+  event: vscode.TextDocumentChangeEvent,
+  editor: vscode.TextEditor,
+  change: vscode.TextDocumentContentChangeEvent,
+  setApplyingEdit: (value: boolean) => void
+): Promise<void> {
+  if (!["}", "%", "#"].includes(change.text)) {
+    return;
+  }
+
+  const cursor = editor.selection.active;
+  const line = event.document.lineAt(cursor.line);
+  const spacingEdit = getTwigSpacingEdit(line.text, cursor.character);
+  if (!spacingEdit) {
+    return;
+  }
+
+  setApplyingEdit(true);
+
+  try {
+    const applied = await editor.edit((editBuilder) => {
+      editBuilder.replace(
+        new vscode.Range(
+          new vscode.Position(cursor.line, spacingEdit.tokenStart),
+          new vscode.Position(cursor.line, spacingEdit.tokenEnd)
+        ),
+        spacingEdit.replacement
+      );
+    });
+
+    if (!applied) {
+      return;
+    }
+
+    const targetPosition = new vscode.Position(cursor.line, spacingEdit.cursorColumn);
+    editor.selection = new vscode.Selection(targetPosition, targetPosition);
+  } finally {
+    setApplyingEdit(false);
+  }
+}
+
+async function handleTwigEnterBetweenTags(
+  event: vscode.TextDocumentChangeEvent,
+  editor: vscode.TextEditor,
+  change: vscode.TextDocumentContentChangeEvent,
+  setApplyingEdit: (value: boolean) => void
+): Promise<void> {
+  const cursor = editor.selection.active;
+  if (cursor.line === 0) {
+    return;
+  }
+
+  const previousLine = event.document.lineAt(cursor.line - 1).text;
+  const currentLine = event.document.lineAt(cursor.line).text;
+  const enterEdit = getTwigEnterEdit(previousLine, currentLine, getIndentUnit(editor));
+  if (!enterEdit) {
+    return;
+  }
+
+  const currentLineRange = event.document.lineAt(cursor.line).range;
+  setApplyingEdit(true);
+
+  try {
+    const applied = await editor.edit((editBuilder) => {
+      editBuilder.replace(currentLineRange, enterEdit.replacement);
+    });
+
+    if (!applied) {
+      return;
+    }
+
+    const targetPosition = new vscode.Position(cursor.line, enterEdit.cursorColumn);
+    editor.selection = new vscode.Selection(targetPosition, targetPosition);
+  } finally {
+    setApplyingEdit(false);
+  }
+}
+
+function getIndentUnit(editor: vscode.TextEditor): string {
+  const insertSpaces = editor.options.insertSpaces;
+  const tabSize = Number(editor.options.tabSize) || 4;
+
+  if (insertSpaces === false) {
+    return "\t";
+  }
+
+  return " ".repeat(tabSize);
+}
+
+function getTwigAutoCloseStartOffset(
+  document: vscode.TextDocument,
+  change: vscode.TextDocumentContentChangeEvent
+): number | null {
+  const previousCharacter =
+    change.rangeOffset > 0
+      ? document.getText(
+          new vscode.Range(
+            document.positionAt(change.rangeOffset - 1),
+            document.positionAt(change.rangeOffset)
+          )
+        )
+      : "";
+  const backtrack = getTwigAutoCloseBacktrack(change.text, previousCharacter);
+
+  if (backtrack !== null) {
+    return change.rangeOffset + backtrack;
+  }
+
+  if (change.text.length !== 1 || change.rangeOffset === 0) {
+    return null;
+  }
+
+  const openingPair = document.getText(
+    new vscode.Range(
+      document.positionAt(change.rangeOffset - 1),
+      document.positionAt(Math.min(change.rangeOffset + 2, document.getText().length))
+    )
+  );
+
+  if (
+    openingPair.startsWith("{%") ||
+    openingPair.startsWith("{{") ||
+    openingPair.startsWith("{#")
+  ) {
+    return change.rangeOffset - 1;
+  }
+
+  return null;
+}

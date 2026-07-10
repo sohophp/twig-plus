@@ -1,0 +1,19 @@
+{% extends 'layout.twig' %}
+
+{% block main %}
+  <main class="content">
+    {% include 'banner.twig' %}
+    <div class="page">
+      <div class="path path01 sx15 st10 lx20 lt15">
+        <ul class="row fai-c fs1214 color1">
+          <li><a href="{{ path('/') }}" title="{{ __('Home') }}">{{ __('Home') }}</a></li>
+          <li>
+            <a href="{{ path('about') }}" title="{{ __('About', 'About') }}">{{ __('About', 'About') }}</a>
+          </li>
+          <li>{{ title }}</li>
+        </ul>
+      </div>
+      <div class="editor">{{ content.content|raw }}</div>
+    </div>
+  </main>
+{% endblock %}
