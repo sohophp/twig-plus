@@ -32,6 +32,7 @@ const fixtureNames = [
   "real-page-empty-elseif",
   "real-page-script-mixed",
   "real-page-style-mixed",
+  "phpstorm-like-mixed-page",
   "real-page-blank-lines"
 ];
 

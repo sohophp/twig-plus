@@ -1,7 +1,16 @@
 {% extends 'base.html.twig' %}
+{% import 'macros/forms.html.twig' as forms %}
+{% from 'macros/forms.html.twig' import button %}
 
 {% block content %}
   <section>
     {{ message }}
+    {% include 'partials/card.html.twig' %}
+    {% embed 'partials/panel.html.twig' %}
+      {% block body %}
+        {{ forms.input('email') }}
+        {{ button('Save') }}
+      {% endblock %}
+    {% endembed %}
   </section>
 {% endblock %}

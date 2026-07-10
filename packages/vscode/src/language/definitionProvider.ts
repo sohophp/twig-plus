@@ -6,7 +6,7 @@ import {
   collectTwigStructureSymbols,
   getBlockReferenceAtOffset,
   getTwigMacroReferenceAtOffset,
-  getTemplateReferenceMatch,
+  getTemplateReferenceAtOffset,
   getExtendsTemplateReference,
   resolveTemplateWorkspacePath
 } from "@twig-plus/parser";
@@ -26,11 +26,12 @@ export function registerTwigDefinitionProvider(
         return blockDefinition;
       }
 
-      const line = document.lineAt(position.line).text;
-      const linePrefix = line.slice(0, position.character);
-      const match = getTemplateReferenceMatch(linePrefix);
+      const match = getTemplateReferenceAtOffset(
+        document.getText(),
+        document.offsetAt(position)
+      );
 
-      if (!match || !isInsideTemplateReference(line, position.character, match.prefix)) {
+      if (!match) {
         return null;
       }
 
@@ -53,7 +54,7 @@ export function registerTwigDefinitionProvider(
 
       const resolvedWorkspacePath = resolveTemplateWorkspacePath(
         relativePaths,
-        match.prefix,
+        match.referencePath,
         currentWorkspacePath
       );
 
@@ -69,20 +70,6 @@ export function registerTwigDefinitionProvider(
   context.subscriptions.push(
     vscode.languages.registerDefinitionProvider({ language: "twig" }, provider)
   );
-}
-
-function isInsideTemplateReference(
-  line: string,
-  character: number,
-  prefix: string
-): boolean {
-  const prefixStart = character - prefix.length;
-  if (prefixStart < 0) {
-    return false;
-  }
-
-  const suffix = line.slice(character);
-  return /^[^'"]*['"]/.test(suffix) || suffix.length === 0;
 }
 
 async function provideBlockDefinition(

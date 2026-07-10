@@ -5,6 +5,14 @@ export interface TemplateReferenceMatch {
   startOffset: number;
 }
 
+export interface TemplateReferenceAtOffset {
+  directive: TemplateReferenceMatch["directive"];
+  quote: "'" | "\"";
+  referencePath: string;
+  referenceStart: number;
+  referenceEnd: number;
+}
+
 export type TemplateReferenceStyle = "relative" | "bundle";
 
 const TEMPLATE_ROOT_PATTERNS = [
@@ -32,6 +40,36 @@ export function getTemplateReferenceMatch(
     prefix,
     startOffset: linePrefix.length - prefix.length
   };
+}
+
+export function getTemplateReferenceAtOffset(
+  source: string,
+  offset: number
+): TemplateReferenceAtOffset | null {
+  const referencePattern =
+    /\{%\s*(extends|include|embed|import|from)\s+(['"])([^'"]+)\2/gi;
+
+  for (const match of source.matchAll(referencePattern)) {
+    const matchStart = match.index ?? 0;
+    const [, directive, quote, referencePath] = match;
+    const referenceStart =
+      matchStart + match[0].length - referencePath.length - 1;
+    const referenceEnd = referenceStart + referencePath.length;
+
+    if (offset < referenceStart || offset > referenceEnd) {
+      continue;
+    }
+
+    return {
+      directive: directive.toLowerCase() as TemplateReferenceMatch["directive"],
+      quote: quote as "'" | "\"",
+      referencePath,
+      referenceStart,
+      referenceEnd
+    };
+  }
+
+  return null;
 }
 
 export function mapWorkspaceTemplateToReference(workspacePath: string): string {

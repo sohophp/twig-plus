@@ -2,7 +2,7 @@
   "name": "twig-plus",
   "displayName": "TwigPlus",
   "description": "Twig formatter and editor tooling for VSCode.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "sohophp",
   "license": "MIT",
   "icon": "assets/logo.png",
@@ -30,7 +30,8 @@
     "Snippets"
   ],
   "activationEvents": [
-    "onLanguage:twig"
+    "onLanguage:twig",
+    "onCommand:twigPlus.applyRecommendedSettings"
   ],
   "main": "./dist/extension.js",
   "dependencies": {
@@ -65,6 +66,13 @@
       {
         "language": "twig",
         "path": "./snippets/twig.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "twigPlus.applyRecommendedSettings",
+        "title": "TwigPlus: Apply Recommended Twig Settings",
+        "category": "TwigPlus"
       }
     ],
     "configuration": {
@@ -142,9 +150,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run test",
+    "vscode:test": "npm run build && node ./test/extension/runTest.js",
     "prepare-release": "node ./scripts/prepare-release.js",
     "vscode:prepublish": "npm run prepare-release",
-    "package:vsix": "npm run prepare-release && npx @vscode/vsce package --no-dependencies",
-    "publish:marketplace": "npm run prepare-release && npx @vscode/vsce publish --no-dependencies"
+    "vsce:ls": "npx @vscode/vsce ls --tree",
+    "package:vsix": "npx @vscode/vsce package --no-dependencies",
+    "publish:marketplace": "npx @vscode/vsce publish --no-dependencies"
   }
 }

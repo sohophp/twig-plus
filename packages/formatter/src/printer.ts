@@ -411,7 +411,7 @@ function shouldBreakAfterInlineTwigDirective(content: string): boolean {
 }
 
 function shouldSplitAfterOpeningTag(trailing: string): boolean {
-  if (/^</.test(trailing)) {
+  if (/^<(?!\/)/.test(trailing)) {
     return true;
   }
 
@@ -422,7 +422,17 @@ function shouldSplitAfterOpeningTag(trailing: string): boolean {
 
   const [, twigTag, remainder] = twigTagMatch;
   const content = getStandaloneTwigTagContent(twigTag);
-  return Boolean(content && shouldBreakAfterInlineTwigDirective(content) && /^</.test(remainder));
+  if (!content || !/^<(?!\/)/.test(remainder)) {
+    return false;
+  }
+
+  const tagKind = getTwigTagKind(content);
+  return (
+    tagKind === "opening" ||
+    tagKind === "middle" ||
+    tagKind === "closing" ||
+    shouldBreakAfterInlineTwigDirective(content)
+  );
 }
 
 function getNextEmbeddedBlockState(
@@ -460,9 +470,45 @@ function parseHtmlOpeningTag(line: string): {
   attributes: string[];
   selfClosing: boolean;
 } | null {
-  const match = line.match(/^<([A-Za-z][\w:-]*)([\s\S]*?)(\/?)>$/);
+  if (!line.startsWith("<") || line.startsWith("</")) {
+    return null;
+  }
 
-  if (!match || /^<\//.test(line) || /<\/[A-Za-z][\w:-]*>\s*$/.test(line)) {
+  let quote: "\"" | "'" | null = null;
+  let endIndex = -1;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "\"" || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char === ">") {
+      endIndex = index;
+      break;
+    }
+  }
+
+  if (endIndex === -1 || endIndex !== line.length - 1) {
+    return null;
+  }
+
+  const openingTag = line.slice(0, endIndex + 1);
+  if (/<\/[A-Za-z][\w:-]*>\s*$/.test(openingTag)) {
+    return null;
+  }
+
+  const match = openingTag.match(/^<([A-Za-z][\w:-]*)([\s\S]*?)(\/?)>$/);
+  if (!match) {
     return null;
   }
 

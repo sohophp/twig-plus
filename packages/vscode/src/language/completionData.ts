@@ -121,6 +121,13 @@ export const TAG_COMPLETIONS: StaticCompletionEntry[] = [
     documentation: "Insert an import tag.",
     insertText: "import '${1:macros.html.twig}' as ${2:macros}",
     priority: 65
+  },
+  {
+    label: "from",
+    detail: "Twig tag",
+    documentation: "Insert a from/import tag.",
+    insertText: "from '${1:macros.html.twig}' import ${2:macro}",
+    priority: 64
   }
 ];
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1
+
+- Added PHPStorm-like HTML attribute quote typing: `<a href=` becomes `<a href="">` with the cursor inside the quotes.
+- Added a workspace command: `TwigPlus: Apply Recommended Twig Settings`.
+- Documented all TwigPlus configuration keys, default values, recommended formatter settings, and extension interop notes in English and Chinese.
+- Expanded real Extension Host typing coverage for Twig delimiters, Twig expression pairs, HTML tags, and HTML attribute quotes.
+
 ## 1.0.0
 
 - Added Twig + HTML mixed formatting with embedded CSS and JavaScript formatting.

@@ -17,6 +17,7 @@ function prepareReleasePackage() {
 
   copyWorkspacePackage("parser");
   copyWorkspacePackage("formatter");
+  copyExternalPackage("prettier");
 }
 
 function copyWorkspacePackage(packageName) {
@@ -47,6 +48,24 @@ function copyWorkspacePackage(packageName) {
     path.join(targetRoot, "package.json"),
     `${JSON.stringify(publishedPackageJson, null, 2)}\n`
   );
+}
+
+function copyExternalPackage(packageName) {
+  const sourceRoot = path.join(workspaceRoot, "node_modules", packageName);
+  const targetRoot = path.join(packageNodeModulesRoot, packageName);
+
+  if (!fs.existsSync(sourceRoot)) {
+    throw new Error(
+      `Missing runtime dependency ${packageName}. Run npm install before packaging the VSCode extension.`
+    );
+  }
+
+  fs.cpSync(sourceRoot, targetRoot, {
+    recursive: true,
+    filter: (sourcePath) =>
+      !sourcePath.includes(`${path.sep}.cache${path.sep}`) &&
+      !sourcePath.endsWith(`${path.sep}.DS_Store`)
+  });
 }
 
 function ensureBuiltPackage(distPath, packageName) {

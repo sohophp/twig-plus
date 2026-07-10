@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectTemplateReferenceAliases,
   collectTemplateCompletionCandidates,
+  getTemplateReferenceAtOffset,
   getTemplateReferenceMatch,
   mapWorkspaceTemplateToReference,
   resolveTemplateWorkspacePath
@@ -29,6 +30,43 @@ describe("getTemplateReferenceMatch", () => {
 
   it("returns null outside supported template reference directives", () => {
     expect(getTemplateReferenceMatch("{{ include('partials/header.html.twig')")).toBeNull();
+  });
+});
+
+describe("getTemplateReferenceAtOffset", () => {
+  it("detects the full reference when the cursor is in the middle of the string", () => {
+    const source = "{% include 'partials/card.html.twig' %}";
+    const offset = source.indexOf("card") + 1;
+
+    expect(getTemplateReferenceAtOffset(source, offset)).toEqual({
+      directive: "include",
+      quote: "'",
+      referencePath: "partials/card.html.twig",
+      referenceStart: source.indexOf("partials"),
+      referenceEnd: source.indexOf("' %}")
+    });
+  });
+
+  it("detects extends, embed, import, and from references", () => {
+    for (const directive of ["extends", "embed", "import", "from"] as const) {
+      const source = `{% ${directive} "shared/${directive}.html.twig" %}`;
+      const referenceStart = source.indexOf("shared");
+      const referenceEnd = source.indexOf('" %}');
+
+      expect(getTemplateReferenceAtOffset(source, referenceStart)).toEqual({
+        directive,
+        quote: "\"",
+        referencePath: `shared/${directive}.html.twig`,
+        referenceStart,
+        referenceEnd
+      });
+    }
+  });
+
+  it("returns null when the cursor is outside the template string", () => {
+    const source = "{% include 'partials/card.html.twig' %}";
+
+    expect(getTemplateReferenceAtOffset(source, source.indexOf("include"))).toBeNull();
   });
 });
 
@@ -125,6 +163,33 @@ describe("template completion candidate helpers", () => {
     ).toBe("templates/about/banner.twig");
   });
 
+  it("resolves explicit dot-relative template references from the current file", () => {
+    expect(
+      resolveTemplateWorkspacePath(
+        [
+          "templates/about/index.twig",
+          "templates/about/hero.twig",
+          "templates/shared/hero.twig"
+        ],
+        "./hero.twig",
+        "templates/about/index.twig"
+      )
+    ).toBe("templates/about/hero.twig");
+  });
+
+  it("resolves parent-directory template references from the current file", () => {
+    expect(
+      resolveTemplateWorkspacePath(
+        [
+          "templates/page/home.twig",
+          "templates/shared/card.twig"
+        ],
+        "../shared/card.twig",
+        "templates/page/home.twig"
+      )
+    ).toBe("templates/shared/card.twig");
+  });
+
   it("suggests same-directory bare filenames for local includes", () => {
     expect(
       collectTemplateCompletionCandidates(
@@ -137,6 +202,19 @@ describe("template completion candidate helpers", () => {
         "templates/about/index.twig"
       )
     ).toContain("banner.twig");
+  });
+
+  it("suggests relative paths only when the prefix is explicitly relative", () => {
+    expect(
+      collectTemplateCompletionCandidates(
+        [
+          "templates/page/home.twig",
+          "templates/shared/card.twig"
+        ],
+        "../",
+        "templates/page/home.twig"
+      )
+    ).toEqual(["../shared/card.twig"]);
   });
 
   it("resolves bundle-style references back to bundle templates", () => {
