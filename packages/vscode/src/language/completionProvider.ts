@@ -15,9 +15,14 @@ import {
 import { buildTwigTagInsertText } from "./snippetBuilder";
 import {
   collectTemplateCompletionCandidates,
+  getTwigTokenContextAtOffset,
   getTwigCompletionContext,
   getTemplateReferenceMatch
 } from "@twig-plus/parser";
+import {
+  findTwigWorkspacePaths,
+  getConfiguredTemplateRoots
+} from "./templateConfig";
 
 export function registerTwigCompletionProvider(
   context: vscode.ExtensionContext
@@ -31,9 +36,13 @@ export function registerTwigCompletionProvider(
         return buildTemplateCompletionItems(document, position, templateMatch);
       }
 
+      const tokenContext = getTwigTokenContextAtOffset(
+        document.getText(),
+        document.offsetAt(position)
+      );
       const match = getTwigCompletionMatch(linePrefix);
 
-      if (!match.kind) {
+      if (!match.kind || shouldSuppressCompletionForContext(match, tokenContext)) {
         return [];
       }
 
@@ -54,6 +63,25 @@ export function registerTwigCompletionProvider(
       "/"
     )
   );
+}
+
+function shouldSuppressCompletionForContext(
+  match: TwigCompletionMatch,
+  context: ReturnType<typeof getTwigTokenContextAtOffset>
+): boolean {
+  if (context.kind === "comment" || context.stringLike || context.hashKeyLike) {
+    return true;
+  }
+
+  if (context.kind === "tag") {
+    return match.kind !== "tag";
+  }
+
+  if (context.kind === "output") {
+    return match.kind === "tag";
+  }
+
+  return true;
 }
 function buildCompletionItems(
   document: vscode.TextDocument,
@@ -270,22 +298,17 @@ async function buildTemplateCompletionItems(
     return [];
   }
 
-  const uris = await vscode.workspace.findFiles(
-    new vscode.RelativePattern(workspaceFolder, "**/*.twig"),
-    "**/{node_modules,dist,coverage}/**"
-  );
-
-  const relativePaths = uris.map((uri) =>
-    vscode.workspace.asRelativePath(uri, false).replace(/\\/g, "/")
-  );
+  const relativePaths = await findTwigWorkspacePaths(workspaceFolder);
   const currentWorkspacePath = vscode.workspace
     .asRelativePath(document.uri, false)
     .replace(/\\/g, "/");
+  const templateRoots = getConfiguredTemplateRoots();
 
   const candidates = collectTemplateCompletionCandidates(
     relativePaths,
     match.prefix,
-    currentWorkspacePath
+    currentWorkspacePath,
+    templateRoots
   );
 
   const prefixStart = position.character - match.prefix.length;

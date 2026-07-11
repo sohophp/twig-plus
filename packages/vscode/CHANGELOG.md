@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.4
+
+- Improved messy Twig/HTML formatting with pre-format normalization for broken Twig tokens, HTML tag boundaries, attribute assignment spacing, boolean attributes, self-closing tags, and adjacent HTML child nodes.
+- Added safer Twig expression spacing for common filters, dot access, function calls, and multiline output filters.
+- Added configurable Twig template roots for completion, diagnostics, and Go to Definition via `twigPlus.templates.roots`.
+- Improved template diagnostics and quick fixes for missing templates.
+- Reduced noisy TwigPlus completions in string and hash-key contexts inside Twig output expressions.
+
 ## 1.0.3
 
 - Fixed the release package layout so TwigPlus loads Prettier from `dist/node_modules/prettier` instead of bundling Prettier ESM code into the extension entrypoint.

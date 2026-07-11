@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+import { registerTwigCodeActionProvider } from "./diagnostics/codeActionProvider";
 import { registerTwigDiagnosticProvider } from "./diagnostics/diagnosticProvider";
 import { formatTwig, type FormatterOptions } from "@twig-plus/formatter";
 import { registerTwigCompletionProvider } from "./language/completionProvider";
@@ -16,6 +17,7 @@ import {
   getTwigExpressionPairAutoCloseEdit,
   getTwigSpacingEdit
 } from "./language/autoClose";
+import { getConfiguredTemplateRoots } from "./language/templateConfig";
 
 export function activate(context: vscode.ExtensionContext): void {
   registerRecommendedSettingsCommand(context);
@@ -81,6 +83,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerTwigDocumentSymbolProvider(context);
   registerTwigSelectionRangeProvider(context);
   registerTwigDiagnosticProvider(context);
+  registerTwigCodeActionProvider(context);
 }
 
 export function deactivate(): void {}
@@ -129,6 +132,7 @@ async function showTwigPlusStatus(context: vscode.ExtensionContext): Promise<voi
   const twigLanguageSettings = config.get<Record<string, unknown>>("[twig]") ?? {};
   const formatConfig = vscode.workspace.getConfiguration("twigPlus.format");
   const completionConfig = vscode.workspace.getConfiguration("twigPlus.completion");
+  const templateRoots = getConfiguredTemplateRoots();
   const document = editor?.document;
   const fileName = document ? document.uri.fsPath || document.uri.toString() : "(no active editor)";
 
@@ -142,7 +146,8 @@ async function showTwigPlusStatus(context: vscode.ExtensionContext): Promise<voi
     `twigPlus.format.profile: ${String(formatConfig.get("profile", "phpstorm"))}`,
     `twigPlus.completion.autoInsertClosingTag: ${String(
       completionConfig.get("autoInsertClosingTag", false)
-    )}`
+    )}`,
+    `twigPlus.templates.roots: ${templateRoots.join(", ")}`
   ];
 
   const documentUri = await vscode.workspace.openTextDocument({

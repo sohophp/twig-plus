@@ -4,3 +4,4 @@ export * from "./blockAnalysis";
 export * from "./templateCompletion";
 export * from "./twigDiagnostics";
 export * from "./selectionRanges";
+export * from "./twigTokenContext";

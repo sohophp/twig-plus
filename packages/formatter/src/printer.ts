@@ -95,6 +95,15 @@ function renderLine(
     return splitHtml;
   }
 
+  const adjacentSiblings = maybeSplitAdjacentHtmlSiblingLine(
+    normalized,
+    indentLevel,
+    options
+  );
+  if (adjacentSiblings) {
+    return adjacentSiblings;
+  }
+
   const trailingClose = maybeSplitTrailingHtmlClosingTagLine(
     normalized,
     indentLevel,
@@ -124,7 +133,9 @@ function normalizeLine(line: string, options: FormatterOptions): string {
 }
 
 function collapseWhitespace(value: string): string {
-  return value.trim().replace(/\s+/g, " ").replace(/,\s*/g, ", ");
+  return normalizeTwigExpressionSpacing(
+    value.trim().replace(/\s+/g, " ").replace(/,\s*/g, ", ")
+  );
 }
 
 function getIndent(level: number, options: FormatterOptions): string {
@@ -338,6 +349,120 @@ function maybeSplitTrailingHtmlClosingTagLine(
   ];
 }
 
+function maybeSplitAdjacentHtmlSiblingLine(
+  line: string,
+  indentLevel: number,
+  options: FormatterOptions
+): string[] | null {
+  const parsed = parseAdjacentHtmlSiblingLine(line);
+  if (!parsed || parsed.nodes.length < 2) {
+    return null;
+  }
+
+  const lines = parsed.nodes.flatMap((node) =>
+    renderStandaloneNormalizedLine(node, indentLevel, options)
+  );
+
+  for (const closingTag of parsed.trailingClosingTags) {
+    lines.push(`${getIndent(Math.max(0, indentLevel - 1), options)}${closingTag}`);
+  }
+
+  return lines;
+}
+
+function parseAdjacentHtmlSiblingLine(
+  line: string
+): { nodes: string[]; trailingClosingTags: string[] } | null {
+  const nodes: string[] = [];
+  let index = 0;
+
+  while (index < line.length) {
+    const remaining = line.slice(index).trimStart();
+    index = line.length - remaining.length;
+
+    if (!remaining.startsWith("<") || remaining.startsWith("</")) {
+      break;
+    }
+
+    const nodeEnd = findTopLevelHtmlNodeEnd(line, index);
+    if (nodeEnd === -1) {
+      break;
+    }
+
+    nodes.push(line.slice(index, nodeEnd + 1));
+    index = nodeEnd + 1;
+  }
+
+  const trailing = line.slice(index).trim();
+  const trailingClosingTags =
+    trailing.match(/^(<\/[A-Za-z][\w:-]*>)+$/)?.[0].match(/<\/[A-Za-z][\w:-]*>/g) ??
+    [];
+
+  if (trailing && trailingClosingTags.length === 0) {
+    return null;
+  }
+
+  return {
+    nodes,
+    trailingClosingTags
+  };
+}
+
+function findTopLevelHtmlNodeEnd(line: string, startIndex: number): number {
+  const firstTagEnd = findHtmlTagEnd(line, startIndex);
+  if (firstTagEnd === -1) {
+    return -1;
+  }
+
+  const firstTag = line.slice(startIndex, firstTagEnd + 1);
+  const firstTagName = firstTag.match(/^<([A-Za-z][\w:-]*)/)?.[1]?.toLowerCase();
+  if (!firstTagName) {
+    return -1;
+  }
+
+  if (isSelfClosingTag(firstTag)) {
+    return firstTagEnd;
+  }
+
+  const stack = [firstTagName];
+  let index = firstTagEnd + 1;
+
+  while (index < line.length) {
+    const nextTagStart = line.indexOf("<", index);
+    if (nextTagStart === -1) {
+      return -1;
+    }
+
+    const nextTagEnd = findHtmlTagEnd(line, nextTagStart);
+    if (nextTagEnd === -1) {
+      return -1;
+    }
+
+    const tag = line.slice(nextTagStart, nextTagEnd + 1);
+    const tagName = tag.match(/^<\/?\s*([A-Za-z][\w:-]*)/)?.[1]?.toLowerCase();
+    if (!tagName) {
+      index = nextTagEnd + 1;
+      continue;
+    }
+
+    if (tag.startsWith("</")) {
+      if (stack.pop() !== tagName) {
+        return -1;
+      }
+
+      if (stack.length === 0) {
+        return nextTagEnd;
+      }
+    } else if (!isSelfClosingTag(tag)) {
+      stack.push(tagName);
+    }
+
+    index = nextTagEnd + 1;
+  }
+
+  return -1;
+}
+
 function renderStandaloneNormalizedLine(
   line: string,
   indentLevel: number,
@@ -370,6 +495,15 @@ function renderStandaloneNormalizedLine(
   const splitHtml = maybeSplitLeadingHtmlTagLine(line, indentLevel, options);
   if (splitHtml) {
     return splitHtml;
+  }
+
+  const adjacentSiblings = maybeSplitAdjacentHtmlSiblingLine(
+    line,
+    indentLevel,
+    options
+  );
+  if (adjacentSiblings) {
+    return adjacentSiblings;
   }
 
   const trailingClose = maybeSplitTrailingHtmlClosingTagLine(
@@ -571,9 +705,19 @@ function parseLeadingHtmlOpenTag(line: string): {
 }
 
 function isSingleChildHtmlWrapperLine(line: string): boolean {
-  return /^<([A-Za-z][\w:-]*)(?:"[^"]*"|'[^']*'|[^'"<>])*?>\s*<([A-Za-z][\w:-]*)(?:"[^"]*"|'[^']*'|[^'"<>])*?>[\s\S]*<\/\2>\s*<\/\1>$/.test(
-    line
+  const match = line.match(
+    /^<([A-Za-z][\w:-]*)(?:"[^"]*"|'[^']*'|[^'"<>])*?>\s*([\s\S]*)\s*<\/\1>$/
   );
+  if (!match) {
+    return false;
+  }
+
+  const [, , innerContent] = match;
+  if (innerContent.includes("{%") || !isBalancedHtmlFragment(innerContent)) {
+    return false;
+  }
+
+  return countTopLevelHtmlChildElements(innerContent) === 1;
 }
 
 function normalizeSingleChildHtmlWrapperLine(line: string): string | null {
@@ -591,6 +735,32 @@ function isSelfClosingTag(tag: string): boolean {
       tag
     )
   );
+}
+
+function findHtmlTagEnd(line: string, startIndex: number): number {
+  let quote: "\"" | "'" | null = null;
+
+  for (let index = startIndex; index < line.length; index += 1) {
+    const char = line[index];
+
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "\"" || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char === ">") {
+      return index;
+    }
+  }
+
+  return -1;
 }
 
 function splitAttributes(source: string): string[] {
@@ -635,4 +805,150 @@ function splitAttributes(source: string): string[] {
   }
 
   return attributes.filter(Boolean);
+}
+
+function normalizeTwigExpressionSpacing(value: string): string {
+  return mapUnquotedTwigExpressionParts(value, (part) =>
+    part
+      .replace(/\s*\|\s*/g, "|")
+      .replace(/\s*\.\s*/g, ".")
+      .replace(/\b([A-Za-z_][A-Za-z0-9_]*)\s+\(/g, "$1(")
+      .replace(/\(\s+/g, "(")
+      .replace(/\s+\)/g, ")")
+  );
+}
+
+function mapUnquotedTwigExpressionParts(
+  value: string,
+  normalize: (part: string) => string
+): string {
+  let result = "";
+  let current = "";
+  let quote: "\"" | "'" | null = null;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+
+    if (quote) {
+      current += char;
+      if (char === "\\" && index + 1 < value.length) {
+        index += 1;
+        current += value[index];
+        continue;
+      }
+
+      if (char === quote) {
+        result += current;
+        current = "";
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "\"" || char === "'") {
+      result += normalize(current);
+      current = char;
+      quote = char;
+      continue;
+    }
+
+    current += char;
+  }
+
+  return result + (quote ? current : normalize(current));
+}
+
+function countTopLevelHtmlChildElements(source: string): number {
+  let count = 0;
+  let depth = 0;
+  let quote: "\"" | "'" | null = null;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "\"" || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char !== "<" || source[index + 1] === "!" || source[index + 1] === "?") {
+      continue;
+    }
+
+    if (source[index + 1] === "/") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+
+    if (!/[A-Za-z]/.test(source[index + 1] ?? "")) {
+      continue;
+    }
+
+    if (depth === 0) {
+      count += 1;
+    }
+
+    const closeIndex = source.indexOf(">", index + 1);
+    const tag = closeIndex === -1 ? "" : source.slice(index, closeIndex + 1);
+    if (!isSelfClosingTag(tag)) {
+      depth += 1;
+    }
+  }
+
+  return count;
+}
+
+function isBalancedHtmlFragment(source: string): boolean {
+  const stack: string[] = [];
+  let quote: "\"" | "'" | null = null;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "\"" || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char !== "<" || source[index + 1] === "!" || source[index + 1] === "?") {
+      continue;
+    }
+
+    const closeIndex = source.indexOf(">", index + 1);
+    if (closeIndex === -1) {
+      return false;
+    }
+
+    const tag = source.slice(index, closeIndex + 1);
+    const tagName = tag.match(/^<\/?\s*([A-Za-z][\w:-]*)/)?.[1]?.toLowerCase();
+    if (!tagName) {
+      continue;
+    }
+
+    if (tag.startsWith("</")) {
+      if (stack.pop() !== tagName) {
+        return false;
+      }
+    } else if (!isSelfClosingTag(tag)) {
+      stack.push(tagName);
+    }
+
+    index = closeIndex;
+  }
+
+  return stack.length === 0;
 }

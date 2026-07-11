@@ -47,6 +47,21 @@ describe("getTemplateReferenceAtOffset", () => {
     });
   });
 
+  it("detects references from the opening quote through the filename boundary", () => {
+    const source = "{% extends 'layout.twig' %}";
+    const referenceStart = source.indexOf("layout.twig");
+    const referenceEnd = referenceStart + "layout.twig".length;
+
+    for (const offset of [referenceStart - 1, referenceStart, referenceEnd - 1, referenceEnd]) {
+      expect(getTemplateReferenceAtOffset(source, offset)).toEqual(
+        expect.objectContaining({
+          directive: "extends",
+          referencePath: "layout.twig"
+        })
+      );
+    }
+  });
+
   it("detects extends, embed, import, and from references", () => {
     for (const directive of ["extends", "embed", "import", "from"] as const) {
       const source = `{% ${directive} "shared/${directive}.html.twig" %}`;
@@ -234,5 +249,33 @@ describe("template completion candidate helpers", () => {
         "BlogBundle::layout.html.twig"
       )
     ).toBe("src/BlogBundle/Resources/views/layout.html.twig");
+  });
+
+  it("resolves templates from custom template roots", () => {
+    expect(
+      resolveTemplateWorkspacePath(
+        [
+          "resources/views/layout.twig",
+          "templates/layout.twig"
+        ],
+        "layout.twig",
+        "resources/views/page/home.twig",
+        ["resources/views"]
+      )
+    ).toBe("resources/views/layout.twig");
+  });
+
+  it("prefers same-directory bare references before root-level matches", () => {
+    expect(
+      resolveTemplateWorkspacePath(
+        [
+          "templates/layout.twig",
+          "templates/about/index.twig",
+          "templates/about/layout.twig"
+        ],
+        "layout.twig",
+        "templates/about/index.twig"
+      )
+    ).toBe("templates/about/layout.twig");
   });
 });

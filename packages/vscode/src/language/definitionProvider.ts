@@ -10,6 +10,10 @@ import {
   getExtendsTemplateReference,
   resolveTemplateWorkspacePath
 } from "@twig-plus/parser";
+import {
+  findTwigWorkspacePaths,
+  getConfiguredTemplateRoots
+} from "./templateConfig";
 
 export function registerTwigDefinitionProvider(
   context: vscode.ExtensionContext
@@ -40,22 +44,17 @@ export function registerTwigDefinitionProvider(
         return null;
       }
 
-      const uris = await vscode.workspace.findFiles(
-        new vscode.RelativePattern(workspaceFolder, "**/*.twig"),
-        "**/{node_modules,dist,coverage}/**"
-      );
-
-      const relativePaths = uris.map((uri) =>
-        vscode.workspace.asRelativePath(uri, false).replace(/\\/g, "/")
-      );
+      const relativePaths = await findTwigWorkspacePaths(workspaceFolder);
       const currentWorkspacePath = vscode.workspace
         .asRelativePath(document.uri, false)
         .replace(/\\/g, "/");
+      const templateRoots = getConfiguredTemplateRoots();
 
       const resolvedWorkspacePath = resolveTemplateWorkspacePath(
         relativePaths,
         match.referencePath,
-        currentWorkspacePath
+        currentWorkspacePath,
+        templateRoots
       );
 
       if (!resolvedWorkspacePath) {
@@ -110,21 +109,17 @@ async function provideBlockDefinition(
     return null;
   }
 
-  const uris = await vscode.workspace.findFiles(
-    new vscode.RelativePattern(workspaceFolder, "**/*.twig"),
-    "**/{node_modules,dist,coverage}/**"
-  );
-  const relativePaths = uris.map((uri) =>
-    vscode.workspace.asRelativePath(uri, false).replace(/\\/g, "/")
-  );
+  const relativePaths = await findTwigWorkspacePaths(workspaceFolder);
   const currentWorkspacePath = vscode.workspace
     .asRelativePath(document.uri, false)
     .replace(/\\/g, "/");
+  const templateRoots = getConfiguredTemplateRoots();
 
   const resolvedWorkspacePath = resolveTemplateWorkspacePath(
     relativePaths,
     parentReference,
-    currentWorkspacePath
+    currentWorkspacePath,
+    templateRoots
   );
 
   if (!resolvedWorkspacePath) {
@@ -206,21 +201,17 @@ async function resolveTemplateUri(
   document: vscode.TextDocument,
   referencePath: string
 ): Promise<vscode.Uri | null> {
-  const uris = await vscode.workspace.findFiles(
-    new vscode.RelativePattern(workspaceFolder, "**/*.twig"),
-    "**/{node_modules,dist,coverage}/**"
-  );
-  const relativePaths = uris.map((uri) =>
-    vscode.workspace.asRelativePath(uri, false).replace(/\\/g, "/")
-  );
+  const relativePaths = await findTwigWorkspacePaths(workspaceFolder);
   const currentWorkspacePath = vscode.workspace
     .asRelativePath(document.uri, false)
     .replace(/\\/g, "/");
+  const templateRoots = getConfiguredTemplateRoots();
 
   const resolvedWorkspacePath = resolveTemplateWorkspacePath(
     relativePaths,
     referencePath,
-    currentWorkspacePath
+    currentWorkspacePath,
+    templateRoots
   );
 
   if (!resolvedWorkspacePath) {

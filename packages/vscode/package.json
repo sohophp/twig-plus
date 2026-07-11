@@ -2,7 +2,7 @@
   "name": "twig-plus",
   "displayName": "TwigPlus",
   "description": "Twig formatter and editor tooling for VSCode.",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "publisher": "sohophp",
   "license": "MIT",
   "repository": {
@@ -140,6 +140,18 @@
           "type": "boolean",
           "default": false,
           "description": "When completing opening Twig control tags, also insert the matching closing tag snippet. Disabled by default to match PHPStorm."
+        },
+        "twigPlus.templates.roots": {
+          "type": "array",
+          "default": [
+            "templates",
+            "app/Resources/views",
+            "src/*/Resources/views"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Workspace-relative Twig template roots used for template completion, diagnostics, and Go to Definition. Use * for one path segment, for example src/*/Resources/views."
         }
       }
     },

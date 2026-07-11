@@ -55,6 +55,33 @@ describe("getTwigCompletionMatch", () => {
     });
   });
 
+  it("does not offer function or tag completions inside twig hash keys", () => {
+    expect(getTwigCompletionMatch(`{{ item.value|replace({b`)).toEqual({
+      kind: null,
+      prefix: "",
+      replaceStartOffset: 24,
+      preferClosing: false
+    });
+  });
+
+  it("does not offer function completions inside twig strings", () => {
+    expect(getTwigCompletionMatch(`{{ path('b`)).toEqual({
+      kind: null,
+      prefix: "",
+      replaceStartOffset: 10,
+      preferClosing: false
+    });
+  });
+
+  it("does not treat twig output identifiers as tag completions", () => {
+    expect(getTwigCompletionMatch(`{{ b`)).toEqual({
+      kind: "function",
+      prefix: "b",
+      replaceStartOffset: 3,
+      preferClosing: false
+    });
+  });
+
   it("returns null when not in a twig completion context", () => {
     expect(getTwigCompletionMatch("<div class=\"hero\">")).toEqual({
       kind: null,

@@ -110,4 +110,63 @@ describe("vscode integration helpers", () => {
       )
     ).toBe("templates/about/banner.twig");
   });
+
+  it("resolves extends references in the same directory and suppresses missing-template diagnostics", () => {
+    const workspacePaths = [
+      "templates/about/index.twig",
+      "templates/about/layout.twig",
+      "templates/layout.twig"
+    ];
+
+    expect(
+      resolveTemplatePathForIntegration(
+        workspacePaths,
+        "layout.twig",
+        "templates/about/index.twig"
+      )
+    ).toBe("templates/about/layout.twig");
+
+    expect(
+      getTwigDiagnosticsForIntegration(
+        "{% extends 'layout.twig' %}",
+        workspacePaths,
+        "templates/about/index.twig"
+      )
+    ).toEqual([]);
+  });
+
+  it("uses custom template roots consistently for completion, resolution, and diagnostics", () => {
+    const workspacePaths = [
+      "resources/views/layout.twig",
+      "resources/views/partials/card.twig"
+    ];
+    const templateRoots = ["resources/views"];
+
+    expect(
+      getTemplateCompletionsForIntegration(
+        workspacePaths,
+        "partials/",
+        "resources/views/page/home.twig",
+        templateRoots
+      )
+    ).toEqual(["partials/card.twig"]);
+
+    expect(
+      resolveTemplatePathForIntegration(
+        workspacePaths,
+        "layout.twig",
+        "resources/views/page/home.twig",
+        templateRoots
+      )
+    ).toBe("resources/views/layout.twig");
+
+    expect(
+      getTwigDiagnosticsForIntegration(
+        "{% extends 'layout.twig' %}",
+        workspacePaths,
+        "resources/views/page/home.twig",
+        templateRoots
+      )
+    ).toEqual([]);
+  });
 });
