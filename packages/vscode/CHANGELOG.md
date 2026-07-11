@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.5
+
+- Restored the Marketplace extension icon by declaring `assets/logo.png` in the VSCode package manifest and including it in the VSIX.
+
 ## 1.0.4
 
 - Improved messy Twig/HTML formatting with pre-format normalization for broken Twig tokens, HTML tag boundaries, attribute assignment spacing, boolean attributes, self-closing tags, and adjacent HTML child nodes.

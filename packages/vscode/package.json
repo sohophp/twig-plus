@@ -2,8 +2,9 @@
   "name": "twig-plus",
   "displayName": "TwigPlus",
   "description": "Twig formatter and editor tooling for VSCode.",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "publisher": "sohophp",
+  "icon": "assets/logo.png",
   "license": "MIT",
   "repository": {
     "type": "git",

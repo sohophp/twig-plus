@@ -1,5 +1,6 @@
 .vscode/**
 assets/**
+!assets/logo.png
 test/**
 src/**
 scripts/**
