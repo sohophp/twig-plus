@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high --registry=https://registry.npmjs.org
+      - run: npm test
+      - name: VSCode extension-host integration
+        run: xvfb-run -a npm run vscode:test --workspace packages/vscode
+      - name: Build release VSIX
+        run: npm run package:vsix --workspace packages/vscode
+      - name: Verify packaged language server
+        run: unzip -l packages/vscode/twig-plus-*.vsix | grep 'extension/dist/server.js'
+      - name: Packaged VSIX Extension Host integration
+        run: xvfb-run -a npm run vscode:test:packaged --workspace packages/vscode
+      - uses: actions/upload-artifact@v4
+        with:
+          name: twig-plus-vsix
+          path: packages/vscode/*.vsix
+          if-no-files-found: error

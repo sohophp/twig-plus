@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import {
+  CLOSING_TAG_COMPLETIONS,
   FILTER_COMPLETIONS,
   FUNCTION_COMPLETIONS,
   TAG_COMPLETIONS,
@@ -15,14 +16,18 @@ import {
 import { buildTwigTagInsertText } from "./snippetBuilder";
 import {
   collectTemplateCompletionCandidates,
-  getTwigTokenContextAtOffset,
-  getTwigCompletionContext,
+  getCompatibleContextAtOffset,
+  getCompatibleCompletionContext,
+  getHybridCompletionContext,
+  getHybridTokenContextAtOffset,
   getTemplateReferenceMatch
 } from "@twig-plus/parser";
 import {
   findTwigWorkspacePaths,
   getConfiguredTemplateRoots
 } from "./templateConfig";
+import { getCachedHybridDocument, getConfiguredParserEngine, getParserQueryOptions } from "./parserRuntime";
+import { TWIG_DOCUMENT_SELECTOR } from "./documentSelector";
 
 export function registerTwigCompletionProvider(
   context: vscode.ExtensionContext
@@ -36,10 +41,19 @@ export function registerTwigCompletionProvider(
         return buildTemplateCompletionItems(document, position, templateMatch);
       }
 
-      const tokenContext = getTwigTokenContextAtOffset(
-        document.getText(),
-        document.offsetAt(position)
+      const fullBlockSnippet = buildFullBlockSnippetCompletion(
+        document,
+        position,
+        linePrefix
       );
+      if (fullBlockSnippet) {
+        return [fullBlockSnippet];
+      }
+
+      const syntax = getConfiguredParserEngine() === "legacy" ? null : getCachedHybridDocument(document);
+      const tokenContext = syntax
+        ? getHybridTokenContextAtOffset(syntax, document.offsetAt(position))
+        : getCompatibleContextAtOffset(document.getText(), document.offsetAt(position), getParserQueryOptions(document));
       const match = getTwigCompletionMatch(linePrefix);
 
       if (!match.kind || shouldSuppressCompletionForContext(match, tokenContext)) {
@@ -52,7 +66,7 @@ export function registerTwigCompletionProvider(
 
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
-      { language: "twig" },
+      TWIG_DOCUMENT_SELECTOR,
       provider,
       "%",
       "{",
@@ -65,9 +79,51 @@ export function registerTwigCompletionProvider(
   );
 }
 
+function buildFullBlockSnippetCompletion(
+  document: vscode.TextDocument,
+  position: vscode.Position,
+  linePrefix: string
+): vscode.CompletionItem | null {
+  const match = linePrefix.match(/(?:^|\s)(twig-(?:b(?:l(?:o(?:c(?:k)?)?)?)?)?)$/i);
+  if (!match) {
+    return null;
+  }
+
+  const source = document.getText();
+  const offset = document.offsetAt(position);
+  if (
+    getCompatibleContextAtOffset(
+      source,
+      offset,
+      getParserQueryOptions(document)
+    ).kind !== "html"
+  ) {
+    return null;
+  }
+
+  const typedPrefix = match[1];
+  const item = new vscode.CompletionItem(
+    "twig-block",
+    vscode.CompletionItemKind.Snippet
+  );
+  item.detail = "Twig block snippet";
+  item.documentation = new vscode.MarkdownString(
+    "Insert a complete Twig block / endblock pair."
+  );
+  item.insertText = new vscode.SnippetString(
+    "{% block ${1:name} %}\n\t$0\n{% endblock %}"
+  );
+  item.range = new vscode.Range(
+    new vscode.Position(position.line, position.character - typedPrefix.length),
+    position
+  );
+  item.filterText = "twig-block";
+  return item;
+}
+
 function shouldSuppressCompletionForContext(
   match: TwigCompletionMatch,
-  context: ReturnType<typeof getTwigTokenContextAtOffset>
+  context: ReturnType<typeof getCompatibleContextAtOffset>
 ): boolean {
   if (context.kind === "comment" || context.stringLike || context.hashKeyLike) {
     return true;
@@ -163,10 +219,10 @@ function buildTagCompletionItems(
   range: vscode.Range,
   autoInsertClosingTag: boolean
 ): vscode.CompletionItem[] {
-  const completionContext = getTwigCompletionContext(
-    document.getText(),
-    document.offsetAt(position)
-  );
+  const syntax = getConfiguredParserEngine() === "legacy" ? null : getCachedHybridDocument(document);
+  const completionContext = syntax
+    ? getHybridCompletionContext(syntax, document.offsetAt(position))
+    : getCompatibleCompletionContext(document.getText(), document.offsetAt(position), getParserQueryOptions(document));
   const baseIndent = document.lineAt(position.line).text.match(/^\s*/)?.[0] ?? "";
   const indentUnit = getIndentUnit();
   const openingItems = sortCompletionEntries(TAG_COMPLETIONS, match.prefix)
@@ -219,8 +275,12 @@ function buildClosingTagCompletionItems(
   preferredClosingTags: string[]
 ): vscode.CompletionItem[] {
   const items: vscode.CompletionItem[] = [];
+  const closingTags = [
+    ...preferredClosingTags,
+    ...(match.prefix ? CLOSING_TAG_COMPLETIONS : [])
+  ].filter((tag, index, tags) => tags.indexOf(tag) === index);
 
-  for (const [index, closingTag] of preferredClosingTags.entries()) {
+  for (const [index, closingTag] of closingTags.entries()) {
     const normalizedPrefix = match.prefix.toLowerCase();
     if (
       normalizedPrefix &&

@@ -4,6 +4,7 @@ TwigPlus brings a PHPStorm-like Twig editing workflow to VSCode, focused on thre
 
 - mixed Twig / HTML / CSS / JavaScript formatting
 - Twig tag, filter, function, and template path completion
+- Standard HTML tag, attribute, and attribute-value completion across Twig attribute branches
 - `Go to Definition` for `extends`, `include`, `embed`, `import`, `from`, blocks, and macros
 
 The default behavior is intentionally conservative: TwigPlus should improve `.twig` and `.html.twig` editing without taking over unrelated PHP, JavaScript, CSS, or HTML files.
@@ -50,6 +51,8 @@ TwigPlus: Show Status
 - Resolves same-directory, `./`, `../`, and legacy bundle-style references such as `BlogBundle:post:show.html.twig`
 - Navigates template references used by `extends`, `include`, `embed`, `import`, and `from`
 - Navigates block and macro references when the target can be resolved precisely
+- Finds references and safely renames local variables and macros, including imported macro calls across templates
+- Uses a bundled Language Server Protocol implementation for editor-neutral semantic features
 - Provides PHPStorm-like typing helpers for Twig delimiters, Twig expression pairs, HTML closing tags, and HTML attribute quotes
 
 ## Configuration Reference
@@ -66,6 +69,9 @@ TwigPlus: Show Status
 | `twigPlus.format.preserveSingleLineBlocks` | boolean | `true` | Keeps simple single-line HTML blocks such as `<span>{{ value }}</span>` on one line. |
 | `twigPlus.format.lineBreakAfterTwigControlTag` | boolean | `true` | Breaks lines after Twig control tags like `block`, `if`, `else`, and `endblock` when markup or text follows on the same line. |
 | `twigPlus.completion.autoInsertClosingTag` | boolean | `false` | When completing opening Twig control tags, also inserts the matching closing tag snippet. Disabled by default to match PHPStorm-style completion. |
+| `twigPlus.parser.engine` | string | `hybrid` | Uses the lossless CST/AST engine with automatic legacy fallback; `legacy` and comparison-only `hybrid-shadow` remain available. |
+| `twigPlus.diagnostics.unresolvedNames` | boolean | `false` | Reports names not found in lexical scope. Enable after configuring application-provided globals. |
+| `twigPlus.diagnostics.globals` | string[] | `[]` | Names supplied by Symfony or the host application and excluded from unresolved-name diagnostics. |
 
 TwigPlus also contributes this language default:
 
@@ -85,6 +91,7 @@ TwigPlus does not require Prettier, PHP CS Fixer, PHP Intelephense, or GitHub Co
 - PHP CS Fixer affects PHP files, not TwigPlus formatting.
 - PHP Intelephense affects PHP language features, not TwigPlus Twig providers.
 - GitHub Copilot may add suggestions while typing, but it should not replace TwigPlus formatter, completion, or definition providers.
+- Use `TwigPlus: Select Parser Engine` to switch parser modes without editing workspace JSON manually.
 
 If another extension formats Twig files unexpectedly, set `editor.defaultFormatter` for `[twig]` to `sohophp.twig-plus`.
 

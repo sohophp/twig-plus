@@ -1,92 +1,43 @@
 import * as vscode from "vscode";
+import { getHtmlContextAtOffset } from "@twig-plus/parser";
 
 import { registerTwigCodeActionProvider } from "./diagnostics/codeActionProvider";
-import { registerTwigDiagnosticProvider } from "./diagnostics/diagnosticProvider";
-import { formatTwig, type FormatterOptions } from "@twig-plus/formatter";
 import { registerTwigCompletionProvider } from "./language/completionProvider";
-import { registerTwigDefinitionProvider } from "./language/definitionProvider";
-import { registerTwigDocumentSymbolProvider } from "./language/documentSymbolProvider";
-import { registerTwigSelectionRangeProvider } from "./language/selectionRangeProvider";
+import { registerHtmlCompletionProvider } from "./language/htmlCompletionProvider";
+import { getTwigLanguageClientStatus, startTwigLanguageClient, stopTwigLanguageClient } from "./language/languageClient";
+import { registerFallbackProviders } from "./language/fallbackProviders";
 import {
   getHtmlAttributeQuoteAutoCloseEdit,
   getHtmlAutoCloseTagEdit,
+  getEmbeddedBraceEnterEdit,
   getTwigAutoCloseEdit,
-  getTwigAutoCloseEditAtOffset,
   getTwigAutoCloseBacktrack,
   getTwigEnterEdit,
   getTwigExpressionPairAutoCloseEdit,
   getTwigSpacingEdit
 } from "./language/autoClose";
 import { getConfiguredTemplateRoots } from "./language/templateConfig";
+import { getCachedHybridDocument, getConfiguredParserEngine, registerHybridParserRuntime, reportRuntimeError } from "./language/parserRuntime";
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  registerHybridParserRuntime(context);
   registerRecommendedSettingsCommand(context);
   registerTwigTagAutoCloseHandler(context);
 
-  const provider: vscode.DocumentFormattingEditProvider = {
-    async provideDocumentFormattingEdits(document) {
-      const config = vscode.workspace.getConfiguration("twigPlus");
-      const enabled = config.get<boolean>("format.enable", true);
-
-      if (!enabled) {
-        return [];
-      }
-
-      const source = document.getText();
-      const options: FormatterOptions = {
-        profile: config.get<"phpstorm" | "compact">(
-          "format.profile",
-          "phpstorm"
-        ),
-        indentSize: config.get<number>("format.indentSize", 4),
-        printWidth: config.get<number>("format.printWidth", 100),
-        useTabs: config.get<boolean>("format.useTabs", false),
-        twigTagSpacing: config.get<boolean>("format.twigTagSpacing", true),
-        htmlAttributeWrap: config.get<"preserve" | "auto" | "force">(
-          "format.htmlAttributeWrap",
-          "auto"
-        ),
-        preserveSingleLineBlocks: config.get<boolean>(
-          "format.preserveSingleLineBlocks",
-          true
-        ),
-        lineBreakAfterTwigControlTag: config.get<boolean>(
-          "format.lineBreakAfterTwigControlTag",
-          true
-        )
-      };
-      const formatted = await formatTwig(source, options);
-
-      if (formatted === source) {
-        return [];
-      }
-
-      const lastLine = document.lineAt(document.lineCount - 1);
-      const range = new vscode.Range(
-        new vscode.Position(0, 0),
-        lastLine.range.end
-      );
-
-      return [vscode.TextEdit.replace(range, formatted)];
-    }
-  };
-
-  context.subscriptions.push(
-    vscode.languages.registerDocumentFormattingEditProvider(
-      { language: "twig" },
-      provider
-    )
-  );
-
   registerTwigCompletionProvider(context);
-  registerTwigDefinitionProvider(context);
-  registerTwigDocumentSymbolProvider(context);
-  registerTwigSelectionRangeProvider(context);
-  registerTwigDiagnosticProvider(context);
+  registerHtmlCompletionProvider(context);
   registerTwigCodeActionProvider(context);
+  try {
+    await startTwigLanguageClient(context);
+  } catch (error) {
+    console.error("[TwigPlus] language server failed to start; using local fallback providers:", error);
+    reportRuntimeError("Language server failed to start; local fallback providers are active", error);
+    registerFallbackProviders(context);
+    void vscode.window.showErrorMessage("TwigPlus language server failed to start. Local fallback features are active; see the TwigPlus output for details.");
+  }
 }
 
-export function deactivate(): void {}
+export async function deactivate(): Promise<void> { await stopTwigLanguageClient(); }
 
 function registerRecommendedSettingsCommand(
   context: vscode.ExtensionContext
@@ -101,8 +52,33 @@ function registerRecommendedSettingsCommand(
     }),
     vscode.commands.registerCommand("twigPlus.showStatus", async () => {
       await showTwigPlusStatus(context);
+    }),
+    vscode.commands.registerCommand("twigPlus.selectParserEngine", async () => {
+      await selectParserEngine();
     })
   );
+}
+
+async function selectParserEngine(): Promise<void> {
+  const current = getConfiguredParserEngine();
+  const choices = [
+    { label: "Legacy", description: "Compatibility parser", engine: "legacy" as const },
+    { label: "Hybrid Shadow", description: "Compare Hybrid CST while returning legacy results", engine: "hybrid-shadow" as const },
+    { label: "Hybrid", description: "Default lossless CST/AST engine with automatic legacy fallback", engine: "hybrid" as const }
+  ].map((choice) => ({ ...choice, picked: choice.engine === current }));
+  const selected = await vscode.window.showQuickPick(choices, {
+    title: "TwigPlus: Select Parser Engine",
+    placeHolder: `Current: ${current}`
+  });
+  if (!selected) return;
+  await vscode.workspace.getConfiguration("twigPlus.parser").update(
+    "engine",
+    selected.engine,
+    vscode.workspace.workspaceFolders?.length
+      ? vscode.ConfigurationTarget.Workspace
+      : vscode.ConfigurationTarget.Global
+  );
+  void vscode.window.showInformationMessage(`TwigPlus parser engine: ${selected.engine}`);
 }
 
 async function applyRecommendedSettings(): Promise<void> {
@@ -147,6 +123,8 @@ async function showTwigPlusStatus(context: vscode.ExtensionContext): Promise<voi
     `twigPlus.completion.autoInsertClosingTag: ${String(
       completionConfig.get("autoInsertClosingTag", false)
     )}`,
+    `twigPlus.parser.engine: ${getConfiguredParserEngine()}`,
+    `TwigPlus language server: ${getTwigLanguageClientStatus()}`,
     `twigPlus.templates.roots: ${templateRoots.join(", ")}`
   ];
 
@@ -162,7 +140,7 @@ function registerTwigTagAutoCloseHandler(
 ): void {
   let applyingEdit = false;
 
-  registerTwigTypeCommandHandler(context, () => applyingEdit, (value) => {
+  registerTwigDeleteCommand(context, (value) => {
     applyingEdit = value;
   });
 
@@ -177,59 +155,131 @@ function registerTwigTagAutoCloseHandler(
   );
 }
 
-function registerTwigTypeCommandHandler(
+function registerTwigDeleteCommand(
   context: vscode.ExtensionContext,
-  getApplyingEdit: () => boolean,
   setApplyingEdit: (value: boolean) => void
 ): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand("type", async (args: { text: string }) => {
-      await vscode.commands.executeCommand("default:type", args);
-
-      if (getApplyingEdit() || !["%", "{", "#", "(", ">", "="].includes(args.text)) {
-        return;
-      }
-
+    vscode.commands.registerCommand("twigPlus.deleteLeft", async () => {
       const editor = vscode.window.activeTextEditor;
-      if (!editor || editor.document.languageId !== "twig") {
-        return;
-      }
-
-      if (args.text === "{" || args.text === "%" || args.text === "#") {
-        const normalized = await normalizeTwigDelimiterAtCursor(
-          editor,
-          setApplyingEdit
-        );
-        if (normalized || args.text !== "{") {
-          return;
-        }
-      }
-
-      if (args.text === "(" || args.text === "{") {
-        await insertAutoCloseTextAtCursor(
-          editor,
-          getTwigExpressionPairAutoCloseEdit,
-          setApplyingEdit
-        );
-        return;
-      }
-
-      if (args.text === "=") {
-        await insertAutoCloseTextAtCursor(
-          editor,
-          getHtmlAttributeQuoteAutoCloseEdit,
-          setApplyingEdit
-        );
-        return;
-      }
-
-      await insertAutoCloseTextAtCursor(
-        editor,
-        getHtmlAutoCloseTagEdit,
-        setApplyingEdit
+      const selection = editor?.selection;
+      const shouldDeletePair = Boolean(
+        editor &&
+        editor.document.languageId === "twig" &&
+        selection?.isEmpty &&
+        hasDeletableEmptyPairAtCursor(editor, selection.active)
       );
+
+      await vscode.commands.executeCommand("deleteLeft");
+
+      if (!shouldDeletePair || !editor || !editor.selection.isEmpty) {
+        return;
+      }
+
+      const cursor = editor.selection.active;
+      const cursorOffset = editor.document.offsetAt(cursor);
+      const nextCharacter = editor.document.getText().slice(cursorOffset, cursorOffset + 1);
+      if (nextCharacter !== '"' && nextCharacter !== "'" && nextCharacter !== "}" && nextCharacter !== ")") {
+        return;
+      }
+
+      setApplyingEdit(true);
+      try {
+        await editor.edit((editBuilder) => {
+          editBuilder.delete(
+            new vscode.Range(cursor, editor.document.positionAt(cursorOffset + 1))
+          );
+        });
+      } finally {
+        setApplyingEdit(false);
+      }
     })
   );
+}
+
+async function ensureEmbeddedOpeningBracePair(
+  editor: vscode.TextEditor,
+  cursorOffset: number,
+  setApplyingEdit: (value: boolean) => void
+): Promise<boolean> {
+  const cursor = editor.document.positionAt(cursorOffset);
+  const hybrid = getCachedHybridDocument(editor.document);
+  if (!hybrid) return false;
+  const context = getHtmlContextAtOffset(hybrid, cursorOffset);
+  if (context.kind !== "script" && context.kind !== "style") return false;
+  const linePrefix = editor.document.lineAt(cursor.line).text.slice(0, cursor.character);
+  const shouldSpace = context.kind === "script"
+    ? /\bclass\s+[A-Za-z_$][\w$]*(?:\s+extends\s+[A-Za-z_$][\w$\.]*)?\{$/.test(linePrefix)
+    : /\S\{$/.test(linePrefix);
+  const addSpace = shouldSpace && !/\s\{$/.test(linePrefix);
+  const addClosingBrace = editor.document.getText().slice(cursorOffset, cursorOffset + 1) !== "}";
+  if (!addSpace && !addClosingBrace) return true;
+
+  setApplyingEdit(true);
+  try {
+    const applied = await editor.edit((editBuilder) => {
+      if (addSpace) {
+        editBuilder.insert(editor.document.positionAt(cursorOffset - 1), " ");
+      }
+      if (addClosingBrace) {
+        editBuilder.insert(editor.document.positionAt(cursorOffset), "}");
+      }
+    });
+    if (applied) {
+      const target = editor.document.positionAt(cursorOffset + (addSpace ? 1 : 0));
+      editor.selection = new vscode.Selection(target, target);
+    }
+    return applied;
+  } finally {
+    setApplyingEdit(false);
+  }
+}
+
+function hasDeletableEmptyPairAtCursor(
+  editor: vscode.TextEditor,
+  position: vscode.Position
+): boolean {
+  const document = editor.document;
+  const offset = document.offsetAt(position);
+  if (offset === 0) {
+    return false;
+  }
+  const source = document.getText();
+  const previous = source[offset - 1];
+  const hybrid = getCachedHybridDocument(document);
+  if (!hybrid) return false;
+  const context = getHtmlContextAtOffset(hybrid, offset).kind;
+  if ((previous === '"' || previous === "'") && source[offset] === previous) {
+    return context === "attribute-value";
+  }
+  return previous === "{" && source[offset] === "}" &&
+    (context === "script" || context === "style") ||
+    previous === "(" && source[offset] === ")" && context === "script";
+}
+
+async function ensureEmbeddedParenthesisPair(
+  editor: vscode.TextEditor,
+  cursorOffset: number,
+  setApplyingEdit: (value: boolean) => void
+): Promise<boolean> {
+  const hybrid = getCachedHybridDocument(editor.document);
+  if (!hybrid || getHtmlContextAtOffset(hybrid, cursorOffset).kind !== "script") {
+    return false;
+  }
+  if (editor.document.getText().slice(cursorOffset, cursorOffset + 1) === ")") {
+    return true;
+  }
+  setApplyingEdit(true);
+  try {
+    const position = editor.document.positionAt(cursorOffset);
+    const applied = await editor.edit((editBuilder) => editBuilder.insert(position, ")"));
+    if (applied) {
+      editor.selection = new vscode.Selection(position, position);
+    }
+    return applied;
+  } finally {
+    setApplyingEdit(false);
+  }
 }
 
 async function insertAutoCloseTextAtCursor(
@@ -238,13 +288,14 @@ async function insertAutoCloseTextAtCursor(
     source: string,
     cursorOffset: number
   ) => { cursorOffsetDelta: number; insertText: string } | null,
-  setApplyingEdit: (value: boolean) => void
-): Promise<void> {
-  const cursorOffset = editor.document.offsetAt(editor.selection.active);
+  setApplyingEdit: (value: boolean) => void,
+  explicitCursorOffset?: number
+): Promise<boolean> {
+  const cursorOffset = explicitCursorOffset ?? editor.document.offsetAt(editor.selection.active);
   const edit = getEdit(editor.document.getText(), cursorOffset);
 
   if (!edit) {
-    return;
+    return false;
   }
 
   setApplyingEdit(true);
@@ -255,53 +306,10 @@ async function insertAutoCloseTextAtCursor(
     });
 
     if (!applied) {
-      return;
-    }
-
-    const cursor = editor.document.positionAt(cursorOffset + edit.cursorOffsetDelta);
-    editor.selection = new vscode.Selection(cursor, cursor);
-  } finally {
-    setApplyingEdit(false);
-  }
-}
-
-async function normalizeTwigDelimiterAtCursor(
-  editor: vscode.TextEditor,
-  setApplyingEdit: (value: boolean) => void
-): Promise<boolean> {
-  const cursorOffset = editor.document.offsetAt(editor.selection.active);
-  const autoCloseEdit = getTwigAutoCloseEditAtOffset(
-    editor.document.getText(),
-    cursorOffset
-  );
-
-  if (!autoCloseEdit) {
-    return false;
-  }
-
-  const startPosition = editor.document.positionAt(autoCloseEdit.startOffset);
-  setApplyingEdit(true);
-
-  try {
-    const applied = await editor.edit((editBuilder) => {
-      editBuilder.replace(
-        new vscode.Range(
-          startPosition,
-          editor.document.positionAt(
-            autoCloseEdit.startOffset + autoCloseEdit.replaceLength
-          )
-        ),
-        autoCloseEdit.replacement
-      );
-    });
-
-    if (!applied) {
       return false;
     }
 
-    const cursor = editor.document.positionAt(
-      autoCloseEdit.startOffset + autoCloseEdit.cursorOffset
-    );
+    const cursor = editor.document.positionAt(cursorOffset + edit.cursorOffsetDelta);
     editor.selection = new vscode.Selection(cursor, cursor);
     return true;
   } finally {
@@ -328,13 +336,43 @@ async function handleTwigEditorAutoClose(
   }
 
   const change = event.contentChanges[event.contentChanges.length - 1];
-  if (change.text === "\n" || change.text === "\r\n") {
+  const compactDelimiter = getCompactTwigDelimiterEdit(change.text);
+  if (compactDelimiter) {
+    setApplyingEdit(true);
+    try {
+      const start = event.document.positionAt(change.rangeOffset);
+      const end = event.document.positionAt(change.rangeOffset + change.text.length);
+      const applied = await editor.edit((editBuilder) => {
+        editBuilder.replace(new vscode.Range(start, end), compactDelimiter.replacement);
+      });
+      if (applied) {
+        const cursor = event.document.positionAt(
+          change.rangeOffset + compactDelimiter.cursorOffset
+        );
+        editor.selection = new vscode.Selection(cursor, cursor);
+      }
+    } finally {
+      setApplyingEdit(false);
+    }
+    return;
+  }
+  if (/^\r?\n[\t ]*$/.test(change.text)) {
     await handleTwigEnterBetweenTags(event, editor, change, setApplyingEdit);
     return;
   }
 
   const autoCloseStartOffset = getTwigAutoCloseStartOffset(event.document, change);
   if (autoCloseStartOffset === null) {
+    if (
+      await handleTypedCharacterAssist(
+        editor,
+        change.text,
+        getTypedCursorOffset(change),
+        setApplyingEdit
+      )
+    ) {
+      return;
+    }
     await handleTwigTokenSpacing(event, editor, change, setApplyingEdit);
     return;
   }
@@ -376,6 +414,99 @@ async function handleTwigEditorAutoClose(
   } finally {
     setApplyingEdit(false);
   }
+}
+
+function getCompactTwigDelimiterEdit(
+  text: string
+): { replacement: string; cursorOffset: number } | null {
+  if (text === "{{}}") return { replacement: "{{  }}", cursorOffset: 3 };
+  if (text === "{%%}") return { replacement: "{%  %}", cursorOffset: 3 };
+  if (text === "{##}") return { replacement: "{#  #}", cursorOffset: 3 };
+  return null;
+}
+
+async function handleTypedCharacterAssist(
+  editor: vscode.TextEditor,
+  text: string,
+  cursorOffset: number,
+  setApplyingEdit: (value: boolean) => void
+): Promise<boolean> {
+  // IME composition commits multiple characters. Never inspect or rewrite them.
+  if (!["_", "{", "{}", "(", "()", "=", ">"].includes(text)) {
+    return false;
+  }
+
+  const typedCharacter = text === "{}" ? "{" : text === "()" ? "(" : text;
+
+  if (typedCharacter === "_") {
+    const hybrid = getCachedHybridDocument(editor.document);
+    if (
+      hybrid &&
+      getHtmlContextAtOffset(
+        hybrid,
+        cursorOffset
+      ).kind === "attribute-value"
+    ) {
+      await vscode.commands.executeCommand("editor.action.triggerSuggest");
+    }
+    return true;
+  }
+
+  if (typedCharacter === "{") {
+    if (await ensureEmbeddedOpeningBracePair(editor, cursorOffset, setApplyingEdit)) {
+      return true;
+    }
+    return insertAutoCloseTextAtCursor(
+      editor,
+      getTwigExpressionPairAutoCloseEdit,
+      setApplyingEdit,
+      cursorOffset
+    );
+  }
+
+  if (typedCharacter === "(") {
+    if (
+      text === "()" ||
+      await ensureEmbeddedParenthesisPair(editor, cursorOffset, setApplyingEdit)
+    ) {
+      return true;
+    }
+    return insertAutoCloseTextAtCursor(
+      editor,
+      getTwigExpressionPairAutoCloseEdit,
+      setApplyingEdit,
+      cursorOffset
+    );
+  }
+
+  if (typedCharacter === "=") {
+    const inserted = await insertAutoCloseTextAtCursor(
+      editor,
+      getHtmlAttributeQuoteAutoCloseEdit,
+      setApplyingEdit,
+      cursorOffset
+    );
+    if (inserted) {
+      await vscode.commands.executeCommand("editor.action.triggerSuggest");
+    }
+    return inserted;
+  }
+
+  return insertAutoCloseTextAtCursor(
+    editor,
+    getHtmlAutoCloseTagEdit,
+    setApplyingEdit,
+    cursorOffset
+  );
+}
+
+function getTypedCursorOffset(
+  change: vscode.TextDocumentContentChangeEvent
+): number {
+  if (change.text === "{}" || change.text === "()") {
+    return change.rangeOffset + 1;
+  }
+  return change.rangeOffset + change.text.length;
 }
 
 async function handleTwigTokenSpacing(
@@ -432,7 +563,17 @@ async function handleTwigEnterBetweenTags(
 
   const previousLine = event.document.lineAt(cursor.line - 1).text;
   const currentLine = event.document.lineAt(cursor.line).text;
-  const enterEdit = getTwigEnterEdit(previousLine, currentLine, getIndentUnit(editor));
+  let enterEdit = getTwigEnterEdit(previousLine, currentLine, getIndentUnit(editor));
+  if (!enterEdit) {
+    const hybrid = getCachedHybridDocument(event.document);
+    const previousLineEnd = event.document.lineAt(cursor.line - 1).range.end;
+    const embeddedKind = hybrid
+      ? getHtmlContextAtOffset(hybrid, event.document.offsetAt(previousLineEnd)).kind
+      : "html-text";
+    if (embeddedKind === "script" || embeddedKind === "style") {
+      enterEdit = getEmbeddedBraceEnterEdit(previousLine, currentLine, getIndentUnit(editor));
+    }
+  }
   if (!enterEdit) {
     return;
   }

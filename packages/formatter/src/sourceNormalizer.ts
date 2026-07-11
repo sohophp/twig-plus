@@ -1,5 +1,39 @@
+import type { HybridDocument, TwigNode } from "@twig-plus/parser";
+
 export function normalizeTwigSourceFragments(source: string): string {
   return normalizeHtmlTagSpacing(normalizeTwigTokenFragments(source));
+}
+
+/** Normalize a parsed lossless document without rescanning Twig delimiters. */
+export function normalizeHybridSource(document: HybridDocument): string {
+  const pieces = document.children.map((node) => {
+    if (isTwigNode(node)) return normalizeTwigNode(node);
+    if ("embeddedTwig" in node && node.embeddedTwig.length) {
+      let result = "";
+      let offset = node.start;
+      for (const twig of node.embeddedTwig) {
+        result += document.source.slice(offset, twig.start) + normalizeTwigNode(twig);
+        offset = twig.end;
+      }
+      return result + document.source.slice(offset, node.end);
+    }
+    return node.raw;
+  });
+  return normalizeHtmlTagSpacing(pieces.join(""));
+}
+
+function isTwigNode(node: HybridDocument["children"][number]): node is TwigNode {
+  return node.kind === "TwigTag" || node.kind === "TwigOutput" || node.kind === "TwigComment" || (node.kind === "IncompleteNode" && "inner" in node);
+}
+
+function normalizeTwigNode(node: TwigNode): string {
+  if (!node.complete || (!node.raw.includes("\n") && !/\s{2,}/.test(node.raw))) return node.raw;
+  const opening = node.raw.slice(0, node.raw[2] === "-" || node.raw[2] === "~" ? 3 : 2);
+  const closingLength = /[-~](?:\}\}|%\}|#\})$/.test(node.raw) ? 3 : 2;
+  const closing = node.raw.slice(-closingLength);
+  const normalizedInner = node.raw.slice(opening.length, -closingLength);
+  const collapsed = normalizedInner.replace(/\r\n/g, "\n").replace(/\s*\n\s*/g, " ").replace(/\s*\|\s*/g, "|").replace(/\s+/g, " ").trim();
+  return collapsed ? `${opening} ${collapsed} ${closing}` : opening + closing;
 }
 
 function normalizeTwigTokenFragments(source: string): string {

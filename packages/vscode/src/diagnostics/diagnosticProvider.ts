@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 import {
-  analyzeTwigDiagnostics,
+  analyzeCompatibleDiagnostics,
   type TwigDiagnostic,
   type TwigDiagnosticSeverity
 } from "@twig-plus/parser";
@@ -9,6 +9,7 @@ import {
   findTwigWorkspacePaths,
   getConfiguredTemplateRoots
 } from "../language/templateConfig";
+import { getCachedDocumentModel, getParserQueryOptions } from "../language/parserRuntime";
 
 export function registerTwigDiagnosticProvider(
   context: vscode.ExtensionContext
@@ -29,14 +30,25 @@ export function registerTwigDiagnosticProvider(
       .replace(/\\/g, "/");
     const templateRoots = getConfiguredTemplateRoots();
 
-    const diagnostics = analyzeTwigDiagnostics(
+    const legacyDiagnostics = analyzeCompatibleDiagnostics(
       document.getText(),
       workspacePaths,
       currentWorkspacePath,
-      templateRoots
+      templateRoots,
+      getParserQueryOptions(document)
     ).map((diagnostic) => toVsCodeDiagnostic(document, diagnostic));
+    const semanticDiagnostics = (getCachedDocumentModel(document)?.diagnostics ?? []).map((diagnostic) => {
+      const result = new vscode.Diagnostic(
+        new vscode.Range(document.positionAt(diagnostic.start), document.positionAt(diagnostic.end)),
+        diagnostic.message,
+        mapSeverity(diagnostic.severity)
+      );
+      result.source = "TwigPlus Semantic";
+      result.code = diagnostic.code;
+      return result;
+    });
 
-    collection.set(document.uri, diagnostics);
+    collection.set(document.uri, [...legacyDiagnostics, ...semanticDiagnostics]);
   };
 
   if (vscode.window.activeTextEditor) {
@@ -50,6 +62,13 @@ export function registerTwigDiagnosticProvider(
     }),
     vscode.workspace.onDidChangeTextDocument((event) => {
       void safeRefreshDiagnostics(refreshDiagnostics, event.document);
+    }),
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("twigPlus.parser.engine")) {
+        for (const document of vscode.workspace.textDocuments) {
+          void safeRefreshDiagnostics(refreshDiagnostics, document);
+        }
+      }
     }),
     vscode.workspace.onDidCloseTextDocument((document) => {
       collection.delete(document.uri);
@@ -91,7 +110,7 @@ function toVsCodeDiagnostic(
 }
 
 function mapSeverity(
-  severity: TwigDiagnosticSeverity
+  severity: TwigDiagnosticSeverity | "information"
 ): vscode.DiagnosticSeverity {
   if (severity === "error") {
     return vscode.DiagnosticSeverity.Error;
@@ -99,6 +118,10 @@ function mapSeverity(
 
   if (severity === "warning") {
     return vscode.DiagnosticSeverity.Warning;
+  }
+
+  if (severity === "information") {
+    return vscode.DiagnosticSeverity.Information;
   }
 
   return vscode.DiagnosticSeverity.Hint;

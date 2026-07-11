@@ -2,7 +2,7 @@
   "name": "twig-plus",
   "displayName": "TwigPlus",
   "description": "Twig formatter and editor tooling for VSCode.",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "publisher": "sohophp",
   "icon": "assets/logo.png",
   "license": "MIT",
@@ -33,6 +33,7 @@
     "onLanguage:twig",
     "onCommand:twigPlus.applyRecommendedSettings",
     "onCommand:twigPlus.showStatus",
+    "onCommand:twigPlus.selectParserEngine",
     "onStartupFinished"
   ],
   "main": "./dist/extension.js",
@@ -76,6 +77,19 @@
         "command": "twigPlus.showStatus",
         "title": "Show Status",
         "category": "TwigPlus"
+      },
+      {
+        "command": "twigPlus.selectParserEngine",
+        "title": "Select Parser Engine",
+        "category": "TwigPlus"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "twigPlus.deleteLeft",
+        "key": "backspace",
+        "mac": "backspace",
+        "when": "editorTextFocus && editorLangId == twig"
       }
     ],
     "configuration": {
@@ -83,11 +97,13 @@
       "properties": {
         "twigPlus.format.enable": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Enable TwigPlus document formatting."
         },
         "twigPlus.format.profile": {
           "type": "string",
+          "scope": "resource",
           "enum": [
             "phpstorm",
             "compact"
@@ -97,28 +113,33 @@
         },
         "twigPlus.format.indentSize": {
           "type": "integer",
+          "scope": "resource",
           "default": 4,
           "minimum": 0,
           "description": "Number of spaces used for indentation when tabs are disabled."
         },
         "twigPlus.format.printWidth": {
           "type": "integer",
+          "scope": "resource",
           "default": 100,
           "minimum": 40,
           "description": "Preferred maximum line width for embedded CSS and JavaScript formatting."
         },
         "twigPlus.format.useTabs": {
           "type": "boolean",
+          "scope": "resource",
           "default": false,
           "description": "Use tabs instead of spaces for indentation."
         },
         "twigPlus.format.twigTagSpacing": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Normalize spacing inside Twig tags."
         },
         "twigPlus.format.htmlAttributeWrap": {
           "type": "string",
+          "scope": "resource",
           "enum": [
             "preserve",
             "auto",
@@ -129,11 +150,13 @@
         },
         "twigPlus.format.preserveSingleLineBlocks": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Keep simple single-line HTML blocks such as <span>{{ value }}</span> on one line."
         },
         "twigPlus.format.lineBreakAfterTwigControlTag": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Break lines after Twig control tags like block, if, else, and endblock when markup or text follows on the same line."
         },
@@ -141,6 +164,16 @@
           "type": "boolean",
           "default": false,
           "description": "When completing opening Twig control tags, also insert the matching closing tag snippet. Disabled by default to match PHPStorm."
+        },
+        "twigPlus.parser.engine": {
+          "type": "string",
+          "enum": [
+            "legacy",
+            "hybrid-shadow",
+            "hybrid"
+          ],
+          "default": "hybrid",
+          "description": "Select the parser engine. hybrid-shadow compares Hybrid AST results while returning legacy behavior; hybrid uses verified results with automatic legacy fallback."
         },
         "twigPlus.templates.roots": {
           "type": "array",
@@ -153,6 +186,19 @@
             "type": "string"
           },
           "description": "Workspace-relative Twig template roots used for template completion, diagnostics, and Go to Definition. Use * for one path segment, for example src/*/Resources/views."
+        },
+        "twigPlus.diagnostics.unresolvedNames": {
+          "type": "boolean",
+          "default": false,
+          "description": "Report Twig names that are not declared in lexical scope or listed as configured globals. Disabled by default because Symfony may inject variables dynamically."
+        },
+        "twigPlus.diagnostics.globals": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Application-provided Twig global variable and function names excluded from unresolved-name diagnostics."
         }
       }
     },
@@ -163,13 +209,19 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --external:prettier --outfile=dist/extension.js",
+    "build": "tsc -p tsconfig.json && esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --external:prettier --external:vscode-html-languageservice --external:vscode-languageserver-textdocument --outfile=dist/extension.js && esbuild ../language-server/src/index.ts --bundle --platform=node --format=cjs --external:prettier --outfile=dist/server.js",
     "test": "vitest run test",
     "vscode:test": "npm run build && node ./test/extension/runTest.js",
+    "vscode:test:packaged": "node ./test/extension/runPackagedTest.js",
     "prepare-release": "node ./scripts/prepare-release.js",
     "vscode:prepublish": "npm run prepare-release",
     "vsce:ls": "npx @vscode/vsce ls --tree",
     "package:vsix": "npx @vscode/vsce package --no-dependencies",
     "publish:marketplace": "npx @vscode/vsce publish --no-dependencies"
+  },
+  "dependencies": {
+    "vscode-html-languageservice": "^5.6.2",
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
   }
 }

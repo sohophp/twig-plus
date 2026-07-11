@@ -1,0 +1,9 @@
+{
+    "[twig]": {
+        "editor.defaultFormatter": "sohophp.twig-plus",
+        "editor.formatOnSave": true
+    },
+    "twigPlus.format.enable": true,
+    "twigPlus.format.profile": "phpstorm",
+    "twigPlus.parser.engine": "hybrid"
+}

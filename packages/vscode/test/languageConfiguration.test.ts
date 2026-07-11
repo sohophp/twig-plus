@@ -19,6 +19,22 @@ describe("language configuration", () => {
     );
   });
 
+  it("defines onEnter indentation for paired non-void HTML tags", () => {
+    const config = readLanguageConfiguration();
+
+    expect(config.onEnterRules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          beforeText: expect.stringContaining("<(?!(?:area|base|br"),
+          afterText: expect.stringContaining("</[A-Za-z]"),
+          action: {
+            indent: "indentOutdent"
+          }
+        })
+      ])
+    );
+  });
+
   it("defines indentation rules for twig middle and closing tags", () => {
     const config = readLanguageConfiguration();
 

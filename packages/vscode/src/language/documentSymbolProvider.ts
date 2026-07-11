@@ -1,13 +1,18 @@
 import * as vscode from "vscode";
+import { TWIG_DOCUMENT_SELECTOR } from "./documentSelector";
 
-import { collectTwigStructureSymbols } from "@twig-plus/parser";
+import { collectCompatibleStructureSymbols, collectHybridStructureSymbols } from "@twig-plus/parser";
+import { getCachedDocumentModel, getConfiguredParserEngine, getParserQueryOptions } from "./parserRuntime";
 
 export function registerTwigDocumentSymbolProvider(
   context: vscode.ExtensionContext
 ): void {
   const provider: vscode.DocumentSymbolProvider = {
     provideDocumentSymbols(document) {
-      const symbols = collectTwigStructureSymbols(document.getText());
+      const semantic = getConfiguredParserEngine() === "legacy" ? null : getCachedDocumentModel(document);
+      const symbols = semantic
+        ? collectHybridStructureSymbols(semantic.document)
+        : collectCompatibleStructureSymbols(document.getText(), getParserQueryOptions(document));
 
       return symbols.map((symbol) => {
         const range = new vscode.Range(
@@ -32,7 +37,7 @@ export function registerTwigDocumentSymbolProvider(
 
   context.subscriptions.push(
     vscode.languages.registerDocumentSymbolProvider(
-      { language: "twig" },
+      TWIG_DOCUMENT_SELECTOR,
       provider
     )
   );

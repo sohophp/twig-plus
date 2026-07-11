@@ -53,6 +53,26 @@ describe("formatTwigDocument fixtures", () => {
   }
 });
 
+describe("hybrid formatter compatibility", () => {
+  it.each(["hybrid-shadow", "hybrid"] as const)("keeps all golden fixtures identical in %s mode", async (parserEngine) => {
+    for (const fixtureName of fixtureNames) {
+      const input = readFixture("input", fixtureName);
+      const expected = readFixture("expected", fixtureName);
+      const options = { ...getDefaultOptions(), parserEngine };
+      const actual = await formatTwig(input, options);
+      expect(actual).toBe(expected);
+      expect(await formatTwig(actual, options)).toBe(actual);
+    }
+  });
+
+  it("preserves legacy fallback behavior for incomplete and CRLF input", async () => {
+    for (const source of ["{% bl", "<div class=\"hero\"", "{% if user %}\r\n<div>{{name}}</div>"]) {
+      const legacy = await formatTwig(source, getDefaultOptions());
+      expect(await formatTwig(source, { ...getDefaultOptions(), parserEngine: "hybrid" })).toBe(legacy);
+    }
+  });
+});
+
 describe("formatTwigDocument options", () => {
   it("wraps long HTML attributes when htmlAttributeWrap is force", async () => {
     const actual = await formatTwig(

@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspace packages/parser && npm run build --workspace packages/formatter && npm run build --workspace packages/vscode && npm run build --workspace packages/language-server",
-    "test": "npm run test --workspace packages/parser && npm run test --workspace packages/formatter && npm run test --workspace packages/vscode && npm run build --workspace packages/parser && npm run build --workspace packages/formatter && npm run build --workspace packages/vscode && vitest run tests/integration",
+    "test": "npm run test --workspace packages/parser && npm run test --workspace packages/formatter && npm run test --workspace packages/vscode && npm run test --workspace packages/language-server && npm run build --workspace packages/parser && npm run build --workspace packages/formatter && npm run build --workspace packages/vscode && npm run build --workspace packages/language-server && vitest run tests/integration",
     "check": "npm run build && npm run test",
     "clean": "rm -rf dist packages/*/dist"
   },
@@ -26,7 +26,7 @@
     "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.9.2",
-    "prettier": "^3.9.4",
+    "prettier": "^3.9.5",
     "typescript": "^5.8.3",
     "vitest": "^2.1.8"
   }

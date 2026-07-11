@@ -8,15 +8,6 @@
     ],
     "description": "Twig if block"
   },
-  "Twig block": {
-    "prefix": "twig-block",
-    "body": [
-      "{% block ${1:name} %}",
-      "  $0",
-      "{% endblock %}"
-    ],
-    "description": "Twig block"
-  },
   "Twig for": {
     "prefix": "twig-for",
     "body": [

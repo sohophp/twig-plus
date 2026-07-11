@@ -7,6 +7,7 @@ import {
   getTwigAutoCloseEditAtOffset,
   getTwigAutoCloseBacktrack,
   getTwigEnterEdit,
+  getEmbeddedBraceEnterEdit,
   getTwigExpressionPairAutoCloseEdit,
   getTwigSpacingEdit
 } from "../src/language/autoClose";
@@ -76,6 +77,35 @@ describe("getTwigAutoCloseEdit", () => {
   it("expands enter between twig comment delimiters into an indented inner line", () => {
     expect(getTwigEnterEdit("{#", "#}", "  ")).toEqual({
       replacement: "  \n#}",
+      cursorColumn: 2
+    });
+  });
+
+  it("expands enter between paired HTML tags into an indented content line", () => {
+    expect(getTwigEnterEdit("<div>", "</div>", "    ")).toEqual({
+      replacement: "    \n</div>",
+      cursorColumn: 4
+    });
+    expect(getTwigEnterEdit('  <section class="card">', "  </section>", "  ")).toEqual({
+      replacement: "    \n  </section>",
+      cursorColumn: 4
+    });
+  });
+
+  it("does not expand mismatched, void, or self-closing HTML tags", () => {
+    expect(getTwigEnterEdit("<div>", "</span>", "  ")).toBeNull();
+    expect(getTwigEnterEdit("<br>", "</br>", "  ")).toBeNull();
+    expect(getTwigEnterEdit("<widget />", "</widget>", "  ")).toBeNull();
+  });
+
+  it("expands enter between embedded code braces", () => {
+    expect(getEmbeddedBraceEnterEdit("    class ThisPage {", "    }", "    ")).toEqual({
+      replacement: "        \n    }",
+      cursorColumn: 8
+    });
+    expect(getEmbeddedBraceEnterEdit("class ThisPage", "}", "    ")).toBeNull();
+    expect(getEmbeddedBraceEnterEdit("class ThisPage {", "", "  ")).toEqual({
+      replacement: "  \n}",
       cursorColumn: 2
     });
   });

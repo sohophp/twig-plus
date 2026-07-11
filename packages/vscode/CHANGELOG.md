@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 - 2026-07-11
+
+- Promoted the lossless Hybrid CST/Twig AST engine to the default with automatic legacy fallback.
+- Added a bundled TwigPlus language server with semantic scope completion, cross-template macro/block navigation, references, rename, diagnostics, symbols, selection ranges, and CST-backed formatting.
+- Added an experimental lossless HTML/Twig Hybrid AST with legacy, shadow-comparison, and verified hybrid parser modes.
+- Routed structural IDE features and formatting through compatibility guards with automatic legacy fallback.
+- Added corpus, incomplete-input, truncation-fuzz, formatter parity, and idempotence coverage for the migration.
+- Added context-aware standard HTML tag, attribute, and value completions, including attributes separated by Twig branches.
+- Added native Hybrid CST symbol/navigation queries, document-version caching, precise shadow differences, and a parser-engine selection command.
+
 ## 1.0.5
 
 - Restored the Marketplace extension icon by declaring `assets/logo.png` in the VSCode package manifest and including it in the VSIX.

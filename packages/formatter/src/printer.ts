@@ -4,6 +4,7 @@ import {
   getStandaloneTwigTagContent,
   getTwigTagKind
 } from "@twig-plus/parser";
+import type { HybridDifference, ParserEngine } from "@twig-plus/parser";
 
 export interface FormatterOptions {
   profile: "phpstorm" | "compact";
@@ -14,6 +15,8 @@ export interface FormatterOptions {
   htmlAttributeWrap: "preserve" | "auto" | "force";
   preserveSingleLineBlocks: boolean;
   lineBreakAfterTwigControlTag: boolean;
+  parserEngine?: ParserEngine;
+  onHybridDifference?: (difference: HybridDifference) => void;
 }
 
 export function printFormattedTwig(source: string, options: FormatterOptions): string {

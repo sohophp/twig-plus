@@ -6,5 +6,9 @@ src/**
 scripts/**
 tsconfig.json
 dist/**/*.map
+dist/**/*.d.ts
+dist/diagnostics/**
+dist/language/**
+dist/testing/**
 node_modules/.vite/**
 node_modules/**/*.map

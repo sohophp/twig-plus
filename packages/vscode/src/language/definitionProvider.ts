@@ -1,25 +1,29 @@
 import * as vscode from "vscode";
+import { TWIG_DOCUMENT_SELECTOR } from "./documentSelector";
 
 import {
-  collectTwigBlockSymbols,
-  collectTwigMacroImports,
-  collectTwigStructureSymbols,
-  getBlockReferenceAtOffset,
-  getTwigMacroReferenceAtOffset,
+  collectCompatibleBlockSymbols,
+  collectCompatibleMacroImports,
+  collectCompatibleStructureSymbols,
+  getCompatibleBlockReferenceAtOffset,
+  getCompatibleMacroReferenceAtOffset,
   getTemplateReferenceAtOffset,
-  getExtendsTemplateReference,
+  getCompatibleExtendsTemplateReference,
   resolveTemplateWorkspacePath
 } from "@twig-plus/parser";
 import {
   findTwigWorkspacePaths,
   getConfiguredTemplateRoots
 } from "./templateConfig";
+import { getCachedDocumentModel, getParserQueryOptions } from "./parserRuntime";
 
 export function registerTwigDefinitionProvider(
   context: vscode.ExtensionContext
 ): void {
   const provider: vscode.DefinitionProvider = {
     async provideDefinition(document, position) {
+      const localDefinition = provideLocalDefinition(document, position);
+      if (localDefinition) return localDefinition;
       const macroDefinition = await provideMacroDefinition(document, position);
       if (macroDefinition) {
         return macroDefinition;
@@ -67,8 +71,18 @@ export function registerTwigDefinitionProvider(
   };
 
   context.subscriptions.push(
-    vscode.languages.registerDefinitionProvider({ language: "twig" }, provider)
+    vscode.languages.registerDefinitionProvider(TWIG_DOCUMENT_SELECTOR, provider)
   );
+}
+
+function provideLocalDefinition(document: vscode.TextDocument, position: vscode.Position): vscode.Location | null {
+  const model = getCachedDocumentModel(document);
+  if (!model) return null;
+  const offset = document.offsetAt(position);
+  const direct = model.getSymbolAt(offset);
+  const reference = model.getReferenceAt(offset);
+  const symbol = direct ?? (reference?.resolvedSymbolId ? model.symbols.find((item) => item.id === reference.resolvedSymbolId) : undefined);
+  return symbol ? new vscode.Location(document.uri, document.positionAt(symbol.nameRange.start)) : null;
 }
 
 async function provideBlockDefinition(
@@ -77,7 +91,7 @@ async function provideBlockDefinition(
 ): Promise<vscode.Location | null> {
   const source = document.getText();
   const offset = document.offsetAt(position);
-  const blockReference = getBlockReferenceAtOffset(source, offset);
+  const blockReference = getCompatibleBlockReferenceAtOffset(source, offset, getParserQueryOptions(document));
 
   if (!blockReference) {
     return null;
@@ -93,7 +107,7 @@ async function provideBlockDefinition(
     );
   }
 
-  const parentReference = getExtendsTemplateReference(source);
+  const parentReference = getCompatibleExtendsTemplateReference(source, getParserQueryOptions(document));
   if (!parentReference) {
     return new vscode.Location(
       document.uri,
@@ -130,7 +144,7 @@ async function provideBlockDefinition(
   const targetSource = Buffer.from(await vscode.workspace.fs.readFile(targetUri)).toString(
     "utf8"
   );
-  const targetBlock = collectTwigBlockSymbols(targetSource).find(
+  const targetBlock = collectCompatibleBlockSymbols(targetSource, getParserQueryOptions()).find(
     (symbol) => symbol.name === blockReference.name
   );
 
@@ -148,7 +162,7 @@ async function provideMacroDefinition(
 ): Promise<vscode.Location | null> {
   const source = document.getText();
   const offset = document.offsetAt(position);
-  const macroReference = getTwigMacroReferenceAtOffset(source, offset);
+  const macroReference = getCompatibleMacroReferenceAtOffset(source, offset, getParserQueryOptions(document));
 
   if (!macroReference) {
     return null;
@@ -158,7 +172,7 @@ async function provideMacroDefinition(
     return findMacroLocation(document, document.uri, source, macroReference.name);
   }
 
-  const macroImports = collectTwigMacroImports(source);
+  const macroImports = collectCompatibleMacroImports(source, getParserQueryOptions(document));
   const matchingImport =
     macroReference.kind === "import"
       ? macroImports.find((entry) => entry.kind === "import" && entry.alias === macroReference.alias)
@@ -227,7 +241,7 @@ async function findMacroLocation(
   source: string,
   macroName: string
 ): Promise<vscode.Location | null> {
-  const targetMacro = collectTwigStructureSymbols(source).find(
+  const targetMacro = collectCompatibleStructureSymbols(source, getParserQueryOptions(currentDocument)).find(
     (symbol) => symbol.kind === "macro" && symbol.name === macroName
   );
 

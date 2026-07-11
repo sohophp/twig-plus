@@ -2,14 +2,18 @@
   "name": "@twig-plus/language-server",
   "version": "1.0.0",
   "private": true,
-  "description": "Future TwigPlus language server package.",
+  "description": "Language Server Protocol implementation for TwigPlus.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@twig-plus/formatter": "file:../formatter",
-    "@twig-plus/parser": "file:../parser"
+    "@twig-plus/parser": "file:../parser",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run test",
+    "start": "node dist/index.js --stdio"
   }
 }

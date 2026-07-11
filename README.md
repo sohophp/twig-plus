@@ -25,7 +25,7 @@ twig-plus/
 - `twig-plus` in `packages/vscode`
   VSCode adapter layer with providers, contributes metadata, snippets, and grammar files.
 - `@twig-plus/language-server`
-  Reserved skeleton for future LSP work.
+  Runnable LSP server for semantic completion, navigation, references, rename, diagnostics, symbols, selection ranges, and formatting.
 
 ## Development
 

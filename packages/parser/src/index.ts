@@ -5,3 +5,8 @@ export * from "./templateCompletion";
 export * from "./twigDiagnostics";
 export * from "./selectionRanges";
 export * from "./twigTokenContext";
+export * from "./hybridAst";
+export * from "./hybridCompatibility";
+export * from "./twigAst";
+export * from "./semanticModel";
+export * from "./workspaceModel";

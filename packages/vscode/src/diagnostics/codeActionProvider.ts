@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { TWIG_DOCUMENT_SELECTOR } from "../language/documentSelector";
 
 export function registerTwigCodeActionProvider(
   context: vscode.ExtensionContext
@@ -30,7 +31,7 @@ export function registerTwigCodeActionProvider(
   };
 
   context.subscriptions.push(
-    vscode.languages.registerCodeActionsProvider({ language: "twig" }, provider, {
+    vscode.languages.registerCodeActionsProvider(TWIG_DOCUMENT_SELECTOR, provider, {
       providedCodeActionKinds: [vscode.CodeActionKind.QuickFix]
     })
   );

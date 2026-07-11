@@ -60,7 +60,7 @@ This will:
 
 1. run the VSCode prepublish step
 2. verify `dist/extension.js` contains the bundled runtime formatter/parser code
-3. package the extension without runtime `node_modules`
+3. copy the explicitly externalized runtime dependencies into `dist/node_modules`
 4. create a `.vsix` file inside `packages/vscode`
 
 ## Marketplace Publish
@@ -90,9 +90,12 @@ npx @vscode/vsce login sohophp
   - `<a href=` becomes `<a href="">`
 - Confirm `Expand Selection` grows through Twig tag, Twig block, and surrounding HTML node
 - Confirm real-page formatter fixtures still pass
+- Confirm `npm run vscode:test --workspace packages/vscode` passes in a real Extension Host
+- Confirm the VSIX contains both `dist/extension.js` and `dist/server.js`
+- Run `npm run vscode:test:packaged --workspace packages/vscode` to activate and exercise the unpacked release artifact
 
 ## Notes
 
 - The extension package is the Marketplace artifact; the monorepo root is not published
-- `packages/language-server` remains a future placeholder and is not part of the first release
+- `packages/language-server` is bundled as `dist/server.js` and started by the VSCode language client
 - The current logo is valid, but it is larger than ideal for Marketplace packaging; reducing it to a smaller square PNG later will shrink the VSIX

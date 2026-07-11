@@ -16,6 +16,16 @@ export interface StaticCompletionEntry {
   priority?: number;
 }
 
+export const CLOSING_TAG_COMPLETIONS = [
+  "endif",
+  "endfor",
+  "endblock",
+  "endembed",
+  "endmacro",
+  "endwith",
+  "endapply"
+] as const;
+
 export const TAG_COMPLETIONS: StaticCompletionEntry[] = [
   {
     label: "if",

@@ -256,6 +256,8 @@ export function getTwigEnterEdit(
 
   const openingTag = getOpeningTagName(previousTrimmed);
   const closingTag = getClosingTagName(currentTrimmed);
+  const htmlOpeningTag = getHtmlOpeningTagName(previousTrimmed);
+  const htmlClosingTag = getHtmlClosingTagName(currentTrimmed);
   const inlineOpening = getInlineOpeningDelimiter(previousTrimmed);
   const inlineClosing = getInlineClosingDelimiter(currentTrimmed);
 
@@ -265,6 +267,10 @@ export function getTwigEnterEdit(
     }
   } else if (inlineOpening && inlineClosing) {
     if (INLINE_OPENING_TO_CLOSING[inlineOpening] !== inlineClosing) {
+      return null;
+    }
+  } else if (htmlOpeningTag && htmlClosingTag) {
+    if (htmlOpeningTag !== htmlClosingTag) {
       return null;
     }
   } else {
@@ -283,6 +289,38 @@ export function getTwigEnterEdit(
     replacement: `${baseIndent}${indentUnit}\n${baseIndent}${currentTrimmed}`,
     cursorColumn: (baseIndent + indentUnit).length
   };
+}
+
+export function getEmbeddedBraceEnterEdit(
+  previousLineText: string,
+  currentLineText: string,
+  indentUnit: string
+): TwigEnterEdit | null {
+  if (!previousLineText.trimEnd().endsWith("{")) {
+    return null;
+  }
+  const baseIndent = previousLineText.match(/^\s*/)?.[0] ?? "";
+  const currentTrimmed = currentLineText.trimStart();
+  if (currentTrimmed && !currentTrimmed.startsWith("}")) {
+    return null;
+  }
+  return {
+    replacement: `${baseIndent}${indentUnit}\n${baseIndent}${currentTrimmed || "}"}`,
+    cursorColumn: (baseIndent + indentUnit).length
+  };
+}
+
+function getHtmlOpeningTagName(line: string): string | null {
+  if (/\/\s*>$/.test(line)) {
+    return null;
+  }
+  const match = line.match(/^<([A-Za-z][\w:-]*)(?:\s[\s\S]*)?>$/);
+  const tagName = match?.[1]?.toLowerCase() ?? null;
+  return tagName && !isVoidHtmlTag(tagName) ? tagName : null;
+}
+
+function getHtmlClosingTagName(line: string): string | null {
+  return line.match(/^<\/\s*([A-Za-z][\w:-]*)\s*>$/)?.[1]?.toLowerCase() ?? null;
 }
 
 export function getTwigSpacingEdit(
