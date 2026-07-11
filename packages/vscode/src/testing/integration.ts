@@ -15,17 +15,30 @@ export async function formatTwigForIntegration(
 
 export function getTemplateCompletionsForIntegration(
   workspacePaths: string[],
-  prefix: string
+  prefix: string,
+  currentWorkspacePath?: string,
+  templateRoots?: string[]
 ): string[] {
-  return collectTemplateCompletionCandidates(workspacePaths, prefix);
+  return collectTemplateCompletionCandidates(
+    workspacePaths,
+    prefix,
+    currentWorkspacePath,
+    templateRoots
+  );
 }
 
 export function getTwigDiagnosticsForIntegration(
   source: string,
   workspacePaths: string[] = [],
-  currentWorkspacePath?: string
+  currentWorkspacePath?: string,
+  templateRoots?: string[]
 ) {
-  return analyzeTwigDiagnostics(source, workspacePaths, currentWorkspacePath);
+  return analyzeTwigDiagnostics(
+    source,
+    workspacePaths,
+    currentWorkspacePath,
+    templateRoots
+  );
 }
 
 export function getSelectionRangesForIntegration(
@@ -40,11 +53,13 @@ export function getSelectionRangesForIntegration(
 export function resolveTemplatePathForIntegration(
   workspacePaths: string[],
   referencePath: string,
-  currentWorkspacePath?: string
+  currentWorkspacePath?: string,
+  templateRoots?: string[]
 ): string | null {
   return resolveTemplateWorkspacePath(
     workspacePaths,
     referencePath,
-    currentWorkspacePath
+    currentWorkspacePath,
+    templateRoots
   );
 }

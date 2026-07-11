@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 
+import { registerTwigCodeActionProvider } from "./diagnostics/codeActionProvider";
 import { registerTwigDiagnosticProvider } from "./diagnostics/diagnosticProvider";
 import { formatTwig, type FormatterOptions } from "@twig-plus/formatter";
 import { registerTwigCompletionProvider } from "./language/completionProvider";
@@ -7,13 +8,19 @@ import { registerTwigDefinitionProvider } from "./language/definitionProvider";
 import { registerTwigDocumentSymbolProvider } from "./language/documentSymbolProvider";
 import { registerTwigSelectionRangeProvider } from "./language/selectionRangeProvider";
 import {
+  getHtmlAttributeQuoteAutoCloseEdit,
+  getHtmlAutoCloseTagEdit,
   getTwigAutoCloseEdit,
+  getTwigAutoCloseEditAtOffset,
   getTwigAutoCloseBacktrack,
   getTwigEnterEdit,
+  getTwigExpressionPairAutoCloseEdit,
   getTwigSpacingEdit
 } from "./language/autoClose";
+import { getConfiguredTemplateRoots } from "./language/templateConfig";
 
 export function activate(context: vscode.ExtensionContext): void {
+  registerRecommendedSettingsCommand(context);
   registerTwigTagAutoCloseHandler(context);
 
   const provider: vscode.DocumentFormattingEditProvider = {
@@ -76,14 +83,88 @@ export function activate(context: vscode.ExtensionContext): void {
   registerTwigDocumentSymbolProvider(context);
   registerTwigSelectionRangeProvider(context);
   registerTwigDiagnosticProvider(context);
+  registerTwigCodeActionProvider(context);
 }
 
 export function deactivate(): void {}
+
+function registerRecommendedSettingsCommand(
+  context: vscode.ExtensionContext
+): void {
+  context.subscriptions.push(
+    vscode.commands.registerCommand("twigPlus.applyRecommendedSettings", async () => {
+      await applyRecommendedSettings();
+
+      void vscode.window.showInformationMessage(
+        "TwigPlus recommended workspace settings were applied."
+      );
+    }),
+    vscode.commands.registerCommand("twigPlus.showStatus", async () => {
+      await showTwigPlusStatus(context);
+    })
+  );
+}
+
+async function applyRecommendedSettings(): Promise<void> {
+  const config = vscode.workspace.getConfiguration();
+  const twigLanguageSettings = config.get<Record<string, unknown>>("[twig]") ?? {};
+
+  await config.update(
+    "[twig]",
+    {
+      ...twigLanguageSettings,
+      "editor.defaultFormatter": "sohophp.twig-plus",
+      "editor.formatOnSave": true
+    },
+    vscode.ConfigurationTarget.Workspace
+  );
+  await config.update("twigPlus.format.enable", true, vscode.ConfigurationTarget.Workspace);
+  await config.update(
+    "twigPlus.format.profile",
+    "phpstorm",
+    vscode.ConfigurationTarget.Workspace
+  );
+}
+
+async function showTwigPlusStatus(context: vscode.ExtensionContext): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  const config = vscode.workspace.getConfiguration();
+  const twigLanguageSettings = config.get<Record<string, unknown>>("[twig]") ?? {};
+  const formatConfig = vscode.workspace.getConfiguration("twigPlus.format");
+  const completionConfig = vscode.workspace.getConfiguration("twigPlus.completion");
+  const templateRoots = getConfiguredTemplateRoots();
+  const document = editor?.document;
+  const fileName = document ? document.uri.fsPath || document.uri.toString() : "(no active editor)";
+
+  const lines = [
+    `TwigPlus ${context.extension.packageJSON.version ?? "(unknown version)"}`,
+    `Active file: ${fileName}`,
+    `Language mode: ${document?.languageId ?? "(none)"}`,
+    `Twig default formatter: ${String(twigLanguageSettings["editor.defaultFormatter"] ?? "(unset)")}`,
+    `Twig format on save: ${String(twigLanguageSettings["editor.formatOnSave"] ?? "(unset)")}`,
+    `twigPlus.format.enable: ${String(formatConfig.get("enable", true))}`,
+    `twigPlus.format.profile: ${String(formatConfig.get("profile", "phpstorm"))}`,
+    `twigPlus.completion.autoInsertClosingTag: ${String(
+      completionConfig.get("autoInsertClosingTag", false)
+    )}`,
+    `twigPlus.templates.roots: ${templateRoots.join(", ")}`
+  ];
+
+  const documentUri = await vscode.workspace.openTextDocument({
+    language: "plaintext",
+    content: lines.join("\n")
+  });
+  await vscode.window.showTextDocument(documentUri, { preview: true });
+}
 
 function registerTwigTagAutoCloseHandler(
   context: vscode.ExtensionContext
 ): void {
   let applyingEdit = false;
+
+  registerTwigTypeCommandHandler(context, () => applyingEdit, (value) => {
+    applyingEdit = value;
+  });
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((event) => {
@@ -94,6 +175,138 @@ function registerTwigTagAutoCloseHandler(
       });
     })
   );
+}
+
+function registerTwigTypeCommandHandler(
+  context: vscode.ExtensionContext,
+  getApplyingEdit: () => boolean,
+  setApplyingEdit: (value: boolean) => void
+): void {
+  context.subscriptions.push(
+    vscode.commands.registerCommand("type", async (args: { text: string }) => {
+      await vscode.commands.executeCommand("default:type", args);
+
+      if (getApplyingEdit() || !["%", "{", "#", "(", ">", "="].includes(args.text)) {
+        return;
+      }
+
+      const editor = vscode.window.activeTextEditor;
+      if (!editor || editor.document.languageId !== "twig") {
+        return;
+      }
+
+      if (args.text === "{" || args.text === "%" || args.text === "#") {
+        const normalized = await normalizeTwigDelimiterAtCursor(
+          editor,
+          setApplyingEdit
+        );
+        if (normalized || args.text !== "{") {
+          return;
+        }
+      }
+
+      if (args.text === "(" || args.text === "{") {
+        await insertAutoCloseTextAtCursor(
+          editor,
+          getTwigExpressionPairAutoCloseEdit,
+          setApplyingEdit
+        );
+        return;
+      }
+
+      if (args.text === "=") {
+        await insertAutoCloseTextAtCursor(
+          editor,
+          getHtmlAttributeQuoteAutoCloseEdit,
+          setApplyingEdit
+        );
+        return;
+      }
+
+      await insertAutoCloseTextAtCursor(
+        editor,
+        getHtmlAutoCloseTagEdit,
+        setApplyingEdit
+      );
+    })
+  );
+}
+
+async function insertAutoCloseTextAtCursor(
+  editor: vscode.TextEditor,
+  getEdit: (
+    source: string,
+    cursorOffset: number
+  ) => { cursorOffsetDelta: number; insertText: string } | null,
+  setApplyingEdit: (value: boolean) => void
+): Promise<void> {
+  const cursorOffset = editor.document.offsetAt(editor.selection.active);
+  const edit = getEdit(editor.document.getText(), cursorOffset);
+
+  if (!edit) {
+    return;
+  }
+
+  setApplyingEdit(true);
+
+  try {
+    const applied = await editor.edit((editBuilder) => {
+      editBuilder.insert(editor.document.positionAt(cursorOffset), edit.insertText);
+    });
+
+    if (!applied) {
+      return;
+    }
+
+    const cursor = editor.document.positionAt(cursorOffset + edit.cursorOffsetDelta);
+    editor.selection = new vscode.Selection(cursor, cursor);
+  } finally {
+    setApplyingEdit(false);
+  }
+}
+
+async function normalizeTwigDelimiterAtCursor(
+  editor: vscode.TextEditor,
+  setApplyingEdit: (value: boolean) => void
+): Promise<boolean> {
+  const cursorOffset = editor.document.offsetAt(editor.selection.active);
+  const autoCloseEdit = getTwigAutoCloseEditAtOffset(
+    editor.document.getText(),
+    cursorOffset
+  );
+
+  if (!autoCloseEdit) {
+    return false;
+  }
+
+  const startPosition = editor.document.positionAt(autoCloseEdit.startOffset);
+  setApplyingEdit(true);
+
+  try {
+    const applied = await editor.edit((editBuilder) => {
+      editBuilder.replace(
+        new vscode.Range(
+          startPosition,
+          editor.document.positionAt(
+            autoCloseEdit.startOffset + autoCloseEdit.replaceLength
+          )
+        ),
+        autoCloseEdit.replacement
+      );
+    });
+
+    if (!applied) {
+      return false;
+    }
+
+    const cursor = editor.document.positionAt(
+      autoCloseEdit.startOffset + autoCloseEdit.cursorOffset
+    );
+    editor.selection = new vscode.Selection(cursor, cursor);
+    return true;
+  } finally {
+    setApplyingEdit(false);
+  }
 }
 
 async function handleTwigEditorAutoClose(

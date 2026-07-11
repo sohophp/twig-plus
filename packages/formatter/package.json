@@ -6,7 +6,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "@twig-plus/parser": "file:../parser"
+    "@twig-plus/parser": "file:../parser",
+    "prettier": "^3.9.4"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

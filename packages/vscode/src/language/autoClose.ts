@@ -4,6 +4,10 @@ export interface TwigAutoCloseEdit {
   replaceLength: number;
 }
 
+export interface TwigAutoCloseEditAtOffset extends TwigAutoCloseEdit {
+  startOffset: number;
+}
+
 export interface TwigEnterEdit {
   cursorColumn: number;
   replacement: string;
@@ -14,6 +18,11 @@ export interface TwigSpacingEdit {
   replacement: string;
   tokenEnd: number;
   tokenStart: number;
+}
+
+export interface InsertTextEdit {
+  cursorOffsetDelta: number;
+  insertText: string;
 }
 
 export function getTwigAutoCloseBacktrack(
@@ -78,6 +87,163 @@ export function getTwigAutoCloseEdit(currentText: string): TwigAutoCloseEdit | n
   }
 
   return null;
+}
+
+export function getTwigAutoCloseEditAtOffset(
+  source: string,
+  cursorOffset: number
+): TwigAutoCloseEditAtOffset | null {
+  const searchStart = Math.max(0, cursorOffset - 4);
+  let bestEdit: TwigAutoCloseEditAtOffset | null = null;
+
+  for (let startOffset = searchStart; startOffset <= cursorOffset; startOffset += 1) {
+    const currentText = source.slice(
+      startOffset,
+      Math.min(startOffset + 6, source.length)
+    );
+    const edit = getTwigAutoCloseEdit(currentText);
+
+    if (!edit) {
+      continue;
+    }
+
+    const replaceEnd = startOffset + edit.replaceLength;
+    if (cursorOffset < startOffset + 2 || cursorOffset > replaceEnd) {
+      continue;
+    }
+
+    const existingText = source.slice(startOffset, startOffset + edit.replacement.length);
+    if (existingText === edit.replacement) {
+      continue;
+    }
+
+    bestEdit = {
+      ...edit,
+      startOffset
+    };
+  }
+
+  return bestEdit;
+}
+
+export function getTwigExpressionPairAutoCloseEdit(
+  source: string,
+  cursorOffset: number
+): InsertTextEdit | null {
+  if (cursorOffset === 0) {
+    return null;
+  }
+
+  const openingCharacter = source[cursorOffset - 1];
+  const closingCharacter = getTwigExpressionClosingCharacter(openingCharacter);
+  if (!closingCharacter || source[cursorOffset] === closingCharacter) {
+    return null;
+  }
+
+  const tokenStart = Math.max(
+    source.lastIndexOf("{{", cursorOffset),
+    source.lastIndexOf("{%", cursorOffset),
+    source.lastIndexOf("{#", cursorOffset)
+  );
+
+  if (tokenStart === -1) {
+    return null;
+  }
+
+  const tokenEnd = findTwigTokenEnd(source, tokenStart);
+  if (tokenEnd === -1 || cursorOffset > tokenEnd) {
+    return null;
+  }
+
+  const suffix = source.slice(cursorOffset, tokenEnd);
+  if (!isSafeTwigExpressionPairSuffix(suffix, openingCharacter)) {
+    return null;
+  }
+
+  return {
+    insertText: closingCharacter,
+    cursorOffsetDelta: 0
+  };
+}
+
+export function getHtmlAutoCloseTagEdit(
+  source: string,
+  cursorOffset: number
+): InsertTextEdit | null {
+  if (cursorOffset === 0 || source[cursorOffset - 1] !== ">") {
+    return null;
+  }
+
+  const lineStart = source.lastIndexOf("\n", cursorOffset - 1) + 1;
+  const linePrefix = source.slice(lineStart, cursorOffset);
+  const openingTag = getLastHtmlOpeningTag(linePrefix);
+
+  if (!openingTag || isVoidHtmlTag(openingTag.tagName) || openingTag.selfClosing) {
+    return null;
+  }
+
+  if (source.slice(cursorOffset).startsWith(`</${openingTag.tagName}>`)) {
+    return null;
+  }
+
+  return {
+    insertText: `</${openingTag.tagName}>`,
+    cursorOffsetDelta: 0
+  };
+}
+
+export function getHtmlAttributeQuoteAutoCloseEdit(
+  source: string,
+  cursorOffset: number
+): InsertTextEdit | null {
+  if (cursorOffset === 0 || source[cursorOffset - 1] !== "=") {
+    return null;
+  }
+
+  if (isInsideTwigToken(source, cursorOffset)) {
+    return null;
+  }
+
+  const lineStart = source.lastIndexOf("\n", cursorOffset - 1) + 1;
+  const linePrefix = source.slice(lineStart, cursorOffset);
+  const tagStart = linePrefix.lastIndexOf("<");
+  if (tagStart === -1) {
+    return null;
+  }
+
+  const tagText = linePrefix.slice(tagStart);
+  if (
+    /^<\//.test(tagText) ||
+    /^<!/.test(tagText) ||
+    /^<\?/.test(tagText) ||
+    tagText.includes(">")
+  ) {
+    return null;
+  }
+
+  if (hasUnclosedQuote(tagText)) {
+    return null;
+  }
+
+  if (!/^<[A-Za-z][\w:-]*(?:\s[\s\S]*)?\s[A-Za-z_:][\w:.-]*=$/.test(tagText)) {
+    return null;
+  }
+
+  const nextCharacter = source[cursorOffset] ?? "";
+  if (nextCharacter === "\"" || nextCharacter === "'") {
+    return null;
+  }
+
+  const shouldSeparateFromNextToken =
+    nextCharacter !== "" &&
+    !/\s/.test(nextCharacter) &&
+    nextCharacter !== ">" &&
+    nextCharacter !== "/";
+
+  return {
+    insertText: shouldSeparateFromNextToken ? "\"\" " : "\"\"",
+    cursorOffsetDelta: 1
+  };
 }
 
 export function getTwigEnterEdit(
@@ -158,6 +324,127 @@ function getReplaceLength(currentText: string, candidates: string[]): number {
   }
 
   return Math.min(currentText.length, candidates.at(-1)?.length ?? 0);
+}
+
+function findTwigTokenEnd(source: string, tokenStart: number): number {
+  const opening = source.slice(tokenStart, tokenStart + 2);
+  const closing =
+    opening === "{{" ? "}}" : opening === "{%" ? "%}" : opening === "{#" ? "#}" : null;
+
+  if (!closing) {
+    return -1;
+  }
+
+  return source.indexOf(closing, tokenStart + 2);
+}
+
+function getTwigExpressionClosingCharacter(openingCharacter: string): string | null {
+  if (openingCharacter === "(") {
+    return ")";
+  }
+
+  if (openingCharacter === "{") {
+    return "}";
+  }
+
+  return null;
+}
+
+function isSafeTwigExpressionPairSuffix(
+  suffix: string,
+  openingCharacter: string
+): boolean {
+  if (/^\s*$/.test(suffix)) {
+    return true;
+  }
+
+  if (openingCharacter === "{") {
+    return /^[)\]}]\s*$/.test(suffix);
+  }
+
+  return false;
+}
+
+function isInsideTwigToken(source: string, cursorOffset: number): boolean {
+  const tokenStart = Math.max(
+    source.lastIndexOf("{{", cursorOffset),
+    source.lastIndexOf("{%", cursorOffset),
+    source.lastIndexOf("{#", cursorOffset)
+  );
+
+  if (tokenStart === -1 || cursorOffset <= tokenStart) {
+    return false;
+  }
+
+  const tokenEnd = findTwigTokenEnd(source, tokenStart);
+  return tokenEnd === -1 || cursorOffset <= tokenEnd;
+}
+
+function getLastHtmlOpeningTag(linePrefix: string): {
+  selfClosing: boolean;
+  tagName: string;
+} | null {
+  const tagStart = linePrefix.lastIndexOf("<");
+  if (tagStart === -1) {
+    return null;
+  }
+
+  const tagText = linePrefix.slice(tagStart);
+  if (/^<\//.test(tagText) || !tagText.endsWith(">")) {
+    return null;
+  }
+
+  if (hasUnclosedQuote(tagText)) {
+    return null;
+  }
+
+  const match = tagText.match(/^<([A-Za-z][\w:-]*)(?:\s[\s\S]*)?>$/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    tagName: match[1].toLowerCase(),
+    selfClosing: /\/\s*>$/.test(tagText)
+  };
+}
+
+function hasUnclosedQuote(value: string): boolean {
+  let quote: "\"" | "'" | null = null;
+
+  for (const char of value) {
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "\"" || char === "'") {
+      quote = char;
+    }
+  }
+
+  return quote !== null;
+}
+
+function isVoidHtmlTag(tagName: string): boolean {
+  return [
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr"
+  ].includes(tagName);
 }
 
 function getOpeningTagName(line: string): string | null {

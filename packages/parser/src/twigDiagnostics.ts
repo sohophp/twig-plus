@@ -1,4 +1,7 @@
-import { resolveTemplateWorkspacePath } from "./templateCompletion";
+import {
+  DEFAULT_TEMPLATE_ROOTS,
+  resolveTemplateWorkspacePath
+} from "./templateCompletion";
 import { getTwigTagKind, getTwigTagName } from "./twigStructure";
 import { tokenizeTwig } from "./twigTokenizer";
 
@@ -40,7 +43,8 @@ const MIDDLE_EXPECTATIONS: Record<string, string> = {
 export function analyzeTwigDiagnostics(
   source: string,
   workspacePaths: string[] = [],
-  currentWorkspacePath?: string
+  currentWorkspacePath?: string,
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
 ): TwigDiagnostic[] {
   const diagnostics: TwigDiagnostic[] = [];
   const tokens = tokenizeTwig(source);
@@ -77,6 +81,7 @@ export function analyzeTwigDiagnostics(
       token.start,
       workspacePaths,
       currentWorkspacePath,
+      templateRoots,
       diagnostics
     );
 
@@ -160,6 +165,7 @@ function collectTemplateReferenceDiagnostic(
   tokenStart: number,
   workspacePaths: string[],
   currentWorkspacePath: string | undefined,
+  templateRoots: string[],
   diagnostics: TwigDiagnostic[]
 ): void {
   const match = content.match(/^(extends|include|embed|import|from)\s+['"]([^'"]+)['"]/i);
@@ -177,12 +183,13 @@ function collectTemplateReferenceDiagnostic(
     !resolveTemplateWorkspacePath(
       workspacePaths,
       referencePath,
-      currentWorkspacePath
+      currentWorkspacePath,
+      templateRoots
     )
   ) {
     const quoteIndex = content.indexOf(referencePath);
     diagnostics.push({
-      message: `Template "${referencePath}" referenced by "${directive}" was not found.`,
+      message: `Template "${referencePath}" referenced by "${directive}" was not found. Searched Twig template roots: ${templateRoots.join(", ")}. Configure twigPlus.templates.roots if your project uses another template directory.`,
       severity: "warning",
       start: tokenStart + 2 + quoteIndex,
       end: tokenStart + 2 + quoteIndex + referencePath.length

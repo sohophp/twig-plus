@@ -23,10 +23,12 @@ describe("analyzeTwigDiagnostics", () => {
     expect(diagnostics).toEqual([
       expect.objectContaining({
         severity: "warning",
-        message:
+        message: expect.stringContaining(
           'Template "partials/missing.html.twig" referenced by "include" was not found.'
+        )
       })
     ]);
+    expect(diagnostics[0].message).toContain("twigPlus.templates.roots");
   });
 
   it("resolves same-directory template references before reporting missing templates", () => {

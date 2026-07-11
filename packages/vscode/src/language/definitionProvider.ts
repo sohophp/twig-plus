@@ -6,10 +6,14 @@ import {
   collectTwigStructureSymbols,
   getBlockReferenceAtOffset,
   getTwigMacroReferenceAtOffset,
-  getTemplateReferenceMatch,
+  getTemplateReferenceAtOffset,
   getExtendsTemplateReference,
   resolveTemplateWorkspacePath
 } from "@twig-plus/parser";
+import {
+  findTwigWorkspacePaths,
+  getConfiguredTemplateRoots
+} from "./templateConfig";
 
 export function registerTwigDefinitionProvider(
   context: vscode.ExtensionContext
@@ -26,11 +30,12 @@ export function registerTwigDefinitionProvider(
         return blockDefinition;
       }
 
-      const line = document.lineAt(position.line).text;
-      const linePrefix = line.slice(0, position.character);
-      const match = getTemplateReferenceMatch(linePrefix);
+      const match = getTemplateReferenceAtOffset(
+        document.getText(),
+        document.offsetAt(position)
+      );
 
-      if (!match || !isInsideTemplateReference(line, position.character, match.prefix)) {
+      if (!match) {
         return null;
       }
 
@@ -39,22 +44,17 @@ export function registerTwigDefinitionProvider(
         return null;
       }
 
-      const uris = await vscode.workspace.findFiles(
-        new vscode.RelativePattern(workspaceFolder, "**/*.twig"),
-        "**/{node_modules,dist,coverage}/**"
-      );
-
-      const relativePaths = uris.map((uri) =>
-        vscode.workspace.asRelativePath(uri, false).replace(/\\/g, "/")
-      );
+      const relativePaths = await findTwigWorkspacePaths(workspaceFolder);
       const currentWorkspacePath = vscode.workspace
         .asRelativePath(document.uri, false)
         .replace(/\\/g, "/");
+      const templateRoots = getConfiguredTemplateRoots();
 
       const resolvedWorkspacePath = resolveTemplateWorkspacePath(
         relativePaths,
-        match.prefix,
-        currentWorkspacePath
+        match.referencePath,
+        currentWorkspacePath,
+        templateRoots
       );
 
       if (!resolvedWorkspacePath) {
@@ -69,20 +69,6 @@ export function registerTwigDefinitionProvider(
   context.subscriptions.push(
     vscode.languages.registerDefinitionProvider({ language: "twig" }, provider)
   );
-}
-
-function isInsideTemplateReference(
-  line: string,
-  character: number,
-  prefix: string
-): boolean {
-  const prefixStart = character - prefix.length;
-  if (prefixStart < 0) {
-    return false;
-  }
-
-  const suffix = line.slice(character);
-  return /^[^'"]*['"]/.test(suffix) || suffix.length === 0;
 }
 
 async function provideBlockDefinition(
@@ -123,21 +109,17 @@ async function provideBlockDefinition(
     return null;
   }
 
-  const uris = await vscode.workspace.findFiles(
-    new vscode.RelativePattern(workspaceFolder, "**/*.twig"),
-    "**/{node_modules,dist,coverage}/**"
-  );
-  const relativePaths = uris.map((uri) =>
-    vscode.workspace.asRelativePath(uri, false).replace(/\\/g, "/")
-  );
+  const relativePaths = await findTwigWorkspacePaths(workspaceFolder);
   const currentWorkspacePath = vscode.workspace
     .asRelativePath(document.uri, false)
     .replace(/\\/g, "/");
+  const templateRoots = getConfiguredTemplateRoots();
 
   const resolvedWorkspacePath = resolveTemplateWorkspacePath(
     relativePaths,
     parentReference,
-    currentWorkspacePath
+    currentWorkspacePath,
+    templateRoots
   );
 
   if (!resolvedWorkspacePath) {
@@ -219,21 +201,17 @@ async function resolveTemplateUri(
   document: vscode.TextDocument,
   referencePath: string
 ): Promise<vscode.Uri | null> {
-  const uris = await vscode.workspace.findFiles(
-    new vscode.RelativePattern(workspaceFolder, "**/*.twig"),
-    "**/{node_modules,dist,coverage}/**"
-  );
-  const relativePaths = uris.map((uri) =>
-    vscode.workspace.asRelativePath(uri, false).replace(/\\/g, "/")
-  );
+  const relativePaths = await findTwigWorkspacePaths(workspaceFolder);
   const currentWorkspacePath = vscode.workspace
     .asRelativePath(document.uri, false)
     .replace(/\\/g, "/");
+  const templateRoots = getConfiguredTemplateRoots();
 
   const resolvedWorkspacePath = resolveTemplateWorkspacePath(
     relativePaths,
     referencePath,
-    currentWorkspacePath
+    currentWorkspacePath,
+    templateRoots
   );
 
   if (!resolvedWorkspacePath) {

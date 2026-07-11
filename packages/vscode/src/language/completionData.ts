@@ -121,6 +121,13 @@ export const TAG_COMPLETIONS: StaticCompletionEntry[] = [
     documentation: "Insert an import tag.",
     insertText: "import '${1:macros.html.twig}' as ${2:macros}",
     priority: 65
+  },
+  {
+    label: "from",
+    detail: "Twig tag",
+    documentation: "Insert a from/import tag.",
+    insertText: "from '${1:macros.html.twig}' import ${2:macro}",
+    priority: 64
   }
 ];
 
@@ -180,7 +187,11 @@ export function getTwigCompletionMatch(linePrefix: string): TwigCompletionMatch 
   }
 
   const functionMatch = linePrefix.match(/\{\{[\s\S]*?\b([a-zA-Z_][a-zA-Z0-9_]*)$/);
-  if (functionMatch && !linePrefix.trimEnd().endsWith("|")) {
+  if (
+    functionMatch &&
+    !linePrefix.trimEnd().endsWith("|") &&
+    isFunctionCompletionPosition(linePrefix, functionMatch[1])
+  ) {
     return {
       kind: "function",
       prefix: functionMatch[1].toLowerCase(),
@@ -195,6 +206,26 @@ export function getTwigCompletionMatch(linePrefix: string): TwigCompletionMatch 
     replaceStartOffset: linePrefix.length,
     preferClosing: false
   };
+}
+
+function isFunctionCompletionPosition(linePrefix: string, prefix: string): boolean {
+  const prefixStart = linePrefix.length - prefix.length;
+  const beforePrefix = linePrefix.slice(0, prefixStart);
+  if (beforePrefix.trimEnd().endsWith("{{")) {
+    return true;
+  }
+
+  const previousNonSpace = beforePrefix.match(/\S(?=\s*$)/)?.[0] ?? "";
+
+  if (!previousNonSpace) {
+    return true;
+  }
+
+  if (previousNonSpace === "{" || previousNonSpace === "." || previousNonSpace === ":") {
+    return false;
+  }
+
+  return /[\s({[,?:=+\-*/%~]/.test(previousNonSpace);
 }
 
 export function getCompletionSortScore(

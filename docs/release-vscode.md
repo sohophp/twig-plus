@@ -1,6 +1,6 @@
 # TwigPlus VSCode Release Guide
 
-This guide covers the first stable Marketplace release flow for the `TwigPlus` VSCode extension.
+This guide covers the Marketplace release flow for the `TwigPlus` VSCode extension.
 
 ## Prerequisites
 
@@ -13,6 +13,41 @@ This guide covers the first stable Marketplace release flow for the `TwigPlus` V
 npx @vscode/vsce login sohophp
 ```
 
+- If you want to inspect package contents without a global install:
+
+```bash
+npm run vsce:ls --workspace packages/vscode
+```
+
+## Recommended User Settings
+
+TwigPlus contributes itself as the default formatter for the `twig` language. For the recommended PHPStorm-like workflow, users can add:
+
+```json
+{
+  "[twig]": {
+    "editor.defaultFormatter": "sohophp.twig-plus",
+    "editor.formatOnSave": true
+  },
+  "twigPlus.format.enable": true,
+  "twigPlus.format.profile": "phpstorm"
+}
+```
+
+Users can also run this Command Palette action after installation:
+
+```text
+TwigPlus: Apply Recommended Twig Settings
+```
+
+The command writes the recommended settings to the current workspace. The extension does not silently modify global settings on install.
+
+## Versioning
+
+- Bump `packages/vscode/package.json` for Marketplace releases.
+- Keep `packages/vscode/CHANGELOG.md` updated before packaging.
+- Run `npm install --package-lock-only` from the workspace root after a version bump so `package-lock.json` records the package snapshot.
+
 ## Local Packaging
 
 From the workspace root:
@@ -23,9 +58,10 @@ npm run package:vsix --workspace packages/vscode
 
 This will:
 
-1. vendor workspace runtime packages into `packages/vscode/node_modules/@twig-plus`
-2. package the extension without resolving external workspace dependencies
-3. create a `.vsix` file inside `packages/vscode`
+1. run the VSCode prepublish step
+2. verify `dist/extension.js` contains the bundled runtime formatter/parser code
+3. package the extension without runtime `node_modules`
+4. create a `.vsix` file inside `packages/vscode`
 
 ## Marketplace Publish
 
@@ -35,11 +71,23 @@ From the workspace root:
 npm run publish:marketplace --workspace packages/vscode
 ```
 
+If you need to login manually, use:
+
+```bash
+npx @vscode/vsce login sohophp
+```
+
 ## Pre-publish Verification
 
 - Confirm formatter works in `Extension Development Host`
 - Confirm Twig completion works for `{% if %}`, `endblock`, and template path references
 - Confirm template navigation works for `extends`, `include`, `embed`, `import`, and `from`
+- Confirm PHPStorm-like typing helpers:
+  - `{%` becomes `{%  %}`
+  - `{{ url(` becomes `{{ url() }}`
+  - `{{ url({` becomes `{{ url({}) }}`
+  - `<p>` becomes `<p></p>`
+  - `<a href=` becomes `<a href="">`
 - Confirm `Expand Selection` grows through Twig tag, Twig block, and surrounding HTML node
 - Confirm real-page formatter fixtures still pass
 
@@ -47,4 +95,4 @@ npm run publish:marketplace --workspace packages/vscode
 
 - The extension package is the Marketplace artifact; the monorepo root is not published
 - `packages/language-server` remains a future placeholder and is not part of the first release
-- The `{%` typing hook is still a known limitation across some VSCode builds, so release notes should keep that caveat until the input behavior is fully stabilized
+- The current logo is valid, but it is larger than ideal for Marketplace packaging; reducing it to a smaller square PNG later will shrink the VSIX

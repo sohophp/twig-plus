@@ -1,0 +1,26 @@
+{% extends 'base.html.twig' %}
+{% block content %}
+  {% include 'partials/header.html.twig' %}
+  <section class="product-card" data-state="{{ product.state }}" data-id="{{ product.id }}">
+    {% if product.visible %}
+      <article class="card">
+        <h1>{{ product.title }}</h1>
+        <p>{{ product.summary|default('') }}</p>
+        <script>
+          const options = { id: "{{ product.id }}", name: "{{ product.title|escape('js') }}" };
+          if (options.id) {
+            window.renderProduct(options);
+          }
+        </script>
+        <style>
+          .product-{{ product.slug }} {
+            color: {{ product.color }};
+            background: linear-gradient(90deg, {{ product.start }}, {{ product.end }});
+          }
+        </style>
+      </article>
+    {% else %}
+      <p>{{ 'Unavailable'|trans }}</p>
+    {% endif %}
+  </section>
+{% endblock %}

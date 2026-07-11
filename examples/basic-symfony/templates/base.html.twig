@@ -1,5 +1,23 @@
 {% block content %}
-  <main>
-    {{ content }}
-  </main>
+    <main>
+        {{ content }}
+    </main>
 {% endblock %}
+
+{% block sidebar %}
+    <aside>
+        {{ sidebar }}
+    </aside>
+{% endblock %}
+{% if condition %}
+    asfasf
+    <br />
+    <p>sdfa</p>
+    {% block main %}
+    {% endblock %}
+    <p class="a">
+        <a href="s.html">{{ item.value| replace({}) }}</a>
+    </p>
+
+    <p>{{ url({}) }}</p>
+{% endif %}

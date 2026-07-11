@@ -5,6 +5,10 @@ import {
   type TwigDiagnostic,
   type TwigDiagnosticSeverity
 } from "@twig-plus/parser";
+import {
+  findTwigWorkspacePaths,
+  getConfiguredTemplateRoots
+} from "../language/templateConfig";
 
 export function registerTwigDiagnosticProvider(
   context: vscode.ExtensionContext
@@ -18,21 +22,18 @@ export function registerTwigDiagnosticProvider(
 
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
     const workspacePaths = workspaceFolder
-      ? (
-          await vscode.workspace.findFiles(
-            new vscode.RelativePattern(workspaceFolder, "**/*.twig"),
-            "**/{node_modules,dist,coverage}/**"
-          )
-        ).map((uri) => vscode.workspace.asRelativePath(uri, false).replace(/\\/g, "/"))
+      ? await findTwigWorkspacePaths(workspaceFolder)
       : [];
     const currentWorkspacePath = vscode.workspace
       .asRelativePath(document.uri, false)
       .replace(/\\/g, "/");
+    const templateRoots = getConfiguredTemplateRoots();
 
     const diagnostics = analyzeTwigDiagnostics(
       document.getText(),
       workspacePaths,
-      currentWorkspacePath
+      currentWorkspacePath,
+      templateRoots
     ).map((diagnostic) => toVsCodeDiagnostic(document, diagnostic));
 
     collection.set(document.uri, diagnostics);

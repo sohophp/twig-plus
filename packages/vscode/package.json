@@ -2,10 +2,9 @@
   "name": "twig-plus",
   "displayName": "TwigPlus",
   "description": "Twig formatter and editor tooling for VSCode.",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "publisher": "sohophp",
   "license": "MIT",
-  "icon": "assets/logo.png",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sohophp/twig-plus.git"
@@ -30,13 +29,12 @@
     "Snippets"
   ],
   "activationEvents": [
-    "onLanguage:twig"
+    "onLanguage:twig",
+    "onCommand:twigPlus.applyRecommendedSettings",
+    "onCommand:twigPlus.showStatus",
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
-  "dependencies": {
-    "@twig-plus/formatter": "file:../formatter",
-    "@twig-plus/parser": "file:../parser"
-  },
   "contributes": {
     "languages": [
       {
@@ -65,6 +63,18 @@
       {
         "language": "twig",
         "path": "./snippets/twig.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "twigPlus.applyRecommendedSettings",
+        "title": "Apply Recommended Twig Settings",
+        "category": "TwigPlus"
+      },
+      {
+        "command": "twigPlus.showStatus",
+        "title": "Show Status",
+        "category": "TwigPlus"
       }
     ],
     "configuration": {
@@ -130,6 +140,18 @@
           "type": "boolean",
           "default": false,
           "description": "When completing opening Twig control tags, also insert the matching closing tag snippet. Disabled by default to match PHPStorm."
+        },
+        "twigPlus.templates.roots": {
+          "type": "array",
+          "default": [
+            "templates",
+            "app/Resources/views",
+            "src/*/Resources/views"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Workspace-relative Twig template roots used for template completion, diagnostics, and Go to Definition. Use * for one path segment, for example src/*/Resources/views."
         }
       }
     },
@@ -140,11 +162,13 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --external:prettier --outfile=dist/extension.js",
     "test": "vitest run test",
+    "vscode:test": "npm run build && node ./test/extension/runTest.js",
     "prepare-release": "node ./scripts/prepare-release.js",
     "vscode:prepublish": "npm run prepare-release",
-    "package:vsix": "npm run prepare-release && npx @vscode/vsce package --no-dependencies",
-    "publish:marketplace": "npm run prepare-release && npx @vscode/vsce publish --no-dependencies"
+    "vsce:ls": "npx @vscode/vsce ls --tree",
+    "package:vsix": "npx @vscode/vsce package --no-dependencies",
+    "publish:marketplace": "npx @vscode/vsce publish --no-dependencies"
   }
 }

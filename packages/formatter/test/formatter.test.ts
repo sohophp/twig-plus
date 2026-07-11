@@ -32,7 +32,11 @@ const fixtureNames = [
   "real-page-empty-elseif",
   "real-page-script-mixed",
   "real-page-style-mixed",
-  "real-page-blank-lines"
+  "phpstorm-like-mixed-page",
+  "real-page-blank-lines",
+  "messy-html-attributes",
+  "messy-twig-expressions",
+  "inline-block-children"
 ];
 
 describe("formatTwigDocument fixtures", () => {
@@ -146,6 +150,72 @@ describe("formatTwigDocument options", () => {
         "  <div class=\"inner\">test</div>"
       ].join("\n")
     );
+  });
+
+  it("normalizes broken inline html and twig output spacing", async () => {
+    const actual = await formatTwig(
+      [
+        `<a href="{{ path('about') }}" title="{{ __('About', 'About') }}"`,
+        `                        >{{ __('About', 'About') }}</a>`
+      ].join("\n"),
+      getDefaultOptions()
+    );
+
+    expect(actual).toBe(
+      `<a href="{{ path('about') }}" title="{{ __('About', 'About') }}">{{ __('About', 'About') }}</a>`
+    );
+    expect(await formatTwig(actual, getDefaultOptions())).toBe(actual);
+  });
+
+  it("normalizes nested broken html tag boundaries and extra child whitespace", async () => {
+    const actual = await formatTwig(
+      [
+        `  <li>`,
+        `                        <a href="{{ path('about') }}" title="{{ __('About', 'About') }}"      `,
+        `                         >      {{ __('About', 'About') }}</a>`,
+        `                    </li>`
+      ].join("\n"),
+      getDefaultOptions()
+    );
+
+    expect(actual).toBe(
+      [
+        "<li>",
+        `  <a href="{{ path('about') }}" title="{{ __('About', 'About') }}">{{ __('About', 'About') }}</a>`,
+        "</li>"
+      ].join("\n")
+    );
+    expect(await formatTwig(actual, getDefaultOptions())).toBe(actual);
+  });
+
+  it("normalizes multiline twig include tags", async () => {
+    const actual = await formatTwig(
+      [" {% include 'banner.twig'", "", "        %}"].join("\n"),
+      getDefaultOptions()
+    );
+
+    expect(actual).toBe("{% include 'banner.twig' %}");
+    expect(await formatTwig(actual, getDefaultOptions())).toBe(actual);
+  });
+
+  it("normalizes multiline twig output filters inside html wrappers", async () => {
+    const actual = await formatTwig(
+      [` <div class="editor">{{ content.content|`, `        raw }}</div>`].join("\n"),
+      getDefaultOptions()
+    );
+
+    expect(actual).toBe(`<div class="editor">{{ content.content|raw }}</div>`);
+    expect(await formatTwig(actual, getDefaultOptions())).toBe(actual);
+  });
+
+  it("normalizes html attribute assignment spacing", async () => {
+    const actual = await formatTwig(
+      [`    <div class  ="a">`, `    </div>`].join("\n"),
+      getDefaultOptions()
+    );
+
+    expect(actual).toBe([`<div class="a">`, `</div>`].join("\n"));
+    expect(await formatTwig(actual, getDefaultOptions())).toBe(actual);
   });
 });
 

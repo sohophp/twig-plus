@@ -5,12 +5,20 @@ export interface TemplateReferenceMatch {
   startOffset: number;
 }
 
+export interface TemplateReferenceAtOffset {
+  directive: TemplateReferenceMatch["directive"];
+  quote: "'" | "\"";
+  referencePath: string;
+  referenceStart: number;
+  referenceEnd: number;
+}
+
 export type TemplateReferenceStyle = "relative" | "bundle";
 
-const TEMPLATE_ROOT_PATTERNS = [
-  /^templates\//,
-  /^app\/Resources\/views\//,
-  /^src\/[^/]+\/Resources\/views\//
+export const DEFAULT_TEMPLATE_ROOTS = [
+  "templates",
+  "app/Resources/views",
+  "src/*/Resources/views"
 ];
 
 export function getTemplateReferenceMatch(
@@ -34,13 +42,49 @@ export function getTemplateReferenceMatch(
   };
 }
 
-export function mapWorkspaceTemplateToReference(workspacePath: string): string {
-  const normalized = workspacePath.replace(/\\/g, "/");
+export function getTemplateReferenceAtOffset(
+  source: string,
+  offset: number
+): TemplateReferenceAtOffset | null {
+  const referencePattern =
+    /\{%\s*(extends|include|embed|import|from)\s+(['"])([^'"]+)\2/gi;
 
-  for (const rootPattern of TEMPLATE_ROOT_PATTERNS) {
-    if (rootPattern.test(normalized)) {
-      return normalized.replace(rootPattern, "");
+  for (const match of source.matchAll(referencePattern)) {
+    const matchStart = match.index ?? 0;
+    const [, directive, quote, referencePath] = match;
+    const referenceStart =
+      matchStart + match[0].length - referencePath.length - 1;
+    const referenceEnd = referenceStart + referencePath.length;
+
+    if (offset < referenceStart - 1 || offset > referenceEnd) {
+      continue;
     }
+
+    return {
+      directive: directive.toLowerCase() as TemplateReferenceMatch["directive"],
+      quote: quote as "'" | "\"",
+      referencePath,
+      referenceStart,
+      referenceEnd
+    };
+  }
+
+  return null;
+}
+
+export function mapWorkspaceTemplateToReference(workspacePath: string): string {
+  return mapWorkspaceTemplateToReferenceWithRoots(workspacePath);
+}
+
+export function mapWorkspaceTemplateToReferenceWithRoots(
+  workspacePath: string,
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
+): string {
+  const normalized = workspacePath.replace(/\\/g, "/");
+  const rootInfo = getTemplateRootInfo(normalized, templateRoots);
+
+  if (rootInfo) {
+    return rootInfo.relativePath;
   }
 
   return normalized;
@@ -49,11 +93,15 @@ export function mapWorkspaceTemplateToReference(workspacePath: string): string {
 export function collectTemplateReferenceAliases(
   workspacePath: string,
   currentWorkspacePath?: string,
-  prefix = ""
+  prefix = "",
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
 ): string[] {
   const normalized = workspacePath.replace(/\\/g, "/");
   const aliases = new Set<string>();
-  const relativeReference = mapWorkspaceTemplateToReference(normalized);
+  const relativeReference = mapWorkspaceTemplateToReferenceWithRoots(
+    normalized,
+    templateRoots
+  );
 
   aliases.add(relativeReference);
 
@@ -65,7 +113,8 @@ export function collectTemplateReferenceAliases(
   for (const contextualAlias of collectContextualTemplateAliases(
     normalized,
     currentWorkspacePath?.replace(/\\/g, "/"),
-    prefix
+    prefix,
+    templateRoots
   )) {
     aliases.add(contextualAlias);
   }
@@ -76,7 +125,8 @@ export function collectTemplateReferenceAliases(
 export function collectTemplateCompletionCandidates(
   workspacePaths: string[],
   prefix: string,
-  currentWorkspacePath?: string
+  currentWorkspacePath?: string,
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
 ): string[] {
   const normalizedPrefix = prefix.replace(/\\/g, "/").toLowerCase();
   const seen = new Set<string>();
@@ -86,7 +136,8 @@ export function collectTemplateCompletionCandidates(
     for (const referencePath of collectTemplateReferenceAliases(
       workspacePath,
       currentWorkspacePath,
-      prefix
+      prefix,
+      templateRoots
     )) {
       if (!referencePath.endsWith(".twig")) {
         continue;
@@ -111,7 +162,8 @@ export function collectTemplateCompletionCandidates(
 export function resolveTemplateWorkspacePath(
   workspacePaths: string[],
   referencePath: string,
-  currentWorkspacePath?: string
+  currentWorkspacePath?: string,
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
 ): string | null {
   const normalizedReference = referencePath.replace(/\\/g, "/").toLowerCase();
   const normalizedCurrentPath = currentWorkspacePath?.replace(/\\/g, "/");
@@ -119,17 +171,19 @@ export function resolveTemplateWorkspacePath(
   const contextualWorkspacePath = resolveContextualWorkspacePath(
     workspacePaths,
     referencePath,
-    normalizedCurrentPath
+    normalizedCurrentPath,
+    templateRoots
   );
   if (contextualWorkspacePath) {
     return contextualWorkspacePath;
   }
 
-  for (const workspacePath of sortWorkspaceTemplatePaths(workspacePaths)) {
+  for (const workspacePath of sortWorkspaceTemplatePaths(workspacePaths, templateRoots)) {
     for (const alias of collectTemplateReferenceAliases(
       workspacePath,
       normalizedCurrentPath,
-      referencePath
+      referencePath,
+      templateRoots
     )) {
       if (alias.toLowerCase() === normalizedReference) {
         return workspacePath.replace(/\\/g, "/");
@@ -143,14 +197,15 @@ export function resolveTemplateWorkspacePath(
 function collectContextualTemplateAliases(
   workspacePath: string,
   currentWorkspacePath?: string,
-  prefix = ""
+  prefix = "",
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
 ): string[] {
   if (!currentWorkspacePath) {
     return [];
   }
 
-  const targetRoot = getTemplateRootInfo(workspacePath);
-  const currentRoot = getTemplateRootInfo(currentWorkspacePath);
+  const targetRoot = getTemplateRootInfo(workspacePath, templateRoots);
+  const currentRoot = getTemplateRootInfo(currentWorkspacePath, templateRoots);
 
   if (!targetRoot || !currentRoot || targetRoot.rootPath !== currentRoot.rootPath) {
     return [];
@@ -179,13 +234,14 @@ function collectContextualTemplateAliases(
 function resolveContextualWorkspacePath(
   workspacePaths: string[],
   referencePath: string,
-  currentWorkspacePath?: string
+  currentWorkspacePath?: string,
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
 ): string | null {
   if (!currentWorkspacePath || referencePath.includes(":")) {
     return null;
   }
 
-  const currentRoot = getTemplateRootInfo(currentWorkspacePath);
+  const currentRoot = getTemplateRootInfo(currentWorkspacePath, templateRoots);
   if (!currentRoot) {
     return null;
   }
@@ -253,35 +309,62 @@ function mapWorkspaceTemplateToBundleReference(
     : `${bundleName}::${templateName}`;
 }
 
-function getTemplateRootInfo(path: string): {
+function getTemplateRootInfo(path: string, templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS): {
   rootPath: string;
   relativePath: string;
 } | null {
   const normalized = path.replace(/\\/g, "/");
 
-  if (normalized.startsWith("templates/")) {
-    return {
-      rootPath: "templates",
-      relativePath: normalized.slice("templates/".length)
-    };
-  }
-
-  if (normalized.startsWith("app/Resources/views/")) {
-    return {
-      rootPath: "app/Resources/views",
-      relativePath: normalized.slice("app/Resources/views/".length)
-    };
-  }
-
-  const bundleMatch = normalized.match(/^(src\/[^/]+\/Resources\/views)\/(.+)$/);
-  if (bundleMatch) {
-    return {
-      rootPath: bundleMatch[1],
-      relativePath: bundleMatch[2]
-    };
+  for (const root of normalizeTemplateRoots(templateRoots)) {
+    const match = matchTemplateRoot(normalized, root);
+    if (match) {
+      return match;
+    }
   }
 
   return null;
+}
+
+function normalizeTemplateRoots(templateRoots: string[]): string[] {
+  return (templateRoots.length > 0 ? templateRoots : DEFAULT_TEMPLATE_ROOTS)
+    .map((root) => root.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""))
+    .filter(Boolean);
+}
+
+function matchTemplateRoot(
+  workspacePath: string,
+  rootPattern: string
+): { rootPath: string; relativePath: string } | null {
+  if (!rootPattern.includes("*")) {
+    const prefix = `${rootPattern}/`;
+    return workspacePath.startsWith(prefix)
+      ? {
+          rootPath: rootPattern,
+          relativePath: workspacePath.slice(prefix.length)
+        }
+      : null;
+  }
+
+  const expression = new RegExp(
+    `^(${rootPattern
+      .split("*")
+      .map(escapeRegExp)
+      .join("[^/]+")})/(.+)$`
+  );
+  const match = workspacePath.match(expression);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    rootPath: match[1],
+    relativePath: match[2]
+  };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function getDirname(path: string): string {
@@ -342,9 +425,14 @@ function toRelativePath(fromDir: string, toPath: string): string {
   return relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
 }
 
-function sortWorkspaceTemplatePaths(paths: string[]): string[] {
+function sortWorkspaceTemplatePaths(
+  paths: string[],
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
+): string[] {
   return [...paths].sort((left, right) => {
-    const priorityDelta = getTemplateRootPriority(left) - getTemplateRootPriority(right);
+    const priorityDelta =
+      getTemplateRootPriority(left, templateRoots) -
+      getTemplateRootPriority(right, templateRoots);
     if (priorityDelta !== 0) {
       return priorityDelta;
     }
@@ -353,20 +441,18 @@ function sortWorkspaceTemplatePaths(paths: string[]): string[] {
   });
 }
 
-function getTemplateRootPriority(path: string): number {
+function getTemplateRootPriority(
+  path: string,
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
+): number {
   const normalized = path.replace(/\\/g, "/");
+  const roots = normalizeTemplateRoots(templateRoots);
 
-  if (/^templates\//.test(normalized)) {
-    return 0;
+  for (const [index, root] of roots.entries()) {
+    if (matchTemplateRoot(normalized, root)) {
+      return index;
+    }
   }
 
-  if (/^app\/Resources\/views\//.test(normalized)) {
-    return 1;
-  }
-
-  if (/^src\/[^/]+\/Resources\/views\//.test(normalized)) {
-    return 2;
-  }
-
-  return 3;
+  return roots.length;
 }
