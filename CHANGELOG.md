@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2 - 2026-07-13
+
+- Fixed clean CI test ordering so formatter tests no longer depend on stale local parser build output.
+
 ## 1.1.1 - 2026-07-13
 
 - Stabilized `examples/basic-symfony/templates/base.html.twig` as the release smoke fixture and added byte-for-byte formatter idempotence coverage.

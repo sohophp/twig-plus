@@ -26,6 +26,8 @@ jobs:
       - run: npm run docs:check
       - run: npm run dead-entries:check
       - run: npm audit --omit=dev --audit-level=high --registry=https://registry.npmjs.org
+      - name: Verify tests bootstrap workspace build outputs
+        run: test ! -e packages/parser/dist/index.js
       - run: npm test
       - name: VSCode extension-host integration (minimum)
         run: xvfb-run -a npm run vscode:test:min --workspace packages/vscode

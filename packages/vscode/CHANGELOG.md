@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2 - 2026-07-13
+
+- Fixed clean-checkout CI by building workspace package entrypoints before Vitest resolves cross-package imports.
+- Added a CI assertion that proves the test command bootstraps correctly when `packages/parser/dist` does not exist.
+
 ## 1.1.1 - 2026-07-13
 
 - Replaced the ad-hoc Symfony base template with a valid, formatter-idempotent Twig/HTML/CSS/JavaScript smoke fixture.
