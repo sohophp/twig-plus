@@ -12,10 +12,34 @@
       "include": "#twig-tag"
     },
     {
+      "include": "#embedded-javascript"
+    },
+    {
       "include": "text.html.basic"
     }
   ],
   "repository": {
+    "embedded-javascript": {
+      "begin": "(?i)(<script\\b(?:(?!</?script\\b)[\\s\\S])*?>)",
+      "beginCaptures": {
+        "1": {
+          "name": "meta.tag.script.begin.html"
+        }
+      },
+      "end": "(?i)(</script\\s*>)",
+      "endCaptures": {
+        "1": {
+          "name": "meta.tag.script.end.html"
+        }
+      },
+      "contentName": "meta.embedded.block.javascript",
+      "patterns": [
+        { "include": "#twig-comment" },
+        { "include": "#twig-output" },
+        { "include": "#twig-tag" },
+        { "include": "source.js" }
+      ]
+    },
     "twig-comment": {
       "begin": "\\{#",
       "beginCaptures": {

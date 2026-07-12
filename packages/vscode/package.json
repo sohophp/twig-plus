@@ -58,7 +58,10 @@
       {
         "language": "twig",
         "scopeName": "text.html.twigplus",
-        "path": "./syntaxes/twig.tmLanguage.json"
+        "path": "./syntaxes/twig.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.javascript": "javascript"
+        }
       }
     ],
     "snippets": [
@@ -82,14 +85,50 @@
         "command": "twigPlus.selectParserEngine",
         "title": "Select Parser Engine",
         "category": "TwigPlus"
+      },
+      {
+        "command": "twigPlus.insertLineBreak",
+        "title": "Insert Twig Line Break",
+        "category": "TwigPlus"
+      },
+      {
+        "command": "twigPlus.insertHtmlCloseTag",
+        "title": "Insert HTML Closing Tag",
+        "category": "TwigPlus"
+      },
+      {
+        "command": "twigPlus.insertJavaScriptBracePair",
+        "title": "Insert JavaScript Brace Pair",
+        "category": "TwigPlus"
+      },
+      {
+        "command": "twigPlus.deleteJavaScriptBracePair",
+        "title": "Delete JavaScript Brace Pair",
+        "category": "TwigPlus"
       }
     ],
     "keybindings": [
       {
-        "command": "twigPlus.deleteLeft",
+        "command": "twigPlus.insertLineBreak",
+        "key": "enter",
+        "mac": "enter",
+        "when": "editorTextFocus && editorLangId == twig && !suggestWidgetVisible && !inlineSuggestionVisible && !renameInputVisible"
+      },
+      {
+        "command": "twigPlus.insertHtmlCloseTag",
+        "key": "shift+.",
+        "when": "editorTextFocus && editorLangId == twig && !renameInputVisible"
+      },
+      {
+        "command": "twigPlus.insertJavaScriptBracePair",
+        "key": "shift+[",
+        "when": "editorTextFocus && editorLangId == twig && !renameInputVisible"
+      },
+      {
+        "command": "twigPlus.deleteJavaScriptBracePair",
         "key": "backspace",
         "mac": "backspace",
-        "when": "editorTextFocus && editorLangId == twig"
+        "when": "editorTextFocus && editorLangId == twig && !renameInputVisible"
       }
     ],
     "configuration": {
@@ -160,11 +199,6 @@
           "default": true,
           "description": "Break lines after Twig control tags like block, if, else, and endblock when markup or text follows on the same line."
         },
-        "twigPlus.completion.autoInsertClosingTag": {
-          "type": "boolean",
-          "default": false,
-          "description": "When completing opening Twig control tags, also insert the matching closing tag snippet. Disabled by default to match PHPStorm."
-        },
         "twigPlus.parser.engine": {
           "type": "string",
           "enum": [
@@ -199,24 +233,57 @@
             "type": "string"
           },
           "description": "Application-provided Twig global variable and function names excluded from unresolved-name diagnostics."
+        },
+        "twigPlus.editing.autoCloseHtmlTags": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically insert the matching HTML closing tag after typing > or pressing Enter after a complete opening tag in a Twig document. Void and self-closing elements are excluded."
+        },
+        "twigPlus.editing.autoCloseTwigTags": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically insert the matching Twig end tag when Enter is pressed after a complete opening control tag."
+        },
+        "twigPlus.editing.autoCloseCssBraces": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically insert an indented closing brace when Enter is pressed after an opening CSS brace inside a style element."
+        },
+        "twigPlus.editing.autoCloseJavaScriptBraces": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically insert and pair-delete JavaScript braces in script code, and preserve atomic Enter indentation for the pair."
+        },
+        "twigPlus.editing.linkedHtmlTags": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use VS Code linked editing to keep matching HTML opening and closing tag names synchronized in Twig documents."
         }
       }
     },
     "configurationDefaults": {
       "[twig]": {
-        "editor.defaultFormatter": "sohophp.twig-plus"
+        "editor.defaultFormatter": "sohophp.twig-plus",
+        "editor.quickSuggestions": {
+          "other": "on",
+          "comments": "off",
+          "strings": "on"
+        },
+        "editor.linkedEditing": true
       }
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --external:prettier --external:vscode-html-languageservice --external:vscode-languageserver-textdocument --outfile=dist/extension.js && esbuild ../language-server/src/index.ts --bundle --platform=node --format=cjs --external:prettier --outfile=dist/server.js",
+    "build": "node scripts/clean-dist.js && tsc -p tsconfig.json && esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --external:prettier --external:vscode-html-languageservice --external:vscode-languageserver-textdocument --outfile=dist/extension.js && esbuild ../language-server/src/index.ts --bundle --platform=node --format=cjs --external:prettier --external:typescript --outfile=dist/server.js",
     "test": "vitest run test",
     "vscode:test": "npm run build && node ./test/extension/runTest.js",
+    "vscode:test:min": "npm run build && node ./test/extension/runTest.js 1.90.2",
+    "vscode:test:current": "npm run build && node ./test/extension/runTest.js stable",
     "vscode:test:packaged": "node ./test/extension/runPackagedTest.js",
     "prepare-release": "node ./scripts/prepare-release.js",
     "vscode:prepublish": "npm run prepare-release",
     "vsce:ls": "npx @vscode/vsce ls --tree",
-    "package:vsix": "npx @vscode/vsce package --no-dependencies",
+    "package:vsix": "node ./scripts/package-vsix.js",
     "publish:marketplace": "npx @vscode/vsce publish --no-dependencies"
   },
   "dependencies": {

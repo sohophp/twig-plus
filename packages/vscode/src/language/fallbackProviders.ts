@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { formatTwig, type FormatterOptions } from "@twig-plus/formatter";
+import { formatTwigWithResult, type FormatterOptions } from "@twig-plus/formatter";
 import { registerTwigDiagnosticProvider } from "../diagnostics/diagnosticProvider";
 import { registerTwigDefinitionProvider } from "./definitionProvider";
 import { registerTwigDocumentSymbolProvider } from "./documentSymbolProvider";
@@ -16,7 +16,7 @@ export function registerFallbackProviders(context: vscode.ExtensionContext): voi
   registerTwigSemanticProviders(context);
   registerTwigDiagnosticProvider(context);
   context.subscriptions.push(vscode.languages.registerDocumentFormattingEditProvider(TWIG_DOCUMENT_SELECTOR, {
-    async provideDocumentFormattingEdits(document) {
+    async provideDocumentFormattingEdits(document, _options, cancellation) {
       const config = vscode.workspace.getConfiguration("twigPlus", document.uri);
       if (!config.get<boolean>("format.enable", true)) return [];
       const options: FormatterOptions = {
@@ -29,12 +29,28 @@ export function registerFallbackProviders(context: vscode.ExtensionContext): voi
         preserveSingleLineBlocks: config.get<boolean>("format.preserveSingleLineBlocks", true),
         lineBreakAfterTwigControlTag: config.get<boolean>("format.lineBreakAfterTwigControlTag", true),
         parserEngine: getConfiguredParserEngine(),
-        onHybridDifference: (difference) => reportHybridDifference(difference, document)
+        onHybridDifference: (difference) => reportHybridDifference(difference, document),
+        onEmbeddedSyntaxError: (error) => {
+          void vscode.window.showWarningMessage(
+            `TwigPlus skipped formatting because the embedded ${error.language} contains syntax errors.`
+          );
+        }
       };
       const source = document.getText();
-      const formatted = await formatTwig(source, options);
-      if (formatted === source) return [];
-      return [vscode.TextEdit.replace(new vscode.Range(new vscode.Position(0, 0), document.positionAt(source.length)), formatted)];
+      const result = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Window, title: "TwigPlus: formatting document" },
+        async (progress) => formatTwigWithResult(source, {
+          ...options,
+          isCancellationRequested: () => cancellation.isCancellationRequested,
+          onStage: (stage, elapsedMs) => progress.report({ message: `${stage} ${elapsedMs.toFixed(1)}ms` })
+        })
+      );
+      if (!result.ok) {
+        if (result.error.code !== "cancelled") void vscode.window.showErrorMessage(`TwigPlus did not modify this document: ${result.error.message}`);
+        return [];
+      }
+      if (result.text === source) return [];
+      return [vscode.TextEdit.replace(new vscode.Range(new vscode.Position(0, 0), document.positionAt(source.length)), result.text)];
     }
   }));
 }

@@ -10,7 +10,12 @@ const OPENING_TAGS = new Set([
   "filter",
   "autoescape",
   "with",
-  "spaceless"
+  "spaceless",
+  "cache",
+  "guard",
+  "sandbox",
+  "types",
+  "verbatim"
 ]);
 
 const MIDDLE_TAGS = new Set([
@@ -30,7 +35,12 @@ const CLOSING_TAGS = new Set([
   "endautoescape",
   "endwith",
   "endspaceless",
-  "endset"
+  "endset",
+  "endcache",
+  "endguard",
+  "endsandbox",
+  "endtypes",
+  "endverbatim"
 ]);
 
 const CLOSING_TO_OPENING: Record<string, string> = {
@@ -44,7 +54,12 @@ const CLOSING_TO_OPENING: Record<string, string> = {
   endautoescape: "autoescape",
   endwith: "with",
   endspaceless: "spaceless",
-  endset: "set"
+  endset: "set",
+  endcache: "cache",
+  endguard: "guard",
+  endsandbox: "sandbox",
+  endtypes: "types",
+  endverbatim: "verbatim"
 };
 
 const OPENING_TO_CLOSING: Record<string, string> = {
@@ -58,7 +73,12 @@ const OPENING_TO_CLOSING: Record<string, string> = {
   autoescape: "endautoescape",
   with: "endwith",
   spaceless: "endspaceless",
-  set: "endset"
+  set: "endset",
+  cache: "endcache",
+  guard: "endguard",
+  sandbox: "endsandbox",
+  types: "endtypes",
+  verbatim: "endverbatim"
 };
 
 export type TwigTagKind = "opening" | "middle" | "closing" | "inline";

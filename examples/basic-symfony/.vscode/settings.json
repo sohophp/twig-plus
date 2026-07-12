@@ -1,6 +1,11 @@
 {
     "[twig]": {
         "editor.defaultFormatter": "sohophp.twig-plus",
+        "editor.quickSuggestions": {
+            "other": "on",
+            "comments": "off",
+            "strings": "on"
+        },
         "editor.formatOnSave": true
     },
     "twigPlus.format.enable": true,

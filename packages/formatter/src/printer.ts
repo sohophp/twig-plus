@@ -17,7 +17,21 @@ export interface FormatterOptions {
   lineBreakAfterTwigControlTag: boolean;
   parserEngine?: ParserEngine;
   onHybridDifference?: (difference: HybridDifference) => void;
+  onEmbeddedSyntaxError?: (error: { language: string; message: string; range?: { start: number; end: number } }) => void;
+  onStage?: (stage: FormatterStage, elapsedMs: number) => void;
+  isCancellationRequested?: () => boolean;
 }
+
+export type FormatterStage = "parse" | "twig" | "html" | "javascript" | "css" | "mapping" | "complete";
+
+export interface FormatterTiming { stage: FormatterStage; startedAt: number; durationMs: number; }
+export interface FormatterSuccess { ok: true; text: string; timings: FormatterTiming[]; }
+export interface FormatterFailure {
+  ok: false;
+  error: { code: "cancelled" | "embedded-syntax" | "format-failed"; language?: string; message: string; range?: { start: number; end: number } };
+  timings: FormatterTiming[];
+}
+export type FormatterResult = FormatterSuccess | FormatterFailure;
 
 export function printFormattedTwig(source: string, options: FormatterOptions): string {
   const lines = source.replace(/\r\n/g, "\n").split("\n");

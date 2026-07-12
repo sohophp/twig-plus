@@ -8,6 +8,9 @@ describe("TwigPlus language server", () => {
       renameProvider: { prepareProvider: true }, documentSymbolProvider: true,
       selectionRangeProvider: true, documentFormattingProvider: true
     });
+    expect(getServerCapabilities().completionProvider).toMatchObject({
+      triggerCharacters: expect.arrayContaining(["%", "{", " "])
+    });
   });
 
   it("defines bounded production resource budgets", () => {

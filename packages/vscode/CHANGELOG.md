@@ -1,7 +1,22 @@
 # Changelog
 
-## 1.1.0 - 2026-07-11
+## 1.1.0 - 2026-07-13
 
+- Added standard `%`/space Twig completion triggers and an atomic Enter controller that inserts missing `end*` tags with native Undo/Redo semantics.
+- Removed duplicate Hybrid formatting work, lazily loads Prettier/TypeScript only for embedded languages, and records real per-stage formatter timings.
+- Added independently configurable, atomic HTML tag, Twig control-tag, and embedded CSS brace closing; all three are enabled by default.
+- Added atomic JavaScript block closing on Enter and reduced noisy embedded JavaScript suggestions by suppressing incomplete arrow-body globals and deprioritizing DOM constants.
+- Added immediate, script-context-only JavaScript `{}` pairing without enabling global brace pairing that would interfere with Twig delimiters.
+- Added atomic Backspace pair deletion for empty JavaScript `{}` while delegating every non-matching deletion to VS Code.
+- Fixed CSS Enter closing to scan the remaining style block and avoid inserting a second `}` when the opening rule already has a matching brace.
+- Added native VS Code linked editing ranges for synchronized HTML opening and closing tag renames in Twig documents.
+- Replaced asynchronous delimiter and Backspace rewriting with the stable native VS Code editing model; Twig completion is now owned by the Language Server and formatting reports structured stage timings.
+- Removed client configuration roundtrips from the formatting critical path and verified the complete UI suite on the minimum VS Code 1.90.2 baseline.
+- Fixed automatic `{% bl` tag suggestions, Backspace inside empty Twig delimiters, and single-step undo after deleting closing tags; formatting now reports validation and formatting stages in the status bar.
+- Made invalid embedded formatting fail fast with a mapped diagnostic and a visible LSP request error while preserving the document transactionally.
+- Added verified Extension Host result reports, explicit minimum/current VS Code runners, whitespace-control delimiter typing, Twig test completion, broader Twig 3.x catalogs, quick fixes, and optional Symfony metadata completion.
+- Added themed JavaScript grammar embedding, callable snippets, parenthesis pairing, and TypeScript-powered completion for regular and module scripts inside Twig templates.
+- Added embedded JavaScript syntax diagnostics and made formatting preserve documents with invalid script or style syntax.
 - Promoted the lossless Hybrid CST/Twig AST engine to the default with automatic legacy fallback.
 - Added a bundled TwigPlus language server with semantic scope completion, cross-template macro/block navigation, references, rename, diagnostics, symbols, selection ranges, and CST-backed formatting.
 - Added an experimental lossless HTML/Twig Hybrid AST with legacy, shadow-comparison, and verified hybrid parser modes.
@@ -53,5 +68,5 @@
 
 ### Known limitations
 
-- `{%` typing auto-expansion still depends on VSCode editor change event behavior and may not trigger consistently in every Extension Development Host build.
+- Immediate PHPStorm-style delimiter spacing remains intentionally deferred; native delimiter pairs, completion snippets, and formatting own this behavior without asynchronous document rewrites.
 - Formatter behavior is intentionally PHPStorm-leaning but not yet byte-for-byte identical for every complex Twig/HTML/CSS/JS nesting pattern.

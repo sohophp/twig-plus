@@ -20,7 +20,6 @@ import {
   getHybridTokenContextAtOffset,
   collectHybridSelectionRanges,
   parseHybridDocument,
-  reconstructHybridDocument,
   validateHybridDocument,
   type HybridDocument,
   type NodePair
@@ -35,7 +34,7 @@ export type HybridQueryName = "context" | "symbols" | "navigation" | "control-pa
 
 export interface HybridDifference {
   query: HybridQueryName;
-  reason: "result-mismatch" | "invalid-document" | "hybrid-error";
+  reason: "result-mismatch" | "invalid-document" | "hybrid-error" | "hybrid-parse-error" | "hybrid-validation-error" | "cancelled";
   range: SourceRange;
   legacySummary?: string;
   hybridSummary?: string;

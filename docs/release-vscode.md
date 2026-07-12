@@ -61,7 +61,7 @@ This will:
 1. run the VSCode prepublish step
 2. verify `dist/extension.js` contains the bundled runtime formatter/parser code
 3. copy the explicitly externalized runtime dependencies into `dist/node_modules`
-4. create a `.vsix` file inside `packages/vscode`
+4. create the versioned `.vsix` inside `artifacts/vsix/`
 
 ## Marketplace Publish
 
@@ -82,12 +82,12 @@ npx @vscode/vsce login sohophp
 - Confirm formatter works in `Extension Development Host`
 - Confirm Twig completion works for `{% if %}`, `endblock`, and template path references
 - Confirm template navigation works for `extends`, `include`, `embed`, `import`, and `from`
-- Confirm PHPStorm-like typing helpers:
-  - `{%` becomes `{%  %}`
-  - `{{ url(` becomes `{{ url() }}`
-  - `{{ url({` becomes `{{ url({}) }}`
-  - `<p>` becomes `<p></p>`
-  - `<a href=` becomes `<a href="">`
+- Confirm stable editing behavior:
+  - delimiter text is not asynchronously rewritten after typing
+  - `{% blo` provides `block` through normal quick suggestions and Ctrl+Space
+  - Enter after an unpaired `{% block name %}` inserts one atomic `{% endblock %}` edit with symmetric Undo/Redo
+  - Backspace, Undo, and Redo use VS Code native transactions
+  - JavaScript strings containing `{{` do not receive duplicate closing braces
 - Confirm `Expand Selection` grows through Twig tag, Twig block, and surrounding HTML node
 - Confirm real-page formatter fixtures still pass
 - Confirm `npm run vscode:test --workspace packages/vscode` passes in a real Extension Host

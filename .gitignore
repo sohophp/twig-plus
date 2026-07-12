@@ -4,3 +4,4 @@ coverage
 *.vsix
 packages/*/dist
 packages/*/.vscode-test
+packages/*/.vscode-test-results

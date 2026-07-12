@@ -45,6 +45,47 @@ describe("language configuration", () => {
       })
     );
   });
+
+  it("auto closes and surrounds JavaScript callback parentheses", () => {
+    const config = readLanguageConfiguration() as { autoClosingPairs: unknown[]; surroundingPairs: unknown[] };
+    expect(config.autoClosingPairs).toContainEqual({ open: "(", close: ")" });
+    expect(config.surroundingPairs).toContainEqual(["(", ")"]);
+  });
+
+  it("does not intercept Enter while completion UI is active", () => {
+    const manifestPath = path.join(__dirname, "..", "package.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      contributes: { keybindings: Array<{ command: string; when: string }> };
+    };
+    const binding = manifest.contributes.keybindings.find((item) => item.command === "twigPlus.insertLineBreak");
+    expect(binding?.when).toContain("!suggestWidgetVisible");
+    expect(binding?.when).toContain("!inlineSuggestionVisible");
+    expect(binding?.when).toContain("!renameInputVisible");
+  });
+
+  it("exposes independently configurable stable auto-closing features", () => {
+    const manifestPath = path.join(__dirname, "..", "package.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      contributes: {
+        configuration: { properties: Record<string, { default: boolean }> };
+        keybindings: Array<{ command: string; key: string; when: string }>;
+      };
+    };
+    const properties = manifest.contributes.configuration.properties;
+    expect(properties["twigPlus.editing.autoCloseHtmlTags"].default).toBe(true);
+    expect(properties["twigPlus.editing.autoCloseTwigTags"].default).toBe(true);
+    expect(properties["twigPlus.editing.autoCloseCssBraces"].default).toBe(true);
+    expect(properties["twigPlus.editing.autoCloseJavaScriptBraces"].default).toBe(true);
+    expect(properties["twigPlus.editing.linkedHtmlTags"].default).toBe(true);
+    const binding = manifest.contributes.keybindings.find((item) => item.command === "twigPlus.insertHtmlCloseTag");
+    expect(binding?.key).toBe("shift+.");
+    expect(binding?.when).not.toContain("!suggestWidgetVisible");
+    const braceBinding = manifest.contributes.keybindings.find((item) => item.command === "twigPlus.insertJavaScriptBracePair");
+    expect(braceBinding?.key).toBe("shift+[");
+    const deleteBinding = manifest.contributes.keybindings.find((item) => item.command === "twigPlus.deleteJavaScriptBracePair");
+    expect(deleteBinding?.key).toBe("backspace");
+    expect(manifest.contributes.configurationDefaults?.["[twig]"]?.["editor.linkedEditing"]).toBe(true);
+  });
 });
 
 function readLanguageConfiguration(): Record<string, unknown> {

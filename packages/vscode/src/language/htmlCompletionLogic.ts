@@ -61,27 +61,3 @@ export function getHtmlCompletions(source: string, offset: number, hybridDocumen
   if (context.kind === "html-text" && !/<\/[A-Za-z:-]*$/.test(source.slice(0, offset))) return [];
   return htmlLanguageService.doComplete(document, document.positionAt(offset), htmlLanguageService.parseHTMLDocument(document)).items;
 }
-
-export function getEmbeddedScriptCompletions(
-  source: string,
-  offset: number,
-  hybridDocument?: HybridDocument
-): CompletionItem[] {
-  const hybrid = hybridDocument ?? parseHybridDocument(source);
-  if (getHtmlContextAtOffset(hybrid, offset).kind !== "script") return [];
-  const prefix = source.slice(0, offset);
-  const identifier = prefix.match(/([A-Za-z_$][\w$]*)$/)?.[1] ?? "";
-  const member = prefix.match(/console\.([A-Za-z_$][\w$]*)?$/)?.[1];
-  if (member !== undefined) {
-    return ["log", "warn", "error", "info", "debug"].filter((name) => name.startsWith(member)).map((name) => ({
-      label: name,
-      detail: `console.${name}`,
-      insertText: name
-    }));
-  }
-  return ["constructor", "console"].filter((name) => identifier && name.startsWith(identifier)).map((name) => ({
-    label: name,
-    detail: name === "constructor" ? "JavaScript class constructor" : "JavaScript console",
-    insertText: name
-  }));
-}

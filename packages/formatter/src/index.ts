@@ -1,2 +1,3 @@
 export { formatTwigDocument as formatTwig } from "./formatTwigDocument";
-export type { FormatterOptions } from "./printer";
+export { formatTwigDocumentWithResult as formatTwigWithResult } from "./formatTwigDocument";
+export type { FormatterOptions, FormatterStage, FormatterTiming, FormatterResult, FormatterSuccess, FormatterFailure } from "./printer";

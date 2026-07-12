@@ -9,10 +9,21 @@ import type { HybridDocument, TwigNode } from "./hybridAst";
 export type TwigDiagnosticSeverity = "error" | "warning" | "hint";
 
 export interface TwigDiagnostic {
+  code?: string;
   message: string;
   severity: TwigDiagnosticSeverity;
   start: number;
   end: number;
+}
+
+export function getTwigDiagnosticCode(message: string): string {
+  if (message.startsWith("Unclosed Twig tag")) return "unclosed-tag";
+  if (message.startsWith("Unexpected closing Twig tag")) return "unexpected-closing-tag";
+  if (message.startsWith("Unexpected Twig tag")) return "unexpected-middle-tag";
+  if (message.startsWith("Duplicate Twig block")) return "duplicate-block";
+  if (message.startsWith("Template ")) return "missing-template";
+  if (message.startsWith("Empty Twig output")) return "empty-output";
+  return "twig-diagnostic";
 }
 
 interface StackEntry {

@@ -1,5 +1,3 @@
-import { format as prettierFormat } from "prettier";
-
 import { tokenizeTwig } from "@twig-plus/parser";
 
 import type { FormatterOptions } from "./printer";
@@ -7,6 +5,18 @@ import type { FormatterOptions } from "./printer";
 const EMBEDDED_BLOCK_PATTERN = /<(script|style)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
 const SCRIPT_PARSER = "babel";
 const STYLE_PARSER = "css";
+let prettierPromise: Promise<typeof import("prettier")> | null = null;
+
+export function isEmbeddedFormatterRuntimeLoaded(): boolean { return prettierPromise !== null; }
+
+export class EmbeddedSyntaxError extends Error {
+  constructor(readonly language: string, options: { cause: unknown; range?: { start: number; end: number } }) {
+    super(`Invalid embedded ${language} syntax`, options);
+    this.name = "EmbeddedSyntaxError";
+    this.range = options.range;
+  }
+  readonly range?: { start: number; end: number };
+}
 
 export async function formatEmbeddedBlocks(
   source: string,
@@ -16,17 +26,28 @@ export async function formatEmbeddedBlocks(
   let lastIndex = 0;
 
   for (const match of source.matchAll(EMBEDDED_BLOCK_PATTERN)) {
+    if (options.isCancellationRequested?.()) throw new Error("TwigPlus formatting cancelled");
     const [fullMatch, tagName, attributes, innerContent] = match;
     const start = match.index ?? 0;
     const end = start + fullMatch.length;
 
     result += source.slice(lastIndex, start);
 
-    const formattedInner = await formatEmbeddedBlockContent(
-      tagName.toLowerCase(),
-      innerContent,
-      options
-    );
+    const started = performance.now();
+    let formattedInner: string;
+    try {
+      formattedInner = await formatEmbeddedBlockContent(tagName.toLowerCase(), innerContent, options);
+    } catch (error) {
+      if (error instanceof EmbeddedSyntaxError) {
+        const contentStart = start + `<${tagName}${attributes}>`.length;
+        throw new EmbeddedSyntaxError(error.language, {
+          cause: error.cause ?? error,
+          range: { start: contentStart, end: contentStart + innerContent.length }
+        });
+      }
+      throw error;
+    }
+    options.onStage?.(tagName.toLowerCase() === "script" ? "javascript" : "css", performance.now() - started);
 
     result += `<${tagName}${attributes}>${formattedInner}</${tagName}>`;
     lastIndex = end;
@@ -49,21 +70,25 @@ async function formatEmbeddedBlockContent(
   const normalized = innerContent.replace(/\r\n/g, "\n");
   const trimmed = trimBlankLines(normalized);
   const dedented = dedentBlock(trimmed);
+  const mappingStarted = performance.now();
   const { protectedSource, placeholders } = protectTwigSegments(dedented);
+  options.onStage?.("mapping", performance.now() - mappingStarted);
 
   try {
-    const formatted = await prettierFormat(protectedSource, {
+    const { format } = await (prettierPromise ??= import("prettier"));
+    const formatted = await format(protectedSource, {
       parser,
       printWidth: options.printWidth,
       tabWidth: options.indentSize,
       useTabs: options.useTabs
     });
 
+    const restoreStarted = performance.now();
     const restored = restoreTwigSegments(formatted.trimEnd(), placeholders);
+    options.onStage?.("mapping", performance.now() - restoreStarted);
     return `\n${restored}\n`;
   } catch (error) {
-    console.warn(`[TwigPlus] embedded ${tagName} format failed:`, error);
-    return innerContent;
+    throw new EmbeddedSyntaxError(tagName, { cause: error });
   }
 }
 

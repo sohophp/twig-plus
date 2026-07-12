@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 
 import {
   analyzeCompatibleDiagnostics,
+  getTwigDiagnosticCode,
   type TwigDiagnostic,
   type TwigDiagnosticSeverity
 } from "@twig-plus/parser";
@@ -106,6 +107,7 @@ function toVsCodeDiagnostic(
     mapSeverity(diagnostic.severity)
   );
   result.source = "TwigPlus";
+  result.code = diagnostic.code ?? getTwigDiagnosticCode(diagnostic.message);
   return result;
 }
 

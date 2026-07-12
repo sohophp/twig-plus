@@ -109,7 +109,7 @@ function pushTwigTokenRanges(
       continue;
     }
 
-    const innerRange = getTwigInnerRange(token.raw, token.start, token.end);
+    const innerRange = getTwigInnerRange(token.raw, token.start);
     if (innerRange && containsOffset(innerRange, offset)) {
       candidates.push(innerRange);
     }
@@ -255,15 +255,11 @@ function collectHtmlPairedRanges(source: string): PairedRange[] {
 
 function getTwigInnerRange(
   raw: string,
-  start: number,
-  end: number
+  start: number
 ): SourceRange | null {
   const prefixLength = raw[2] === "-" || raw[2] === "~" ? 3 : 2;
   const suffixLength =
     raw[raw.length - 3] === "-" || raw[raw.length - 3] === "~" ? 3 : 2;
-  const innerStart = start + prefixLength;
-  const innerEnd = end - suffixLength;
-
   const trimmedRange = trimWhitespaceRange(raw, {
     start: prefixLength,
     end: raw.length - suffixLength

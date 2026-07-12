@@ -113,7 +113,8 @@ const TWIG_CLOSERS: Record<string, string> = {
   endif: "if", endfor: "for", endblock: "block", endembed: "embed",
   endmacro: "macro", endapply: "apply", endfilter: "filter",
   endautoescape: "autoescape", endwith: "with", endspaceless: "spaceless",
-  endset: "set"
+  endset: "set",
+  endcache: "cache", endguard: "guard", endsandbox: "sandbox", endtypes: "types", endverbatim: "verbatim"
 };
 
 export function parseHybridDocument(source: string): HybridDocument {

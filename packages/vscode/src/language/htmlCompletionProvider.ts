@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import type { CompletionItem as HtmlCompletionItem } from "vscode-html-languageservice";
 import { getCachedHybridDocument } from "./parserRuntime";
-import { getEmbeddedScriptCompletions, getHtmlCompletions } from "./htmlCompletionLogic";
+import { getHtmlCompletions } from "./htmlCompletionLogic";
 import { TWIG_DOCUMENT_SELECTOR } from "./documentSelector";
 
 export function registerHtmlCompletionProvider(context: vscode.ExtensionContext): void {
@@ -11,8 +11,7 @@ export function registerHtmlCompletionProvider(context: vscode.ExtensionContext)
       if (!hybrid) return [];
       const source = document.getText();
       const offset = document.offsetAt(position);
-      const embedded = getEmbeddedScriptCompletions(source, offset, hybrid);
-      return (embedded.length ? embedded : getHtmlCompletions(source, offset, hybrid))
+      return getHtmlCompletions(source, offset, hybrid)
         .map((item) => toVsCodeCompletionItem(document, item));
     }
   };

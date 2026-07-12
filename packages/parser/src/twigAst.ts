@@ -230,7 +230,7 @@ class ExpressionParser {
   private advance(): TwigLexeme { const token = this.current(); if (token.kind !== "eof") this.index += 1; return token; }
   private consume(value: string): TwigLexeme | null { if (this.current().value !== value) return null; return this.advance(); }
   private missing(expected: string, offset: number): MissingExpression { return { kind: "MissingExpression", expected, start: offset, end: offset, complete: false }; }
-  private missingName(expected: string, offset: number): NameExpression { return { kind: "NameExpression", name: "", start: offset, end: offset, complete: false }; }
+  private missingName(_expected: string, offset: number): NameExpression { return { kind: "NameExpression", name: "", start: offset, end: offset, complete: false }; }
 }
 
 export function visitTwigExpression(node: TwigExpression, visitor: (node: TwigExpression) => void): void {

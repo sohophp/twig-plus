@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { formatTwig } from "../src";
+import { formatTwig, formatTwigWithResult } from "../src";
 
 const fixtureNames = [
   "basic-if",
@@ -48,9 +48,63 @@ describe("formatTwigDocument fixtures", () => {
       const actual = await formatTwig(input, getDefaultOptions());
 
       expect(actual).toBe(expected);
-      expect(await formatTwig(actual, getDefaultOptions())).toBe(actual);
+      const second = await formatTwig(actual, getDefaultOptions());
+      expect(second).toBe(actual);
+      expect(await formatTwig(second, getDefaultOptions())).toBe(actual);
     });
   }
+});
+
+describe("structured formatter results", () => {
+  it("returns stage timings and an atomic success result", async () => {
+    const result = await formatTwigWithResult("{%if user%}\n<div>{{name}}</div>\n{%endif%}", getDefaultOptions());
+    expect(result.ok).toBe(true);
+    expect(result.timings.map((timing) => timing.stage)).toEqual(expect.arrayContaining(["parse", "twig", "html", "complete"]));
+    expect(result.timings.every((timing) => timing.startedAt >= 0 && timing.durationMs >= 0)).toBe(true);
+    if (result.ok) expect(result.text).toContain("{% if user %}");
+  });
+
+  it("returns no partial text for embedded syntax failures", async () => {
+    const result = await formatTwigWithResult("<script>for (let i, i < 3; i++) {}</script>", getDefaultOptions());
+    expect(result).toMatchObject({ ok: false, error: { code: "embedded-syntax", language: "script" } });
+    expect("text" in result).toBe(false);
+  });
+
+  it("records real embedded and mapping stages once in hybrid mode", async () => {
+    const stages: string[] = [];
+    const result = await formatTwigWithResult("<script>document.addEventListener('load', () => {});</script>", {
+      ...getDefaultOptions(), parserEngine: "hybrid", onStage: (stage) => stages.push(stage)
+    });
+    expect(result.ok).toBe(true);
+    expect(stages.filter((stage) => stage === "javascript")).toHaveLength(1);
+    expect(stages).toEqual(expect.arrayContaining(["parse", "twig", "html", "mapping", "javascript", "complete"]));
+  });
+
+  it("honours cancellation before formatting starts", async () => {
+    const result = await formatTwigWithResult("<div></div>", { ...getDefaultOptions(), isCancellationRequested: () => true });
+    expect(result).toMatchObject({ ok: false, error: { code: "cancelled" } });
+  });
+});
+
+describe("embedded syntax errors", () => {
+  it("preserves an invalid JavaScript document across repeated formatting", async () => {
+    const source = `{% block body %}\n    <script>\n        document.addEventListener("DOMContentLoaded", () => {});\n        const b = "{{ b.value|raw }}";\n        for (let i, i < 3; i++) {}\n    </script>\n{% endblock %}`;
+    const once = await formatTwig(source, getDefaultOptions());
+    const twice = await formatTwig(once, getDefaultOptions());
+    expect(once).toBe(source);
+    expect(twice).toBe(source);
+  });
+
+  it("reports why formatting was skipped", async () => {
+    const messages: string[] = [];
+    const source = `<script>for (let i, i < 3; i++) {}</script>`;
+    expect(await formatTwig(source, {
+      ...getDefaultOptions(),
+      onEmbeddedSyntaxError: (error) => messages.push(`${error.language}: ${error.message}`)
+    })).toBe(source);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain("script:");
+  });
 });
 
 describe("hybrid formatter compatibility", () => {

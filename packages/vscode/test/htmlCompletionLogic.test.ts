@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getEmbeddedScriptCompletions, getHtmlCompletions } from "../src/language/htmlCompletionLogic";
+import { getHtmlCompletions } from "../src/language/htmlCompletionLogic";
 
 function labels(sourceWithCursor: string): string[] {
   const offset = sourceWithCursor.indexOf("|");
@@ -44,21 +44,5 @@ describe("HTML completions in Twig documents", () => {
 
   it("offers the matching closing tag after a slash", () => {
     expect(labels(`<script></|`)).toContain("script");
-  });
-});
-
-describe("embedded script completions", () => {
-  function scriptLabels(sourceWithCursor: string): string[] {
-    const offset = sourceWithCursor.indexOf("|");
-    const source = sourceWithCursor.replace("|", "");
-    return getEmbeddedScriptCompletions(source, offset).map((item) => String(item.label));
-  }
-
-  it("offers constructor from a class-body prefix", () => {
-    expect(scriptLabels(`<script>class Page { cons| }</script>`)).toContain("constructor");
-  });
-
-  it("offers console members after dot access", () => {
-    expect(scriptLabels(`<script>console.lo|</script>`)).toContain("log");
   });
 });

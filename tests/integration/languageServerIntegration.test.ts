@@ -23,6 +23,68 @@ describe("bundled TwigPlus language server", () => {
     });
   });
 
+  it("loads browser globals in the bundled server for embedded JavaScript completion", async () => {
+    const client = startClient();
+    await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
+    client.notify("initialized", {});
+    const uri = "untitled:browser-globals.html.twig";
+    const source = `<script>document.addEven</script>`;
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const completion = await client.request("textDocument/completion", {
+      textDocument: { uri }, position: { line: 0, character: source.indexOf("addEven") + "addEven".length }
+    });
+    expect(completion.result).toEqual(expect.arrayContaining([expect.objectContaining({
+      label: "addEventListener",
+      insertText: "addEventListener(${1})",
+      insertTextFormat: 2,
+      textEdit: expect.objectContaining({ newText: "addEventListener(${1})" })
+    })]));
+  });
+
+  it("owns Twig catalog completion and reports structured format progress", async () => {
+    const client = startClient();
+    await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
+    client.notify("initialized", {});
+    const uri = "untitled:twig-completion.html.twig";
+    const source = `{% bl %}\n{{ name|upp }}`;
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const completion = await client.request("textDocument/completion", { textDocument: { uri }, position: { line: 0, character: 5 } });
+    expect(completion.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "block", insertTextFormat: 2 })]));
+    const progress = client.waitForNotification("twigPlus/formatProgress");
+    const formattingStarted = Date.now();
+    const formatted = await client.request("textDocument/formatting", { textDocument: { uri }, options: { tabSize: 4, insertSpaces: true } });
+    expect(Date.now() - formattingStarted).toBeLessThan(750);
+    expect(formatted.result).toEqual(expect.any(Array));
+    expect((await progress).params).toMatchObject({ uri, stage: "parse", status: "started" });
+  }, 15_000);
+
+  it("publishes mapped diagnostics for invalid embedded JavaScript", async () => {
+    const client = startClient();
+    await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
+    client.notify("initialized", {});
+    const uri = "untitled:invalid-script.html.twig";
+    const source = `<script>for (let i, i < 3; i++) {}</script>`;
+    const published = client.waitForNotification("textDocument/publishDiagnostics");
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const message = await published;
+    expect(message.params.uri).toBe(uri);
+    expect(message.params.diagnostics).toEqual(expect.arrayContaining([expect.objectContaining({
+      source: "TwigPlus JavaScript",
+      severity: 1
+    })]));
+    const warning = client.waitForNotification("window/showMessage");
+    const started = Date.now();
+    const formatting = await client.request("textDocument/formatting", {
+      textDocument: { uri }, options: { tabSize: 4, insertSpaces: true }
+    });
+    expect(formatting.error).toMatchObject({
+      code: -32803,
+      message: expect.stringContaining("did not modify this document")
+    });
+    expect((await warning).params).toMatchObject({ type: 1, message: expect.stringContaining("did not modify this document") });
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
+
   it("indexes workspace templates and removes deleted targets without stale definitions", async () => {
     temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "twig-plus-lsp-"));
     const templates = path.join(temporaryDirectory, "templates");

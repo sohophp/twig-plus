@@ -14,6 +14,7 @@ function prepareReleasePackage() {
   fs.rmSync(path.join(packageRoot, "node_modules"), { force: true, recursive: true });
   fs.rmSync(distNodeModulesRoot, { force: true, recursive: true });
   copyExternalPackageToDist("prettier");
+  copyExternalPackageToDist("typescript");
   copyExternalPackageToDist("vscode-html-languageservice");
   copyExternalPackageToDist("vscode-languageserver-textdocument");
   copyExternalPackageToDist("vscode-languageserver-types");
@@ -53,6 +54,7 @@ function assertBundledEntrypoint() {
   extensionRequire.resolve("prettier");
   extensionRequire.resolve("vscode-html-languageservice");
   extensionRequire.resolve("vscode-languageserver-textdocument");
+  createRequire(serverEntrypoint).resolve("typescript");
 }
 
 function copyExternalPackageToDist(packageName) {

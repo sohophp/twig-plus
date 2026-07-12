@@ -23,18 +23,28 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run docs:check
+      - run: npm run dead-entries:check
       - run: npm audit --omit=dev --audit-level=high --registry=https://registry.npmjs.org
       - run: npm test
-      - name: VSCode extension-host integration
-        run: xvfb-run -a npm run vscode:test --workspace packages/vscode
+      - name: VSCode extension-host integration (minimum)
+        run: xvfb-run -a npm run vscode:test:min --workspace packages/vscode
+      - name: VSCode extension-host integration (current)
+        run: xvfb-run -a npm run vscode:test:current --workspace packages/vscode
       - name: Build release VSIX
         run: npm run package:vsix --workspace packages/vscode
       - name: Verify packaged language server
-        run: unzip -l packages/vscode/twig-plus-*.vsix | grep 'extension/dist/server.js'
+        run: |
+          unzip -l artifacts/vsix/twig-plus-*.vsix | grep 'extension/dist/server.js'
+          unzip -l artifacts/vsix/twig-plus-*.vsix | grep 'extension/dist/node_modules/typescript/lib/lib.dom.d.ts'
       - name: Packaged VSIX Extension Host integration
         run: xvfb-run -a npm run vscode:test:packaged --workspace packages/vscode
+      - name: Verify persisted UI reports
+        run: npm run reports:check
       - uses: actions/upload-artifact@v4
         with:
-          name: twig-plus-vsix
-          path: packages/vscode/*.vsix
+          name: twig-plus-vsix-and-test-results
+          path: |
+            artifacts/vsix/*.vsix
+            packages/vscode/.vscode-test-results/**
           if-no-files-found: error

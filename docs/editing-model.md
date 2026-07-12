@@ -1,0 +1,30 @@
+# 稳定编辑模型
+
+## 所有权规则
+
+- `language-configuration.json`：delimiter、括号、引号配对，indent/on-enter。
+- LSP completion：一次 completion edit/snippet，负责 Twig 语法片段和空格。
+- Formatter：保存或显式格式化时统一 code style。
+- VS Code 原生命令：Backspace、Delete、Undo、Redo。
+
+禁止使用 `onDidChangeTextDocument` 观察用户输入后再替换 delimiter、移动光标、强制触发建议或修补删除结果。禁止覆盖 Backspace。HTML 辅助若保留，必须是显式 command 或 VS Code 原生 provider 返回的单次 edit。
+
+## 预期行为
+
+- 默认 quick suggestions 开启时，`{% blo` 通过 `%`/空格 LSP trigger 提供 `block`；关闭时不强制弹出，Ctrl+Space 提供相同列表。
+- completion 可生成 `{% block name %}`，formatter 将紧凑 delimiter 规范为空格样式。
+- 独立完整 opening tag 后的 Enter 由 `twigPlus.insertLineBreak` 单次原子编辑补齐缺失 closing tag；已有 closing、inline、script/style 或混合多光标完全委托原生 Enter。
+- Twig 文档中的动态 HTML closing tag 由 `twigPlus.insertHtmlCloseTag` 在输入 `>` 时单次原子生成；也支持在独立完整 opening tag 后按 Enter 生成缩进和 closing tag。void、自闭合、已有 closing 的标签不处理。开关为 `twigPlus.editing.autoCloseHtmlTags`，默认开启。
+- Twig 结构 Enter closing 可通过 `twigPlus.editing.autoCloseTwigTags` 独立关闭，默认开启。
+- `<style>` 内 CSS 规则的 Enter closing 由同一 Enter 控制器单次生成缩进和 `}`；开关为 `twigPlus.editing.autoCloseCssBraces`，默认开启。它不注册全局 `{}` 字符对，以免干扰 Twig `{{ }}`。
+- CSS Enter 在生成 `}` 前会扫描当前 `<style>` 剩余内容（忽略字符串和注释中的花括号）；已经存在与 opening brace 匹配的 `}` 时完全委托原生 Enter，不得重复闭合。
+- 匹配 HTML opening/closing tag 的同步修改由 VS Code 原生 Linked Editing 持有，TwigPlus 仅通过 Hybrid HTML 结构提供两个精确 tag-name range。`twigPlus.editing.linkedHtmlTags` 与 Twig 语言默认的 `editor.linkedEditing` 均为开启；关闭任意一项即可停用。
+- `<script>` 的 JavaScript 代码区域输入 `{` 时立即以单次原子编辑生成 `{}` 并把光标放在中间；在空 `{|}` 中按 Backspace 时同一次编辑删除两边。字符串、注释和 Twig 区域不处理。随后 Enter 由同一控制器原子生成缩进，并保留外层调用已有的 `)`。开关为 `twigPlus.editing.autoCloseJavaScriptBraces`，默认开启；其他 Backspace 场景完全委托 VS Code 原生命令。
+- 用户可以逐字符删除 delimiter 内容；一次 Undo 恢复一次用户操作，Redo 对称。
+- JavaScript/CSS/attribute/string/IME 输入不会被 Twig delimiter 修正器二次编辑。
+
+## 交互矩阵
+
+每项必须验证最终文本、selection、Undo、Redo、等待 500ms 后文本不再变化：普通文本、Twig tag/output/comment、HTML attribute、JavaScript 字符串、CSS、IME、快速连续输入、多光标。
+
+首版 Enter closing 不复制 `-`/`~` whitespace-control marker，统一生成普通 `{% end* %}`。

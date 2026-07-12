@@ -1,14 +1,16 @@
 import {
   createConnection, ProposedFeatures, TextDocuments, TextDocumentSyncKind,
-  CompletionItemKind, DiagnosticSeverity, DocumentSymbol, SymbolKind,
-  type InitializeResult, type Location, type Range, type SelectionRange, TextEdit
+  CompletionItemKind, DiagnosticSeverity, DocumentSymbol, LSPErrorCodes, ResponseError, SymbolKind,
+  type InitializeResult, InsertTextFormat, type Location, type Range, type SelectionRange, TextEdit
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { analyzeHybridDiagnostics, analyzeTwigDiagnostics, collectHybridSelectionRanges, createDocumentModel, createWorkspaceModel, DEFAULT_TEMPLATE_ROOTS, getHybridTokenContextAtOffset, parseDocument, resolveTemplateWorkspacePath, type DocumentModel, type ParserEngine, type SemanticSymbol, type TemplateUriResolver } from "@twig-plus/parser";
-import { formatTwig, type FormatterOptions } from "@twig-plus/formatter";
+import { analyzeHybridDiagnostics, analyzeTwigDiagnostics, collectHybridSelectionRanges, collectTemplateCompletionCandidates, createDocumentModel, createWorkspaceModel, DEFAULT_TEMPLATE_ROOTS, getHybridTokenContextAtOffset, getTemplateReferenceMatch, getTwigDiagnosticCode, parseDocument, resolveTemplateWorkspacePath, type DocumentModel, type ParserEngine, type SemanticSymbol, type TemplateUriResolver } from "@twig-plus/parser";
+import { formatTwigWithResult, type FormatterOptions, type FormatterStage } from "@twig-plus/formatter";
+import { EmbeddedJavaScriptService } from "./embeddedJavaScript";
+import { getTwigCompletions, TwigCompletionRegistry, type ProjectCompletionEntry } from "./twigCompletion";
 
 export interface TwigPlusServerOptions {
   diagnoseUnresolvedNames?: boolean;
@@ -26,7 +28,7 @@ interface TwigPlusSettings {
 export function getServerCapabilities(): InitializeResult["capabilities"] {
   return {
     textDocumentSync: TextDocumentSyncKind.Incremental,
-    completionProvider: { triggerCharacters: [".", "|", "("] },
+    completionProvider: { triggerCharacters: ["%", "{", " ", ".", "|", "(", "\"", "'", "/"] },
     definitionProvider: true, referencesProvider: true, renameProvider: { prepareProvider: true },
     documentSymbolProvider: true, selectionRangeProvider: true, documentFormattingProvider: true
   };
@@ -37,16 +39,32 @@ export const MAX_DOCUMENT_LENGTH = 2_000_000;
 export const MAX_INDEXED_FILE_BYTES = 2_000_000;
 export const MAX_INDEXED_FILES = 20_000;
 
+function toJavaScriptCompletionKind(kind: string): CompletionItemKind {
+  if (kind === "method" || kind === "function") return CompletionItemKind.Function;
+  if (kind === "class") return CompletionItemKind.Class;
+  if (kind === "interface") return CompletionItemKind.Interface;
+  if (kind === "module" || kind === "external module name") return CompletionItemKind.Module;
+  if (kind === "property" || kind === "getter" || kind === "setter") return CompletionItemKind.Property;
+  if (kind === "const" || kind === "let" || kind === "var") return CompletionItemKind.Variable;
+  if (kind === "keyword") return CompletionItemKind.Keyword;
+  return CompletionItemKind.Text;
+}
+
 export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   const connection = createConnection(ProposedFeatures.all);
   const documents = new TextDocuments(TextDocument);
   const cache = new Map<string, CachedModel>();
+  const embeddedJavaScript = new EmbeddedJavaScriptService();
+  const completionRegistry = new TwigCompletionRegistry();
   const indexedDocuments = new Map<string, string>();
   let workspaceFolders: string[] = [];
   let workspaceReady: Promise<void> = Promise.resolve();
   let settings: TwigPlusSettings = {};
   let workspaceModelCache: ReturnType<typeof createWorkspaceModel> | null = null;
   let indexGeneration = 0;
+  let formatRequestSequence = 0;
+  const activeFormatRequests = new Map<string, AbortController>();
+  let republishDiagnostics: (() => void) | null = null;
 
   const modelFor = (document: TextDocument): DocumentModel | null => {
     if (document.getText().length > MAX_DOCUMENT_LENGTH) return null;
@@ -73,6 +91,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       if (document.getText().length <= MAX_DOCUMENT_LENGTH) indexedDocuments.set(document.uri, document.getText());
     }
     workspaceModelCache = null;
+    completionRegistry.replaceProject(await readProjectCompletionMetadata(workspaceFolders));
     const message = `Indexed ${indexedDocuments.size.toLocaleString()} Twig files.`;
     if (indexedDocuments.size >= MAX_INDEXED_FILES) connection.console.warn(`${message} The ${MAX_INDEXED_FILES.toLocaleString()} file safety limit was reached.`);
     else connection.console.info(message);
@@ -99,6 +118,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     workspaceReady = workspaceReady
       .catch((error) => connection.console.error(`Previous workspace indexing failed: ${formatError(error)}`))
       .then(task)
+      .then(() => republishDiagnostics?.())
       .catch((error) => connection.console.error(`Workspace indexing failed: ${formatError(error)}`));
   };
 
@@ -107,6 +127,15 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     scheduleWorkspace(refreshIndex);
     return { capabilities: getServerCapabilities() };
   });
+  connection.onInitialized(() => {
+    setTimeout(() => {
+      void formatTwigWithResult("", {
+        profile: "phpstorm", indentSize: 4, printWidth: 100, useTabs: false,
+        twigTagSpacing: true, htmlAttributeWrap: "auto", preserveSingleLineBlocks: true,
+        lineBreakAfterTwigControlTag: true, parserEngine: "hybrid"
+      }).catch((error) => connection.console.warn(`Formatter prewarm failed: ${formatError(error)}`));
+    }, 0);
+  });
   connection.onDidChangeConfiguration((change) => {
     const received = isRecord(change.settings) && "twigPlus" in change.settings ? change.settings.twigPlus : change.settings;
     settings = isRecord(received) ? received as TwigPlusSettings : {};
@@ -114,11 +143,13 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     workspaceModelCache = null;
     for (const document of documents.all()) void publishDiagnostics(document);
   });
-  connection.onDidChangeWatchedFiles((event) => { scheduleWorkspace(() => refreshUris(event.changes.map((change) => change.uri))); });
+  connection.onDidChangeWatchedFiles((event) => {
+    if (event.changes.some((change) => change.uri.endsWith("/.twig-plus/symfony-metadata.json"))) scheduleWorkspace(refreshIndex);
+    else scheduleWorkspace(() => refreshUris(event.changes.map((change) => change.uri)));
+  });
 
   const publishDiagnostics = async (document: TextDocument) => {
     const version = document.version;
-    await workspaceReady;
     const model = modelFor(document);
     if (!model) {
       connection.sendDiagnostics({ uri: document.uri, diagnostics: [{
@@ -130,35 +161,72 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     }
     const workspaceContext = getWorkspaceContext(document.uri, workspaceFolders, indexedDocuments);
     const roots = settings.templates?.roots?.length ? settings.templates.roots : DEFAULT_TEMPLATE_ROOTS;
+    const javascriptDiagnostics = await embeddedJavaScript.getDiagnostics(
+      document.uri,
+      document.version,
+      model.document
+    );
     const legacy = settings.parser?.engine === "legacy"
       ? analyzeTwigDiagnostics(document.getText(), workspaceContext.paths, workspaceContext.current, roots)
       : analyzeHybridDiagnostics(model.document, workspaceContext.paths, workspaceContext.current, roots);
     if (documents.get(document.uri)?.version !== version) return;
     connection.sendDiagnostics({ uri: document.uri, diagnostics: [
       ...legacy.map((diagnostic) => ({
-        range: toRange(document, diagnostic), message: diagnostic.message, source: "TwigPlus",
+          range: toRange(document, diagnostic), message: diagnostic.message, source: "TwigPlus", code: diagnostic.code ?? getTwigDiagnosticCode(diagnostic.message),
         severity: diagnostic.severity === "error" ? DiagnosticSeverity.Error : diagnostic.severity === "warning" ? DiagnosticSeverity.Warning : DiagnosticSeverity.Hint
       })),
       ...model.diagnostics.map((diagnostic) => ({
       range: toRange(document, diagnostic), message: diagnostic.message, code: diagnostic.code,
       source: "TwigPlus Semantic", severity: diagnostic.severity === "error" ? DiagnosticSeverity.Error : diagnostic.severity === "warning" ? DiagnosticSeverity.Warning : DiagnosticSeverity.Information
+      })),
+      ...javascriptDiagnostics.map((diagnostic) => ({
+        range: toRange(document, diagnostic.range), message: diagnostic.message, code: diagnostic.code,
+        source: "TwigPlus JavaScript", severity: DiagnosticSeverity.Error
       }))
     ] });
   };
+  republishDiagnostics = () => { for (const document of documents.all()) void publishDiagnostics(document); };
   documents.onDidOpen((event) => { updateOpenDocumentIndex(event.document, indexedDocuments); workspaceModelCache = null; void publishDiagnostics(event.document); });
-  documents.onDidChangeContent((event) => { cache.delete(event.document.uri); updateOpenDocumentIndex(event.document, indexedDocuments); workspaceModelCache = null; void publishDiagnostics(event.document); });
-  documents.onDidClose((event) => { cache.delete(event.document.uri); scheduleWorkspace(() => refreshUris([event.document.uri])); connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] }); });
+  documents.onDidChangeContent((event) => { cache.delete(event.document.uri); embeddedJavaScript.delete(event.document.uri); updateOpenDocumentIndex(event.document, indexedDocuments); workspaceModelCache = null; void publishDiagnostics(event.document); });
+  documents.onDidClose((event) => { cache.delete(event.document.uri); embeddedJavaScript.delete(event.document.uri); scheduleWorkspace(() => refreshUris([event.document.uri])); connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] }); });
 
-  connection.onCompletion((params) => {
+  connection.onCompletion(async (params) => {
+    const completionStarted = performance.now();
     const document = documents.get(params.textDocument.uri); if (!document) return [];
     const model = modelFor(document); if (!model) return [];
     const offset = document.offsetAt(params.position);
+    const lineStart = document.offsetAt({ line: params.position.line, character: 0 });
+    const templateMatch = getTemplateReferenceMatch(document.getText().slice(lineStart, offset));
+    if (templateMatch) {
+      await workspaceReady;
+      const workspaceContext = getWorkspaceContext(document.uri, workspaceFolders, indexedDocuments);
+      const roots = settings.templates?.roots?.length ? settings.templates.roots : DEFAULT_TEMPLATE_ROOTS;
+      const candidates = collectTemplateCompletionCandidates(workspaceContext.paths, templateMatch.prefix, workspaceContext.current, roots);
+      const range = { start: document.positionAt(offset - templateMatch.prefix.length), end: params.position };
+      const result = candidates.map((label) => ({ label, detail: "Twig template", kind: CompletionItemKind.File, textEdit: TextEdit.replace(range, label) }));
+      connection.console.info(`[completion] template ${result.length} items ${(performance.now() - completionStarted).toFixed(1)}ms`);
+      return result;
+    }
+    const scriptCompletions = await embeddedJavaScript.getCompletions(document.uri, document.version, model.document, offset);
+    if (scriptCompletions !== null) return scriptCompletions.map((item) => ({
+      label: item.label,
+      detail: item.detail,
+      sortText: item.sortText,
+      kind: toJavaScriptCompletionKind(item.kind),
+      insertText: item.snippet ?? item.insertText,
+      insertTextFormat: item.snippet ? InsertTextFormat.Snippet : InsertTextFormat.PlainText,
+      textEdit: item.replacement ? TextEdit.replace(toRange(document, item.replacement), item.snippet ?? item.insertText ?? item.label) : undefined
+    }));
     const context = getHybridTokenContextAtOffset(model.document, offset);
     if (context.kind === "html" || context.kind === "comment" || context.stringLike || context.hashKeyLike) return [];
-    return model.getVisibleSymbolsAt(offset).map((symbol) => ({
+    const catalog = getTwigCompletions(document, model.document, offset, completionRegistry);
+    const symbols = model.getVisibleSymbolsAt(offset).map((symbol) => ({
       label: symbol.name, detail: `Twig ${symbol.kind}`,
       kind: symbol.kind === "macro" ? CompletionItemKind.Function : symbol.kind === "import" ? CompletionItemKind.Module : CompletionItemKind.Variable
     }));
+    const result = [...catalog, ...symbols];
+    connection.console.info(`[completion] twig ${result.length} items ${(performance.now() - completionStarted).toFixed(1)}ms`);
+    return result;
   });
   connection.onDefinition(async (params): Promise<Location | null> => {
     const document = documents.get(params.textDocument.uri); if (!document) return null;
@@ -240,17 +308,42 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       return parent ?? { range: { start: position, end: position } };
     });
   });
-  connection.onDocumentFormatting(async (params) => {
+  connection.onDocumentFormatting(async (params, cancellation) => {
     const document = documents.get(params.textDocument.uri); if (!document) return [];
     if (document.getText().length > MAX_DOCUMENT_LENGTH) return [];
-    let documentSettings = settings;
+    const requestId = `${process.pid}-${++formatRequestSequence}`;
+    activeFormatRequests.get(document.uri)?.abort();
+    const formatController = new AbortController();
+    activeFormatRequests.set(document.uri, formatController);
+    const started = performance.now();
+    let finalStatus: "completed" | "failed" = "completed";
+    let finalMessage: string | undefined;
+    const progress = (stage: FormatterStage, status: "started" | "completed" | "failed", elapsedMs: number, message?: string) => {
+      const event = { requestId, uri: document.uri, stage, elapsedMs, status, message };
+      void connection.sendNotification("twigPlus/formatProgress", event);
+      connection.console.info(`[format ${requestId}] ${stage} ${status} ${elapsedMs.toFixed(1)}ms${message ? `: ${message}` : ""}`);
+    };
+    progress("parse", "started", 0, "Validating document and embedded code");
     try {
-      const scoped = await connection.workspace.getConfiguration({ scopeUri: document.uri, section: "twigPlus" });
-      if (isRecord(scoped)) {
-        const value = scoped as TwigPlusSettings;
-        documentSettings = { ...settings, ...value, format: { ...settings.format, ...value.format } };
-      }
-    } catch { /* the client may not implement workspace/configuration */ }
+    const syntaxModel = modelFor(document);
+    const javascriptDiagnostics = syntaxModel
+      ? await embeddedJavaScript.getDiagnostics(document.uri, document.version, syntaxModel.document)
+      : [];
+    if (javascriptDiagnostics.length > 0) {
+      const first = javascriptDiagnostics[0];
+      const position = document.positionAt(first.range.start);
+      const message = `TwigPlus did not modify this document: embedded JavaScript syntax error at ${position.line + 1}:${position.character + 1}. ${first.message}`;
+      void connection.sendNotification("window/showMessage", { type: 1, message });
+      finalStatus = "failed";
+      finalMessage = message;
+      return new ResponseError(
+        LSPErrorCodes.RequestFailed,
+        message
+      );
+    }
+    // The language client already synchronizes the TwigPlus configuration.
+    // Formatting must never block on a client-initiated configuration roundtrip.
+    const documentSettings = settings;
     if (documentSettings.format?.enable === false) return [];
     const formatter: FormatterOptions = {
       profile: documentSettings.format?.profile ?? "phpstorm", indentSize: documentSettings.format?.indentSize ?? params.options.tabSize,
@@ -258,10 +351,22 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       twigTagSpacing: documentSettings.format?.twigTagSpacing ?? true, htmlAttributeWrap: documentSettings.format?.htmlAttributeWrap ?? "auto",
       preserveSingleLineBlocks: documentSettings.format?.preserveSingleLineBlocks ?? true,
       lineBreakAfterTwigControlTag: documentSettings.format?.lineBreakAfterTwigControlTag ?? true,
-      parserEngine: documentSettings.parser?.engine ?? "hybrid", ...options.formatter
+      parserEngine: documentSettings.parser?.engine ?? "hybrid", ...options.formatter,
+      isCancellationRequested: () => cancellation.isCancellationRequested || formatController.signal.aborted,
+      onStage: (stage, elapsedMs) => progress(stage, "completed", elapsedMs)
     };
-    const formatted = await formatTwig(document.getText(), formatter);
-    return formatted === document.getText() ? [] : [TextEdit.replace({ start: { line: 0, character: 0 }, end: document.positionAt(document.getText().length) }, formatted)];
+    const result = await formatTwigWithResult(document.getText(), formatter);
+    if (!result.ok) {
+      finalStatus = "failed";
+      finalMessage = result.error.message;
+      if (result.error.code === "cancelled") return [];
+      throw new ResponseError(LSPErrorCodes.RequestFailed, `TwigPlus did not modify this document: ${result.error.message}`);
+    }
+    return result.text === document.getText() ? [] : [TextEdit.replace({ start: { line: 0, character: 0 }, end: document.positionAt(document.getText().length) }, result.text)];
+    } finally {
+      progress("complete", cancellation.isCancellationRequested || formatController.signal.aborted ? "failed" : finalStatus, performance.now() - started, finalMessage);
+      if (activeFormatRequests.get(document.uri) === formatController) activeFormatRequests.delete(document.uri);
+    }
   });
 
   documents.listen(connection);
@@ -307,6 +412,26 @@ async function readWorkspaceIndex(folders: string[]): Promise<Map<string, string
     } catch { /* file changed during indexing */ }
   });
   return target;
+}
+
+async function readProjectCompletionMetadata(folders: string[]): Promise<ProjectCompletionEntry[]> {
+  const completions: ProjectCompletionEntry[] = [];
+  for (const uri of folders.filter((item) => item.startsWith("file:"))) {
+    try {
+      const file = path.join(fileURLToPath(uri), ".twig-plus", "symfony-metadata.json");
+      const value = JSON.parse(await readFile(file, "utf8"));
+      if (!Array.isArray(value?.completions)) continue;
+      for (const entry of value.completions) {
+        if (!isRecord(entry) || !["tag", "filter", "function", "test"].includes(String(entry.kind)) || typeof entry.name !== "string") continue;
+        completions.push({
+          kind: entry.kind as ProjectCompletionEntry["kind"], name: entry.name,
+          detail: typeof entry.detail === "string" ? entry.detail : undefined,
+          signature: typeof entry.signature === "string" ? entry.signature : undefined
+        });
+      }
+    } catch { /* optional metadata never blocks generic Twig features */ }
+  }
+  return completions;
 }
 async function collectTwigFiles(directory: string, budget: { remaining: number }): Promise<string[]> {
   if (budget.remaining <= 0) return [];
