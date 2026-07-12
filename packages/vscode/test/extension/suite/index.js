@@ -559,7 +559,9 @@ async function testBlockDefinition() {
     location.uri.toString(),
     getWorkspaceUri("templates", "base.html.twig").toString()
   );
-  assert.strictEqual(location.range.start.line, 0);
+  const base = await openWorkspaceDocument("templates", "base.html.twig");
+  const expectedLine = base.positionAt(base.getText().indexOf("{% block content %}")).line;
+  assert.strictEqual(location.range.start.line, expectedLine);
 }
 
 async function testMacroDefinitions() {

@@ -1,6 +1,10 @@
 # Changelog
 
-## 1.1.0 - 2026-07-11
+## 1.1.1 - 2026-07-13
+
+- Stabilized `examples/basic-symfony/templates/base.html.twig` as the release smoke fixture and added byte-for-byte formatter idempotence coverage.
+
+## 1.1.0 - 2026-07-13
 
 - Added a lossless mixed HTML/Twig CST, tolerant Twig AST, lexical semantic model, and lazy cross-template workspace model.
 - Added the production TwigPlus language server and migrated VSCode semantic providers to LSP with local failure fallback.

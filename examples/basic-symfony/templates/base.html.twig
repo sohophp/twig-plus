@@ -1,82 +1,70 @@
-{% block content %}
-    <main>
-        {{ content }}
-    </main>
-{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{% block title %}TwigPlus Demo{% endblock %}</title>
 
-{% block sidebar %}
-    <aside>
-        {{ sidebar }}
-    </aside>
-{% endblock %}
-{% if condition %}
-    asfasf
-    <br />
-    <p>sdfa</p>
-    {% block main %}
-    {% endblock %}
-    <p class="a">
-        <a href="s.html">{{ item.value|replace({b:3}) }}</a>
-    </p>
-    <p class="sdfasf">{{ url({}) }}</p>
-    <div class="a">{{ url({a:1}) }}</div>
-    {% if another_condition %}
-    {% endif %}
-    {% for item in items %}
-        <li><a href="{{ item.url }}" class="b" target="_blank">{{ item.value }}</a></li>
-    {% endfor %}
-    {% block name %}
-        <a href="{{ url({a:1}) }}" target="_blank">link</a>
-    {% endblock %}
-    {% for item in items %}
-        {{ item.value|raw|replace({block:1}) }}
-    {% endfor %}
-    <script {% if active %} type="module" {% endif %}>
-        var a = 1;
-        class b {}
-    </script>
-    <a href="{{ url({}) }}" target="_blank">Link</a>
-    <a href="xxx.html" target="_blank">Link</a>
-    <div>
-        <p>
-            <a href="x.html" target="_blank">Link</a>
-            <a href="xxx.html" target="_blank">Link</a>
-        </p>
-    </div>
-    <a href="xxx.html" target="_blank"></a>
-    <a href="xxx.html" target="_blank">xxx</a>
-    <a href="xxdd.html" target="_self" class="dd">HTML</a>
-    <script type="module">
-        class ThisPage {
-            constructor() {
-                console.log(a);
-            }
-        }
-    </script>
-    <script type="module">
-        class ThisPage {
-            constructor() {
-                console.log(1 * 2);
-            }
-        }
-    </script>
-    <script type="module">
-        const a = 1;
-        let b = 2;
-        console.log(a + b);
-    </script>
-{% endif %}
-{% block body %}
-    <div class="b"><a href="xx.html" target="_blank">Link Text</a></div>
-{% endblock %}
-{% block name %}
-    <a href="{{ path('home') }}" target="_blank" {% if isActive %} class="active" {% endif %}>Link Name</a>
-{% endblock %}
-{% block name %}
-    <div class="className1" {% if classIsActive %} data-active="true">
-        <p>P is Here</p>
-        {% if item.active %}
-            {{ item.value|raw }}
-        {% endif %}
-    </div>
-{% endblock %}
+        {% block stylesheets %}
+            <style>
+                :root {
+                    color-scheme: light dark;
+                    font-family: system-ui, sans-serif;
+                }
+
+                .page-layout {
+                    display: grid;
+                    grid-template-columns: minmax(0, 1fr) 18rem;
+                    gap: 2rem;
+                    max-width: 72rem;
+                    margin: 0 auto;
+                    padding: 2rem;
+                }
+
+                .page-sidebar {
+                    border-inline-start: 1px solid currentColor;
+                    padding-inline-start: 1rem;
+                }
+            </style>
+        {% endblock %}
+    </head>
+    <body>
+        <div class="page-layout" data-page="{{ page_name|default('home') }}">
+            <main id="content">
+                {% block content %}
+                    <h1>{{ heading|default('TwigPlus Demo') }}</h1>
+                    <p>Edit this template to exercise Twig, HTML, CSS, and JavaScript support.</p>
+                {% endblock %}
+            </main>
+
+            <aside class="page-sidebar">
+                {% block sidebar %}
+                    <nav aria-label="Demo navigation">
+                        <a href="{{ path('home') }}">Home</a>
+                    </nav>
+                {% endblock %}
+            </aside>
+        </div>
+
+        {% block javascripts %}
+            <script type="module">
+                class PageController {
+                    constructor(root) {
+                        this.root = root;
+                    }
+
+                    start() {
+                        this.root.dataset.ready = "true";
+                    }
+                }
+
+                document.addEventListener("DOMContentLoaded", () => {
+                    const root = document.querySelector(".page-layout");
+                    if (root) {
+                        new PageController(root).start();
+                    }
+                });
+            </script>
+        {% endblock %}
+    </body>
+</html>

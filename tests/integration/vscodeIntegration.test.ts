@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 import {
   formatTwigForIntegration,
@@ -9,6 +11,21 @@ import {
 } from "../../packages/vscode/src/testing/integration";
 
 describe("vscode integration helpers", () => {
+  it("keeps the real Symfony base template idempotent", async () => {
+    const fixture = readFileSync(path.resolve(__dirname, "../../examples/basic-symfony/templates/base.html.twig"), "utf8");
+    const formatted = await formatTwigForIntegration(fixture, {
+      profile: "phpstorm",
+      indentSize: 4,
+      printWidth: 100,
+      useTabs: false,
+      twigTagSpacing: true,
+      htmlAttributeWrap: "auto",
+      preserveSingleLineBlocks: true,
+      lineBreakAfterTwigControlTag: true
+    });
+    expect(formatted).toBe(fixture);
+  });
+
   it("formats twig through the vscode-side integration wrapper", async () => {
     const actual = await formatTwigForIntegration("{% if user %}\n<div>{{name}}</div>\n{% endif %}", {
       profile: "phpstorm",

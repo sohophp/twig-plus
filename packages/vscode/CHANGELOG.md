@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 - 2026-07-13
+
+- Replaced the ad-hoc Symfony base template with a valid, formatter-idempotent Twig/HTML/CSS/JavaScript smoke fixture.
+- Added an integration gate that formats the real example template and requires byte-for-byte idempotence.
+
 ## 1.1.0 - 2026-07-13
 
 - Added standard `%`/space Twig completion triggers and an atomic Enter controller that inserts missing `end*` tags with native Undo/Redo semantics.
