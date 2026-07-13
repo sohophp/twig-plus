@@ -322,7 +322,7 @@ function extractLineTokens(line: string): LineToken[] {
         raw,
         start,
         end,
-        twigTagKind: getTwigTagKind(content)
+        twigTagKind: getTwigTagKindForFormatting(content)
       });
       continue;
     }
@@ -359,4 +359,20 @@ function extractLineTokens(line: string): LineToken[] {
   }
 
   return tokens;
+}
+
+/**
+ * Formatting remains lossless for templates containing removed Twig 2 tags.
+ * Editor completion, pairing and diagnostics use getTwigTagKind() and therefore
+ * expose only the selected Twig 3 language version.
+ */
+function getTwigTagKindForFormatting(content: string): TwigTagKind {
+  const current = getTwigTagKind(content);
+  if (current !== "inline") return current;
+  const name = getTwigTagName(content);
+  const historical = name ? getTwigTag(name, "2.99") : undefined;
+  if (historical?.form === "branch") return "middle";
+  if (historical?.form === "closing") return "closing";
+  if (historical?.form === "block" || (historical?.form === "conditional-block" && isTwigSetCaptureTag(content))) return "opening";
+  return current;
 }

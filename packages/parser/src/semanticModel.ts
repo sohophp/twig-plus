@@ -19,6 +19,8 @@ export interface SemanticReference extends SourceRange {
   resolvedSymbolId?: string;
   dynamic?: boolean;
   qualifier?: string;
+  /** The surrounding Twig construct explicitly permits an undefined input. */
+  allowsUndefined?: boolean;
 }
 export interface TemplateRelation extends SourceRange {
   kind: "extends" | "include" | "embed" | "import" | "from";
@@ -182,21 +184,26 @@ function collectStatementSymbols(
 }
 
 function collectExpressionReferences(expression: TwigExpression, scopeAt: (offset: number) => string, references: SemanticReference[], undefinedSafe = false): void {
-  const add = (node: SourceRange, name: string, role: SemanticReference["role"], qualifier?: string) => {
-    if (name) references.push({ name, role, scopeId: scopeAt(node.start), start: node.start, end: node.end, qualifier });
+  const add = (node: SourceRange, name: string, role: SemanticReference["role"], qualifier?: string, allowsUndefined = false) => {
+    if (name) references.push({ name, role, scopeId: scopeAt(node.start), start: node.start, end: node.end, qualifier, allowsUndefined: allowsUndefined || undefined });
   };
   switch (expression.kind) {
     case "NameExpression":
-      if (!undefinedSafe) add(expression, expression.name, "variable-read");
+      add(expression, expression.name, "variable-read", undefined, undefinedSafe);
       return;
     case "LiteralExpression": case "MissingExpression": case "ErrorExpression": return;
-    case "UnaryExpression": collectExpressionReferences(expression.operand, scopeAt, references, undefinedSafe); return;
+    case "UnaryExpression":
+      add(expression.operatorRange, expression.operator, "operator");
+      collectExpressionReferences(expression.operand, scopeAt, references, undefinedSafe);
+      return;
     case "BinaryExpression":
+      add(expression.operatorRange, expression.operator, "operator");
       collectExpressionReferences(expression.left, scopeAt, references, expression.operator === "??" || undefinedSafe);
       collectExpressionReferences(expression.right, scopeAt, references, undefinedSafe);
       return;
     case "MemberExpression":
       collectExpressionReferences(expression.object, scopeAt, references, undefinedSafe);
+      if (expression.operatorRange) add(expression.operatorRange, expression.optional ? "?." : ".", "operator");
       if (expression.computed) collectExpressionReferences(expression.property, scopeAt, references, undefinedSafe);
       else if (expression.property.kind === "NameExpression") add(expression.property, expression.property.name, "member");
       return;
@@ -242,7 +249,10 @@ function collectExpressionReferences(expression: TwigExpression, scopeAt: (offse
       return;
     case "ArrowFunctionExpression": collectExpressionReferences(expression.body, scopeAt, references); return;
     case "ParenthesizedExpression": collectExpressionReferences(expression.expression, scopeAt, references, undefinedSafe); return;
-    case "SpreadExpression": collectExpressionReferences(expression.expression, scopeAt, references, undefinedSafe); return;
+    case "SpreadExpression":
+      add(expression.operatorRange, "...", "operator");
+      collectExpressionReferences(expression.expression, scopeAt, references, undefinedSafe);
+      return;
   }
 }
 
@@ -250,7 +260,7 @@ function isCatalogReference(reference: SemanticReference): reference is Semantic
   return reference.role === "function-call" || reference.role === "filter" || reference.role === "test";
 }
 function shouldReportUnresolved(reference: SemanticReference, mode: "safe" | "strict" | "off", globals: Set<string>, options: DocumentModelOptions): boolean {
-  if (mode === "off" || reference.role === "template" || reference.role === "member" || reference.role === "named-argument" || reference.role === "operator" || globals.has(reference.name)) return false;
+  if (mode === "off" || reference.allowsUndefined || reference.role === "template" || reference.role === "member" || reference.role === "named-argument" || reference.role === "operator" || globals.has(reference.name)) return false;
   if (mode === "strict") return true;
   return reference.role === "variable-read" ? options.contextComplete === true : options.catalogComplete === true;
 }

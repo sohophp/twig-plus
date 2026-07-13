@@ -5,9 +5,9 @@ import type { SourceRange } from "./selectionRanges";
 export interface TwigAstNodeBase extends SourceRange { kind: string; complete: boolean; }
 export interface NameExpression extends TwigAstNodeBase { kind: "NameExpression"; name: string; }
 export interface LiteralExpression extends TwigAstNodeBase { kind: "LiteralExpression"; value: string | number | boolean | null; raw: string; }
-export interface UnaryExpression extends TwigAstNodeBase { kind: "UnaryExpression"; operator: string; operand: TwigExpression; }
-export interface BinaryExpression extends TwigAstNodeBase { kind: "BinaryExpression"; operator: string; left: TwigExpression; right: TwigExpression; }
-export interface MemberExpression extends TwigAstNodeBase { kind: "MemberExpression"; object: TwigExpression; property: TwigExpression; computed: boolean; optional?: boolean; }
+export interface UnaryExpression extends TwigAstNodeBase { kind: "UnaryExpression"; operator: string; operatorRange: SourceRange; operand: TwigExpression; }
+export interface BinaryExpression extends TwigAstNodeBase { kind: "BinaryExpression"; operator: string; operatorRange: SourceRange; left: TwigExpression; right: TwigExpression; }
+export interface MemberExpression extends TwigAstNodeBase { kind: "MemberExpression"; object: TwigExpression; property: TwigExpression; computed: boolean; optional?: boolean; operatorRange?: SourceRange; }
 export interface CallExpression extends TwigAstNodeBase { kind: "CallExpression"; callee: TwigExpression; arguments: TwigExpression[]; }
 export interface FilterExpression extends TwigAstNodeBase { kind: "FilterExpression"; input: TwigExpression; filter: NameExpression; arguments: TwigExpression[]; }
 export interface TestExpression extends TwigAstNodeBase { kind: "TestExpression"; input: TwigExpression; test: NameExpression; negated: boolean; arguments: TwigExpression[]; }
@@ -16,7 +16,7 @@ export interface ConditionalExpression extends TwigAstNodeBase { kind: "Conditio
 export interface NamedArgumentExpression extends TwigAstNodeBase { kind: "NamedArgumentExpression"; name: NameExpression; value: TwigExpression; }
 export interface ArrowFunctionExpression extends TwigAstNodeBase { kind: "ArrowFunctionExpression"; parameters: NameExpression[]; body: TwigExpression; }
 export interface ParenthesizedExpression extends TwigAstNodeBase { kind: "ParenthesizedExpression"; expression: TwigExpression; }
-export interface SpreadExpression extends TwigAstNodeBase { kind: "SpreadExpression"; expression: TwigExpression; }
+export interface SpreadExpression extends TwigAstNodeBase { kind: "SpreadExpression"; operatorRange: SourceRange; expression: TwigExpression; }
 export interface MissingExpression extends TwigAstNodeBase { kind: "MissingExpression"; expected: string; }
 export interface ErrorExpression extends TwigAstNodeBase { kind: "ErrorExpression"; message: string; raw: string; }
 export type TwigExpression = NameExpression | LiteralExpression | UnaryExpression | BinaryExpression | MemberExpression | CallExpression | FilterExpression | TestExpression | CollectionExpression | ConditionalExpression | NamedArgumentExpression | ArrowFunctionExpression | ParenthesizedExpression | SpreadExpression | MissingExpression | ErrorExpression;
@@ -81,6 +81,15 @@ export function parseTwigStatement(source: string, baseOffset = 0): TwigStatemen
       if (significant[index - 1]?.value === "as" || significant[index + 1]?.value !== "as") bind(token, "import");
     }
     argumentStart = source.length;
+  } else if (name === "types") {
+    for (let index = 1; index < significant.length; index += 1) {
+      const token = significant[index];
+      if (token.kind !== "name") continue;
+      const next = significant[index + 1]?.value;
+      const delimiter = next === "?" ? significant[index + 2]?.value : next;
+      if (delimiter === ":" || delimiter === "?:") bind(token, "variable");
+    }
+    argumentStart = source.length;
   }
   const argumentSource = source.slice(argumentStart);
   const argumentsList = argumentSource.trim() ? [parseTwigExpression(argumentSource, baseOffset + argumentStart)] : [];
@@ -131,9 +140,9 @@ class ExpressionParser {
       const operator = this.readOperator();
       const precedence = PRECEDENCE[operator];
       if (precedence === undefined || precedence < minimum) break;
-      this.consumeOperator(operator);
+      const operatorRange = this.consumeOperator(operator);
       const right = this.parseExpression(precedence + (RIGHT_ASSOCIATIVE.has(operator) ? 0 : 1));
-      left = { kind: "BinaryExpression", operator, left, right, start: left.start, end: right.end, complete: left.complete && right.complete };
+      left = { kind: "BinaryExpression", operator, operatorRange, left, right, start: left.start, end: right.end, complete: left.complete && right.complete };
     }
     return left;
   }
@@ -143,11 +152,11 @@ class ExpressionParser {
     if (token.kind === "eof") return this.missing("expression", token.start);
     if (["not", "+", "-"].includes(token.value)) {
       this.advance(); const operand = this.parseExpression(10);
-      return { kind: "UnaryExpression", operator: token.value, operand, start: token.start, end: operand.end, complete: operand.complete };
+      return { kind: "UnaryExpression", operator: token.value, operatorRange: { start: token.start, end: token.end }, operand, start: token.start, end: operand.end, complete: operand.complete };
     }
     if (token.value === "...") {
       const start = this.advance().start; const expression = this.parseExpression(15);
-      return { kind: "SpreadExpression", expression, start, end: expression.end, complete: expression.complete };
+      return { kind: "SpreadExpression", operatorRange: { start, end: token.end }, expression, start, end: expression.end, complete: expression.complete };
     }
     if (token.value === "(") {
       const arrow = this.tryParseParenthesizedArrow();
@@ -170,8 +179,8 @@ class ExpressionParser {
     const token = this.current();
     if (token.value === "." || token.value === "?.") {
       const optional = token.value === "?.";
-      this.advance(); const property = this.parsePrefix();
-      return { kind: "MemberExpression", object: input, property, computed: false, optional, start: input.start, end: property.end, complete: input.complete && property.complete };
+      const operator = this.advance(); const property = this.parsePrefix();
+      return { kind: "MemberExpression", object: input, property, computed: false, optional, operatorRange: { start: operator.start, end: operator.end }, start: input.start, end: property.end, complete: input.complete && property.complete };
     }
     if (token.value === "[") {
       this.advance(); const property = this.parseExpression(0); const close = this.consume("]");
@@ -251,7 +260,11 @@ class ExpressionParser {
     const body = this.parseExpression(0);
     return { kind: "ArrowFunctionExpression", parameters: names, body, start, end: body.end, complete: body.complete };
   }
-  private consumeOperator(operator: string): void { this.advance(); if (operator.includes(" ")) this.advance(); }
+  private consumeOperator(operator: string): SourceRange {
+    const first = this.advance();
+    const last = operator.includes(" ") ? this.advance() : first;
+    return { start: first.start, end: last.end };
+  }
   private current(): TwigLexeme { return this.tokens[this.index] ?? this.tokens.at(-1)!; }
   private previous(): TwigLexeme { return this.tokens[Math.max(0, this.index - 1)]; }
   private advance(): TwigLexeme { const token = this.current(); if (token.kind !== "eof") this.index += 1; return token; }

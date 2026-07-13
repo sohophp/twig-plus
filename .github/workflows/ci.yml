@@ -49,6 +49,10 @@ jobs:
           php tools/upstream-oracle/export.php /tmp/twig-plus-upstream-runtime.json
           diff -u packages/language-spec/src/generated/upstream-runtime.json /tmp/twig-plus-upstream-runtime.json
           npm run upstream-oracle:check
+      - name: Verify Twig 3.28 parser conformance corpus
+        run: |
+          php tools/upstream-oracle/verify-conformance.php
+          node scripts/check-conformance-coverage.js
       - run: npm run docs:check
       - run: npm run dead-entries:check
       - run: npm audit --omit=dev --audit-level=high --registry=https://registry.npmjs.org

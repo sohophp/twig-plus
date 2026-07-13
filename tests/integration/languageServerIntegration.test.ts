@@ -196,7 +196,8 @@ class ProtocolClient {
     let stderr = "";
     process.stderr.on("data", (chunk) => { stderr += String(chunk); });
     process.on("error", (error) => this.rejectAll(error));
-    process.on("exit", (code, signal) => this.rejectAll(new Error(
+    // `close` fires after stdio closes, so the failure includes all stderr.
+    process.on("close", (code, signal) => this.rejectAll(new Error(
       `Bundled language server exited before completing pending requests (code=${String(code)}, signal=${String(signal)}).${stderr ? `\n${stderr}` : ""}`
     )));
   }

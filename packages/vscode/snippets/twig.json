@@ -56,7 +56,7 @@
   "Twig guard": {
     "prefix": "twig-guard",
     "body": [
-      "{% guard ${1:function} %}",
+      "{% guard ${1:function} ${2:name} %}",
       "  $0",
       "{% endguard %}"
     ],
@@ -97,15 +97,6 @@
       "{% endset %}"
     ],
     "description": "twig-core Twig conditional-block tag"
-  },
-  "Twig types": {
-    "prefix": "twig-types",
-    "body": [
-      "{% types %}",
-      "  $0",
-      "{% endtypes %}"
-    ],
-    "description": "twig-core Twig block tag"
   },
   "Twig verbatim": {
     "prefix": "twig-verbatim",
@@ -171,6 +162,13 @@
     "prefix": "twig-include",
     "body": [
       "{% include '${1:template.html.twig}' %}"
+    ],
+    "description": "twig-core Twig inline tag"
+  },
+  "Twig types": {
+    "prefix": "twig-types",
+    "body": [
+      "{% types {${1:name}: '${2:type}'} %}"
     ],
     "description": "twig-core Twig inline tag"
   },
