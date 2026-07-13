@@ -78,6 +78,7 @@ export function createWorkspaceModel(inputs: WorkspaceDocument[], resolveTemplat
     for (const candidateUri of sources.keys()) {
       if (isCancelled()) return [];
       if (++index % 50 === 0) await yieldToEventLoop();
+      if (!sources.get(candidateUri)?.includes(symbol.name)) continue;
       const model = getDocument(candidateUri); if (!model) continue;
       for (const candidate of model.references) {
         if (candidateUri === declarationUri && candidate.resolvedSymbolId === symbol.id) results.push(location(candidateUri, candidate));

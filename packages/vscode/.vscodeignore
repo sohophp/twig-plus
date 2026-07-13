@@ -13,5 +13,6 @@ dist/diagnostics/**
 dist/editing/**
 dist/language/**
 dist/testing/**
+dist/output.js
 node_modules/.vite/**
 node_modules/**/*.map

@@ -12,3 +12,4 @@ export * from "./twigAst";
 export * from "./semanticModel";
 export * from "./workspaceModel";
 export * from "./projectMetadata";
+export * from "./formattingRange";

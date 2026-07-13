@@ -58,6 +58,28 @@ describe("bundled TwigPlus language server", () => {
     expect((await progress).params).toMatchObject({ uri, stage: "parse", status: "started" });
   }, 15_000);
 
+  it("provides Twig hover, signature help, and safe range formatting", async () => {
+    const client = startClient();
+    await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
+    client.notify("initialized", {});
+    const uri = "untitled:intelligence.html.twig";
+    const source = `{% block body %}\n    <div>{{ path("home", {}) }}</div>\n{% endblock %}`;
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const pathOffset = source.indexOf("path") + 2;
+    const hover = await client.request("textDocument/hover", { textDocument: { uri }, position: positionAt(source, pathOffset) });
+    expect(hover.result.contents.value).toContain("path(route_name");
+    const signatureOffset = source.indexOf("{}") + 1;
+    const signature = await client.request("textDocument/signatureHelp", { textDocument: { uri }, position: positionAt(source, signatureOffset) });
+    expect(signature.result.signatures[0].label).toContain("path(route_name");
+    expect(signature.result.activeParameter).toBe(1);
+    const line = 1;
+    const formatted = await client.request("textDocument/rangeFormatting", {
+      textDocument: { uri }, range: { start: { line, character: 4 }, end: { line, character: source.split("\n")[line].length } },
+      options: { tabSize: 4, insertSpaces: true }
+    });
+    expect(formatted.result).toEqual(expect.any(Array));
+  });
+
   it("publishes mapped diagnostics for invalid embedded JavaScript", async () => {
     const client = startClient();
     await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
@@ -131,6 +153,11 @@ function startClient(): ProtocolClient {
   return new ProtocolClient(child);
 }
 
+function positionAt(source: string, offset: number): { line: number; character: number } {
+  const before = source.slice(0, offset).split("\n");
+  return { line: before.length - 1, character: before[before.length - 1].length };
+}
+
 class ProtocolClient {
   private buffer = Buffer.alloc(0);
   private nextId = 1;
@@ -138,8 +165,12 @@ class ProtocolClient {
   private readonly notificationWaiters = new Map<string, Array<{ resolve: (message: any) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>>();
   constructor(private readonly process: ChildProcessWithoutNullStreams) {
     process.stdout.on("data", (chunk) => { this.buffer = Buffer.concat([this.buffer, chunk]); this.drain(); });
-    process.stderr.on("data", (chunk) => this.rejectAll(new Error(String(chunk))));
+    let stderr = "";
+    process.stderr.on("data", (chunk) => { stderr += String(chunk); });
     process.on("error", (error) => this.rejectAll(error));
+    process.on("exit", (code, signal) => this.rejectAll(new Error(
+      `Bundled language server exited before completing pending requests (code=${String(code)}, signal=${String(signal)}).${stderr ? `\n${stderr}` : ""}`
+    )));
   }
   request(method: string, params: unknown): Promise<any> {
     const id = this.nextId++;

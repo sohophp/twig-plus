@@ -33,8 +33,7 @@
     "onLanguage:twig",
     "onCommand:twigPlus.applyRecommendedSettings",
     "onCommand:twigPlus.showStatus",
-    "onCommand:twigPlus.selectParserEngine",
-    "onStartupFinished"
+    "onCommand:twigPlus.selectParserEngine"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -113,22 +112,6 @@
         "key": "enter",
         "mac": "enter",
         "when": "editorTextFocus && editorLangId == twig && !suggestWidgetVisible && !inlineSuggestionVisible && !renameInputVisible"
-      },
-      {
-        "command": "twigPlus.insertHtmlCloseTag",
-        "key": "shift+.",
-        "when": "editorTextFocus && editorLangId == twig && !renameInputVisible"
-      },
-      {
-        "command": "twigPlus.insertJavaScriptBracePair",
-        "key": "shift+[",
-        "when": "editorTextFocus && editorLangId == twig && !renameInputVisible"
-      },
-      {
-        "command": "twigPlus.deleteJavaScriptBracePair",
-        "key": "backspace",
-        "mac": "backspace",
-        "when": "editorTextFocus && editorLangId == twig && !renameInputVisible"
       }
     ],
     "configuration": {
@@ -201,16 +184,23 @@
         },
         "twigPlus.parser.engine": {
           "type": "string",
+          "scope": "resource",
           "enum": [
             "legacy",
             "hybrid-shadow",
             "hybrid"
+          ],
+          "enumDescriptions": [
+            "Deprecated alias; requests run on Hybrid with internal fatal-error fallback.",
+            "Deprecated alias; shadow comparison is now test-only.",
+            "Lossless Hybrid CST/AST engine."
           ],
           "default": "hybrid",
           "description": "Select the parser engine. hybrid-shadow compares Hybrid AST results while returning legacy behavior; hybrid uses verified results with automatic legacy fallback."
         },
         "twigPlus.templates.roots": {
           "type": "array",
+          "scope": "resource",
           "default": [
             "templates",
             "app/Resources/views",
@@ -223,11 +213,13 @@
         },
         "twigPlus.diagnostics.unresolvedNames": {
           "type": "boolean",
+          "scope": "resource",
           "default": false,
           "description": "Report Twig names that are not declared in lexical scope or listed as configured globals. Disabled by default because Symfony may inject variables dynamically."
         },
         "twigPlus.diagnostics.globals": {
           "type": "array",
+          "scope": "resource",
           "default": [],
           "items": {
             "type": "string"
@@ -236,26 +228,31 @@
         },
         "twigPlus.editing.autoCloseHtmlTags": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
-          "description": "Automatically insert the matching HTML closing tag after typing > or pressing Enter after a complete opening tag in a Twig document. Void and self-closing elements are excluded."
+          "description": "Atomically insert the matching HTML closing tag when Enter is pressed after a complete opening tag in a Twig document. Ordinary typing remains owned by VS Code."
         },
         "twigPlus.editing.autoCloseTwigTags": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Automatically insert the matching Twig end tag when Enter is pressed after a complete opening control tag."
         },
         "twigPlus.editing.autoCloseCssBraces": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Automatically insert an indented closing brace when Enter is pressed after an opening CSS brace inside a style element."
         },
         "twigPlus.editing.autoCloseJavaScriptBraces": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
-          "description": "Automatically insert and pair-delete JavaScript braces in script code, and preserve atomic Enter indentation for the pair."
+          "description": "Preserve atomic Enter indentation for an existing JavaScript brace pair. Brace insertion and deletion remain owned by VS Code."
         },
         "twigPlus.editing.linkedHtmlTags": {
           "type": "boolean",
+          "scope": "resource",
           "default": true,
           "description": "Use VS Code linked editing to keep matching HTML opening and closing tag names synchronized in Twig documents."
         }

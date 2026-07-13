@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
 import { computeTwigEnterEdit } from "./twigEnter";
 import { computeStyleEnterEdit } from "./styleEnter";
-import { computeHtmlEnterEdit, computeHtmlTagCloseEdit } from "./htmlTagClose";
-import { computeScriptBracePairDelete, computeScriptBracePairEdit, computeScriptEnterEdit } from "./scriptEnter";
+import { computeHtmlEnterEdit } from "./htmlTagClose";
+import { computeScriptEnterEdit } from "./scriptEnter";
 
 export function registerTwigEnterController(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
@@ -44,69 +44,11 @@ export function registerTwigEnterController(context: vscode.ExtensionContext): v
   );
 }
 
-async function deleteJavaScriptBracePair(): Promise<void> {
-  const editor = vscode.window.activeTextEditor;
-  if (!editor || editor.document.languageId !== "twig") return vscode.commands.executeCommand("deleteLeft");
-  if (!vscode.workspace.getConfiguration("twigPlus.editing", editor.document.uri).get("autoCloseJavaScriptBraces", true)) {
-    return vscode.commands.executeCommand("deleteLeft");
-  }
-  const result = computeScriptBracePairDelete(editor.document.getText(), editor.selections.map((selection) => ({
-    anchor: editor.document.offsetAt(selection.anchor), active: editor.document.offsetAt(selection.active)
-  })));
-  if (!result) return vscode.commands.executeCommand("deleteLeft");
-  const applied = await editor.edit((builder) => {
-    for (const edit of result.edits) builder.replace(
-      new vscode.Range(editor.document.positionAt(edit.start), editor.document.positionAt(edit.end)), ""
-    );
-  });
-  if (applied) editor.selections = result.selections.map((selection) => {
-    const position = editor.document.positionAt(selection.active);
-    return new vscode.Selection(position, position);
-  });
-}
+async function deleteJavaScriptBracePair(): Promise<void> { await vscode.commands.executeCommand("deleteLeft"); }
 
-async function insertJavaScriptBracePair(): Promise<void> {
-  const editor = vscode.window.activeTextEditor;
-  if (!editor || editor.document.languageId !== "twig") return vscode.commands.executeCommand("type", { text: "{" });
-  if (!vscode.workspace.getConfiguration("twigPlus.editing", editor.document.uri).get("autoCloseJavaScriptBraces", true)) {
-    return vscode.commands.executeCommand("type", { text: "{" });
-  }
-  const result = computeScriptBracePairEdit(editor.document.getText(), editor.selections.map((selection) => ({
-    anchor: editor.document.offsetAt(selection.anchor), active: editor.document.offsetAt(selection.active)
-  })));
-  if (!result) return vscode.commands.executeCommand("type", { text: "{" });
-  const applied = await editor.edit((builder) => {
-    for (const edit of result.edits) builder.replace(
-      new vscode.Range(editor.document.positionAt(edit.start), editor.document.positionAt(edit.end)), edit.newText
-    );
-  });
-  if (applied) editor.selections = result.selections.map((selection) => {
-    const position = editor.document.positionAt(selection.active);
-    return new vscode.Selection(position, position);
-  });
-}
+async function insertJavaScriptBracePair(): Promise<void> { await vscode.commands.executeCommand("type", { text: "{" }); }
 
-async function insertHtmlCloseTag(): Promise<void> {
-  const editor = vscode.window.activeTextEditor;
-  if (!editor || editor.document.languageId !== "twig") return vscode.commands.executeCommand("type", { text: ">" });
-  if (!vscode.workspace.getConfiguration("twigPlus.editing", editor.document.uri).get("autoCloseHtmlTags", true)) {
-    return vscode.commands.executeCommand("type", { text: ">" });
-  }
-  const source = editor.document.getText();
-  const result = computeHtmlTagCloseEdit(source, editor.selections.map((selection) => ({
-    anchor: editor.document.offsetAt(selection.anchor), active: editor.document.offsetAt(selection.active)
-  })));
-  if (!result) return vscode.commands.executeCommand("type", { text: ">" });
-  const applied = await editor.edit((builder) => {
-    for (const edit of result.edits) builder.replace(
-      new vscode.Range(editor.document.positionAt(edit.start), editor.document.positionAt(edit.end)), edit.newText
-    );
-  });
-  if (applied) editor.selections = result.selections.map((selection) => {
-    const position = editor.document.positionAt(selection.active);
-    return new vscode.Selection(position, position);
-  });
-}
+async function insertHtmlCloseTag(): Promise<void> { await vscode.commands.executeCommand("type", { text: ">" }); }
 
 function getIndentUnit(editor: vscode.TextEditor): string {
   if (editor.options.insertSpaces === false) return "\t";

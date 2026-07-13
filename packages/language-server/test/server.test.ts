@@ -6,7 +6,8 @@ describe("TwigPlus language server", () => {
     expect(getServerCapabilities()).toMatchObject({
       completionProvider: expect.any(Object), definitionProvider: true, referencesProvider: true,
       renameProvider: { prepareProvider: true }, documentSymbolProvider: true,
-      selectionRangeProvider: true, documentFormattingProvider: true
+      selectionRangeProvider: true, documentFormattingProvider: true,
+      hoverProvider: true, signatureHelpProvider: expect.any(Object), documentRangeFormattingProvider: true
     });
     expect(getServerCapabilities().completionProvider).toMatchObject({
       triggerCharacters: expect.arrayContaining(["%", "{", " "])

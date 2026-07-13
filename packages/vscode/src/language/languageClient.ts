@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { LanguageClient, State, TransportKind, type LanguageClientOptions, type ServerOptions } from "vscode-languageclient/node";
+import { getTwigPlusOutput } from "../output";
 
 let client: LanguageClient | null = null;
 let status: "stopped" | "starting" | "running" | "failed" = "stopped";
@@ -21,8 +22,10 @@ export async function startTwigLanguageClient(context: vscode.ExtensionContext):
     run: { module: serverModule, transport: TransportKind.ipc },
     debug: { module: serverModule, transport: TransportKind.ipc, options: { execArgv: ["--nolazy", "--inspect=6010"] } }
   };
+  const output = getTwigPlusOutput();
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: "file", language: "twig" }, { scheme: "untitled", language: "twig" }],
+    outputChannel: output,
     synchronize: {
       configurationSection: ["twigPlus"],
       fileEvents: [
@@ -33,9 +36,7 @@ export async function startTwigLanguageClient(context: vscode.ExtensionContext):
   };
   client = new LanguageClient("twigPlusLanguageServer", "TwigPlus Language Server", serverOptions, clientOptions);
   const formattingStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-  const output = vscode.window.createOutputChannel("TwigPlus");
   context.subscriptions.push(formattingStatus);
-  context.subscriptions.push(output);
   context.subscriptions.push(client.onNotification("twigPlus/formatProgress", (event: FormatProgress) => {
     output.appendLine(`[format ${event.requestId}] ${event.stage} ${event.status} ${event.elapsedMs.toFixed(1)}ms${event.message ? `: ${event.message}` : ""} (${event.uri})`);
     if (event.stage === "complete") {

@@ -1,10 +1,10 @@
 import { EmbeddedSyntaxError, formatEmbeddedBlocks } from "./embeddedFormatters";
-import { parseHybridDocument, tokenizeTwig, validateHybridDocument } from "@twig-plus/parser";
-import { printFormattedTwig, type FormatterOptions, type FormatterResult, type FormatterTiming } from "./printer";
+import { expandHybridFormattingRange, parseHybridDocument, tokenizeTwig, validateHybridDocument } from "@twig-plus/parser";
+import { printFormattedTwig, type FormatterOptions, type FormatterResult, type FormatterTiming, type RangeFormatterResult } from "./printer";
 import { normalizeHybridSource, normalizeTwigSourceFragments } from "./sourceNormalizer";
 
 export async function formatTwigDocument(source: string, options: FormatterOptions): Promise<string> {
-  const engine = options.parserEngine ?? "legacy";
+  const engine = options.parserEngine ?? "hybrid";
   if (engine === "legacy") return formatLegacyDocument(source, options);
   if (options.isCancellationRequested?.()) {
     options.onHybridDifference?.({ query: "format", reason: "cancelled", range: { start: 0, end: source.length } });
@@ -26,7 +26,18 @@ export async function formatTwigDocument(source: string, options: FormatterOptio
     return formatLegacyDocument(source, options);
   }
 
-  const hybrid = await formatParsedHybridDocument(document, options);
+  let hybrid: string;
+  try {
+    hybrid = await formatParsedHybridDocument(document, options);
+  } catch (error) {
+    if (error instanceof EmbeddedSyntaxError) {
+      const cause = error.cause instanceof Error ? error.cause.message : error.message;
+      options.onEmbeddedSyntaxError?.({ language: error.language, message: cause, range: error.range });
+      return source;
+    }
+    options.onHybridDifference?.({ query: "format", reason: "hybrid-error", range: { start: 0, end: source.length } });
+    return formatLegacyDocument(source, options);
+  }
   if (engine === "hybrid") return hybrid;
 
   const legacy = await formatLegacyDocument(source, { ...options, onStage: undefined });
@@ -60,6 +71,23 @@ export async function formatTwigDocumentWithResult(source: string, options: Form
       message: error instanceof Error ? error.message : String(error)
     }, timings };
   }
+}
+
+export async function formatTwigRangeWithResult(
+  source: string, requested: { start: number; end: number }, options: FormatterOptions
+): Promise<RangeFormatterResult> {
+  if (options.isCancellationRequested?.()) return { ok: false, error: { code: "cancelled", message: "Formatting was cancelled." }, timings: [] };
+  const range = expandHybridFormattingRange(source, requested);
+  if (!range) return { ok: false, error: { code: "unsafe-range", message: "The selection does not contain a complete safe Twig/HTML structure." }, timings: [] };
+  const fragment = source.slice(range.start, range.end);
+  const firstContent = fragment.split(/\r?\n/).find((line) => line.trim());
+  const baseIndent = firstContent?.match(/^[\t ]*/)?.[0] ?? "";
+  const dedented = fragment.split(/\r?\n/).map((line) => line.startsWith(baseIndent) ? line.slice(baseIndent.length) : line).join("\n");
+  const result = await formatTwigDocumentWithResult(dedented, { ...options, parserEngine: "hybrid" });
+  if (!result.ok) return { ok: false, error: { code: result.error.code === "cancelled" ? "cancelled" : "format-failed", message: result.error.message }, timings: result.timings };
+  const eol = source.includes("\r\n") ? "\r\n" : "\n";
+  const text = result.text.split("\n").map((line) => line ? baseIndent + line : line).join(eol);
+  return { ok: true, text, range, timings: result.timings };
 }
 
 async function formatParsedHybridDocument(document: ReturnType<typeof parseHybridDocument>, options: FormatterOptions): Promise<string> {

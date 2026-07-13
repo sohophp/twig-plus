@@ -23,4 +23,4 @@ npm run docs:check
 
 日志和报告：`packages/vscode/.vscode-test-results/`。必须存在 `ui-1.90.2.json`、`ui-stable.json` 和 `ui-packaged.json`；packaged 报告还必须记录 VSIX 路径与 SHA-256。使用 `npm run reports:check` 校验。VSIX 位于 `artifacts/vsix/`。
 
-2026-07-13 发布基线：VS Code 1.90.2、1.128.0 与 packaged VSIX 均执行 26/26 Extension Host 用例，覆盖自动/手动 completion、HTML linked editing、HTML/Twig/CSS/JavaScript 原子 closing、成对删除、Undo/Redo、IME 和错误格式化。实测 formatter 冷路径 33–234ms、热路径 12–16ms。Formatter/LSP 核心冷路径目标小于 2000ms；Extension Host 首次 provider 调度容差小于 2500ms；热路径小于 500ms。报告必须保留实际值，不能用容差隐藏阶段超时。
+当前 Extension Host 矩阵覆盖自动/手动 completion、HTML linked editing、HTML/Twig/CSS/JavaScript 原子 Enter、原生删除与 Undo/Redo、IME、Hover、Signature Help、Range Formatting 和错误格式化。Formatter/LSP 核心冷路径目标小于 2000ms；Extension Host 首次 provider 调度容差小于 2500ms；热路径小于 500ms。报告必须保留实际值，不能用容差隐藏阶段超时。

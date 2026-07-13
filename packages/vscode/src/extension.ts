@@ -8,8 +8,10 @@ import { getConfiguredTemplateRoots } from "./language/templateConfig";
 import { getConfiguredParserEngine, registerHybridParserRuntime, reportRuntimeError } from "./language/parserRuntime";
 import { registerTwigEnterController } from "./editing/enterController";
 import { registerHtmlLinkedEditingProvider } from "./editing/linkedEditingProvider";
+import { initializeTwigPlusOutput } from "./output";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  initializeTwigPlusOutput(context);
   registerHybridParserRuntime(context);
   registerCommands(context);
   registerTwigEnterController(context);
@@ -17,16 +19,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registerHtmlCompletionProvider(context);
   registerTwigCodeActionProvider(context);
 
-  try {
-    await startTwigLanguageClient(context);
-  } catch (error) {
+  void startTwigLanguageClient(context).catch((error) => {
     console.error("[TwigPlus] language server failed to start; using local fallback providers:", error);
     reportRuntimeError("Language server failed to start; local fallback providers are active", error);
     registerFallbackProviders(context);
     void vscode.window.showErrorMessage(
       "TwigPlus language server failed to start. Local fallback features are active; see the TwigPlus output for details."
     );
-  }
+  });
 }
 
 export async function deactivate(): Promise<void> {
@@ -45,15 +45,11 @@ function registerCommands(context: vscode.ExtensionContext): void {
 }
 
 async function selectParserEngine(): Promise<void> {
-  const current = getConfiguredParserEngine();
-  const choices = [
-    { label: "Legacy", description: "Compatibility parser", engine: "legacy" as const },
-    { label: "Hybrid Shadow", description: "Compare Hybrid CST while returning legacy results", engine: "hybrid-shadow" as const },
-    { label: "Hybrid", description: "Default lossless CST/AST engine with automatic legacy fallback", engine: "hybrid" as const }
-  ].map((choice) => ({ ...choice, picked: choice.engine === current }));
-  const selected = await vscode.window.showQuickPick(choices, {
+  const selected = await vscode.window.showQuickPick([{
+    label: "Hybrid", description: "Lossless CST/AST engine with guarded internal fallback", engine: "hybrid" as const, picked: true
+  }], {
     title: "TwigPlus: Select Parser Engine",
-    placeHolder: `Current: ${current}`
+    placeHolder: `Current: ${getConfiguredParserEngine()}`
   });
   if (!selected) return;
   await vscode.workspace.getConfiguration("twigPlus.parser").update(

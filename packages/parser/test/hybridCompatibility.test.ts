@@ -17,7 +17,8 @@ import {
 describe("hybrid compatibility queries", () => {
   const source = `{% block body %}\n<div class="{{ kind }}">{{ value }}</div>\n{% endblock %}`;
 
-  it.each(["legacy", "hybrid-shadow", "hybrid"] as const)("preserves query results in %s mode", (engine) => {
+  it("uses verified hybrid queries by default", () => {
+    const engine = "hybrid" as const;
     expect(collectCompatibleStructureSymbols(source, { engine })).toEqual(collectCompatibleStructureSymbols(source));
     expect(collectCompatibleSelectionRanges(source, source.indexOf("value"), { engine })).toEqual(
       collectCompatibleSelectionRanges(source, source.indexOf("value"))
@@ -31,6 +32,11 @@ describe("hybrid compatibility queries", () => {
     expect(analyzeCompatibleDiagnostics(source, [], undefined, undefined, { engine })).toEqual(
       analyzeCompatibleDiagnostics(source)
     );
+  });
+
+  it("keeps the legacy parser available as an explicit fatal-error fallback", () => {
+    expect(collectCompatibleStructureSymbols(source, { engine: "legacy" })).not.toEqual([]);
+    expect(collectCompatibleSelectionRanges(source, source.indexOf("value"), { engine: "legacy" })).not.toEqual([]);
   });
 
   it("does not report differences for equivalent shadow queries", () => {

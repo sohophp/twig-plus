@@ -9,6 +9,7 @@ export interface SemanticSymbol extends SourceRange {
   kind: SemanticSymbolKind;
   scopeId: string;
   nameRange: SourceRange;
+  parameters?: string[];
 }
 export interface SemanticReference extends SourceRange {
   name: string;
@@ -108,6 +109,10 @@ export function createDocumentModel(document: HybridDocument, options: DocumentM
     const target = visible(parents.get(reference.scopeId) ?? root, reference.start).find((symbol) => symbol.name === reference.name);
     if (target) reference.resolvedSymbolId = target.id;
     else if (options.diagnoseUnresolvedNames && reference.role !== "template" && !globals.has(reference.name)) diagnostics.push({ code: "unresolved-name", severity: "warning", message: `Unresolved name '${reference.name}'.`, start: reference.start, end: reference.end });
+  }
+  for (const symbol of symbols.filter((item) => item.kind === "macro")) {
+    const macroScope = scopes.filter((scope) => scope.kind === "macro" && scope.start >= symbol.end).sort((a, b) => a.start - b.start)[0];
+    symbol.parameters = macroScope?.symbols.filter((item) => item.kind === "parameter").map((item) => item.name) ?? [];
   }
 
   return {

@@ -32,6 +32,13 @@ export interface FormatterFailure {
   timings: FormatterTiming[];
 }
 export type FormatterResult = FormatterSuccess | FormatterFailure;
+export interface RangeFormatterSuccess extends FormatterSuccess { range: { start: number; end: number }; }
+export interface RangeFormatterFailure {
+  ok: false;
+  error: { code: "cancelled" | "unsafe-range" | "format-failed"; message: string };
+  timings: FormatterTiming[];
+}
+export type RangeFormatterResult = RangeFormatterSuccess | RangeFormatterFailure;
 
 export function printFormattedTwig(source: string, options: FormatterOptions): string {
   const lines = source.replace(/\r\n/g, "\n").split("\n");

@@ -147,7 +147,6 @@ function normalizeInlineHtmlWhitespace(line: string): string {
   return normalizeHtmlOpeningTags(line)
     .replace(/>\s+(\{\{)/g, ">$1")
     .replace(/(\}\})\s+</g, "$1<")
-    .replace(/\s+>/g, ">")
     .replace(/[ \t]+$/g, "");
 }
 

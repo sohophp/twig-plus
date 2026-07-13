@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Made Hybrid the only user runtime parser path while retaining legacy solely as an instrumented fatal-error fallback.
+- Returned ordinary braces, `>`, Backspace, Undo, and Redo to VS Code while preserving atomic Twig/HTML/CSS/JavaScript Enter behavior.
+- Added Twig and embedded JavaScript Hover, Signature Help, and safe structure-aware Range Formatting.
+- Reduced activation and large-workspace cost with language-only activation, debounced diagnostics, root-scoped template indexing, and reference prefiltering.
+- Hardened embedded formatter placeholders and bounded optional Symfony metadata loading.
+
 ## 1.1.2 - 2026-07-13
 
 - Fixed clean-checkout CI by building workspace package entrypoints before Vitest resolves cross-package imports.
