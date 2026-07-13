@@ -9,7 +9,7 @@ export interface ProjectCompletionEntry {
 }
 
 export interface ProjectMetadataSnapshot {
-  schemaVersion?: 1 | 2;
+  schemaVersion?: 1 | 2 | 3;
   providerId: string;
   projectRoot: string;
   generatedAt: number;
@@ -27,6 +27,12 @@ export interface ProjectMetadataSnapshot {
     tags?: ProjectCompletionEntry[];
   };
   contexts?: Array<{ template: string; complete: boolean; variables: string[] }>;
+  references?: {
+    routes?: ProjectCompletionEntry[];
+    translations?: ProjectCompletionEntry[];
+    assets?: ProjectCompletionEntry[];
+    forms?: ProjectCompletionEntry[];
+  };
   templates: string[];
   blocks: Array<{ template: string; name: string }>;
   macros: Array<{ template: string; name: string; parameters: string[] }>;
@@ -40,5 +46,5 @@ export interface ProjectMetadataProvider {
 }
 
 export function emptyProjectMetadata(providerId: string, projectRoot: string): ProjectMetadataSnapshot {
-  return { schemaVersion: 2, providerId, projectRoot, generatedAt: Date.now(), completions: [], templates: [], blocks: [], macros: [] };
+  return { schemaVersion: 3, providerId, projectRoot, generatedAt: Date.now(), completions: [], templates: [], blocks: [], macros: [], references: {} };
 }

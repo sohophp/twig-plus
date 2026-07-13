@@ -11,6 +11,7 @@ import { analyzeHybridDiagnostics, analyzeTwigDiagnostics, collectHybridSelectio
 import { formatTwigRangeWithResult, formatTwigWithResult, type FormatterOptions, type FormatterStage } from "@twig-plus/formatter";
 import { EmbeddedJavaScriptService } from "./embeddedJavaScript";
 import { getTwigCatalogEntry, getTwigCompletions, TwigCompletionRegistry, type ProjectCompletionEntry } from "./twigCompletion";
+import { getSymfonyReferenceMatch, type SymfonyReferenceKind } from "./symfonyReference";
 
 export interface TwigPlusServerOptions {
   diagnoseUnresolvedNames?: boolean;
@@ -24,8 +25,10 @@ interface TwigPlusSettings {
   templates?: { roots?: string[] };
   diagnostics?: { unresolvedNames?: boolean; unresolvedNameMode?: "safe" | "strict" | "off"; globals?: string[] };
   twig?: { version?: string };
+  symfony?: { reference?: "auto" | "on" | "off" };
 }
 
+interface LoadedSymfonyReference { name: string; detail?: string; }
 interface LoadedProjectMetadata {
   completions: ProjectCompletionEntry[];
   globals: string[];
@@ -33,6 +36,7 @@ interface LoadedProjectMetadata {
   twigVersion?: string;
   contexts: Array<{ template: string; complete: boolean; variables: string[] }>;
   packages: string[];
+  references: Record<SymfonyReferenceKind, LoadedSymfonyReference[]>;
 }
 interface ComposerEnvironment { twigVersion?: string; packages: string[]; }
 
@@ -68,7 +72,10 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   const cache = new Map<string, CachedModel>();
   const embeddedJavaScript = new EmbeddedJavaScriptService();
   const completionRegistry = new TwigCompletionRegistry();
-  let projectMetadata: LoadedProjectMetadata = { completions: [], globals: [], catalogComplete: false, contexts: [], packages: [] };
+  let projectMetadata: LoadedProjectMetadata = {
+    completions: [], globals: [], catalogComplete: false, contexts: [], packages: [],
+    references: { route: [], asset: [], translation: [] }
+  };
   const indexedDocuments = new Map<string, string>();
   let workspaceFolders: string[] = [];
   let workspaceQueue: Promise<void> = Promise.resolve();
@@ -293,6 +300,21 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const model = modelFor(document); if (!model) return [];
     const offset = document.offsetAt(params.position);
     const lineStart = document.offsetAt({ line: params.position.line, character: 0 });
+    const symfonyMatch = getSymfonyReferenceMatch(document.getText(), offset);
+    const symfonyMode = settingsFor(document.uri).symfony?.reference ?? "auto";
+    if (symfonyMatch && symfonyMode !== "off") {
+      await workspaceReady;
+      if (symfonyMode !== "on" && !completionRegistry.permits("symfony-bridge")) return [];
+      const range = { start: document.positionAt(symfonyMatch.start), end: document.positionAt(symfonyMatch.end) };
+      return projectMetadata.references[symfonyMatch.kind]
+        .filter((entry) => entry.name.toLowerCase().includes(symfonyMatch.prefix.toLowerCase()))
+        .map((entry) => ({
+          label: entry.name,
+          detail: entry.detail ?? `Symfony ${symfonyMatch.kind}`,
+          kind: symfonyMatch.kind === "asset" ? CompletionItemKind.File : CompletionItemKind.Reference,
+          textEdit: TextEdit.replace(range, entry.name)
+        }));
+    }
     const templateMatch = getTemplateReferenceMatch(document.getText().slice(lineStart, offset));
     if (templateMatch) {
       await workspaceReady;
@@ -610,6 +632,7 @@ async function readProjectCompletionMetadata(folders: string[]): Promise<LoadedP
   let catalogComplete = false;
   let twigVersion: string | undefined;
   const packages: string[] = [];
+  const references: LoadedProjectMetadata["references"] = { route: [], asset: [], translation: [] };
   const maxMetadataBytes = 5_000_000;
   const maxEntries = 10_000;
   for (const uri of folders.filter((item) => item.startsWith("file:"))) {
@@ -639,6 +662,19 @@ async function readProjectCompletionMetadata(folders: string[]): Promise<LoadedP
         const variables = entry.variables.filter((item): item is string => typeof item === "string").slice(0, maxEntries);
         contexts.push({ template: entry.template, complete: entry.complete, variables });
       }
+      if (isRecord(value?.references)) {
+        for (const [metadataKey, kind] of [["routes", "route"], ["assets", "asset"], ["translations", "translation"]] as const) {
+          const entries = value.references[metadataKey];
+          if (!Array.isArray(entries)) continue;
+          for (const entry of entries.slice(0, maxEntries)) {
+            if (typeof entry === "string") references[kind].push({ name: entry });
+            else if (isRecord(entry) && typeof entry.name === "string") references[kind].push({
+              name: entry.name,
+              detail: typeof entry.detail === "string" ? entry.detail : undefined
+            });
+          }
+        }
+      }
       if (isRecord(value?.environment)) {
         if (typeof value.environment.twigVersion === "string" && /^3\.\d+(?:\.\d+)?/.test(value.environment.twigVersion)) twigVersion ??= value.environment.twigVersion;
         if (value.environment.catalogComplete === true) catalogComplete = true;
@@ -646,7 +682,10 @@ async function readProjectCompletionMetadata(folders: string[]): Promise<LoadedP
       }
     } catch { /* optional metadata never blocks generic Twig features */ }
   }
-  return { completions, globals, contexts, catalogComplete, twigVersion, packages: [...new Set(packages)] };
+  for (const kind of Object.keys(references) as SymfonyReferenceKind[]) {
+    references[kind] = references[kind].filter((entry, index, all) => all.findIndex((item) => item.name === entry.name) === index);
+  }
+  return { completions, globals, contexts, catalogComplete, twigVersion, packages: [...new Set(packages)], references };
 }
 
 async function readComposerEnvironment(folders: string[]): Promise<ComposerEnvironment> {
