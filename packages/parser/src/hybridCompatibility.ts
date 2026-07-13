@@ -38,6 +38,7 @@ export interface HybridDifference {
   range: SourceRange;
   legacySummary?: string;
   hybridSummary?: string;
+  fallbackUsed?: boolean;
 }
 
 export interface HybridQueryOptions {
@@ -121,7 +122,6 @@ function resolveQuery<T>(
       : parseHybridDocument(source);
     if (validateHybridDocument(document).length > 0) {
       report(options, query, "invalid-document", source.length);
-      return legacy();
     }
     const hybridResult = hybrid(document);
     if (engine === "hybrid-shadow") {
@@ -131,7 +131,7 @@ function resolveQuery<T>(
     }
     return hybridResult;
   } catch {
-    report(options, query, "hybrid-error", source.length);
+    report(options, query, "hybrid-error", source.length, true);
     return legacy();
   }
 }
@@ -140,8 +140,8 @@ function equalResults(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function report(options: HybridQueryOptions, query: HybridQueryName, reason: HybridDifference["reason"], sourceLength: number): void {
-  options.onDifference?.({ query, reason, range: { start: 0, end: sourceLength } });
+function report(options: HybridQueryOptions, query: HybridQueryName, reason: HybridDifference["reason"], sourceLength: number, fallbackUsed = false): void {
+  options.onDifference?.({ query, reason, range: { start: 0, end: sourceLength }, fallbackUsed });
 }
 
 function reportMismatch(options: HybridQueryOptions, query: HybridQueryName, legacy: unknown, hybrid: unknown, sourceLength: number): void {

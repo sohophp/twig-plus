@@ -93,6 +93,19 @@ describe("structured formatter results", () => {
     expect(await formatTwig(await formatTwig(once, getDefaultOptions()), getDefaultOptions())).toBe(once);
   });
 
+  it("keeps every audited Twig version-boundary fixture three-pass idempotent", async () => {
+    const manifest = JSON.parse(readFileSync(path.resolve(process.cwd(), "../../tools/upstream-oracle/version-boundaries.json"), "utf8")) as {
+      cases: Array<{ id: string; source: string }>;
+    };
+    for (const fixture of manifest.cases) {
+      const once = await formatTwig(fixture.source, getDefaultOptions());
+      const twice = await formatTwig(once, getDefaultOptions());
+      const threeTimes = await formatTwig(twice, getDefaultOptions());
+      expect(twice, fixture.id).toBe(once);
+      expect(threeTimes, fixture.id).toBe(once);
+    }
+  });
+
   it("formats the legal Twig, HTML, CSS, JavaScript, and Symfony showcase three times idempotently", async () => {
     const source = readFileSync(path.resolve(process.cwd(), "../../examples/showcase/showcase.html.twig"), "utf8");
     const result = await formatTwigWithResult(source, getDefaultOptions());
@@ -185,6 +198,17 @@ describe("embedded syntax errors", () => {
 });
 
 describe("hybrid formatter compatibility", () => {
+  it("formats the complete fixture corpus without a fatal legacy fallback", async () => {
+    const fallbacks: string[] = [];
+    for (const fixtureName of fixtureNames) {
+      await formatTwig(readFixture("input", fixtureName), {
+        ...getDefaultOptions(), parserEngine: "hybrid",
+        onHybridDifference: (difference) => { if (difference.fallbackUsed) fallbacks.push(`${fixtureName}:${difference.reason}`); }
+      });
+    }
+    expect(fallbacks).toEqual([]);
+  });
+
   it.each(["hybrid-shadow", "hybrid"] as const)("keeps all golden fixtures identical in %s mode", async (parserEngine) => {
     for (const fixtureName of fixtureNames) {
       const input = readFixture("input", fixtureName);
@@ -196,11 +220,16 @@ describe("hybrid formatter compatibility", () => {
     }
   });
 
-  it("preserves legacy fallback behavior for incomplete and CRLF input", async () => {
+  it("keeps incomplete and CRLF input on the pure Hybrid formatter path", async () => {
+    const fallbacks: string[] = [];
     for (const source of ["{% bl", "<div class=\"hero\"", "{% if user %}\r\n<div>{{name}}</div>"]) {
       const legacy = await formatTwig(source, getDefaultOptions());
-      expect(await formatTwig(source, { ...getDefaultOptions(), parserEngine: "hybrid" })).toBe(legacy);
+      expect(await formatTwig(source, {
+        ...getDefaultOptions(), parserEngine: "hybrid",
+        onHybridDifference: (difference) => { if (difference.fallbackUsed) fallbacks.push(difference.reason); }
+      })).toBe(legacy);
     }
+    expect(fallbacks).toEqual([]);
   });
 });
 

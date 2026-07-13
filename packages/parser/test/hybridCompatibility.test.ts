@@ -45,6 +45,16 @@ describe("hybrid compatibility queries", () => {
     expect(onDifference).not.toHaveBeenCalled();
   });
 
+  it("keeps incomplete lossless documents on Hybrid without fatal fallback", () => {
+    const differences: Array<{ fallbackUsed?: boolean }> = [];
+    for (const incomplete of ["{% if user is defined %}", "<div class=\"hero\"", "{{ user?.profile ??"] ) {
+      collectCompatibleStructureSymbols(incomplete, { onDifference: (difference) => differences.push(difference) });
+      collectCompatibleSelectionRanges(incomplete, Math.max(0, incomplete.length - 1), { onDifference: (difference) => differences.push(difference) });
+      analyzeCompatibleDiagnostics(incomplete, [], undefined, undefined, { onDifference: (difference) => differences.push(difference) });
+    }
+    expect(differences.filter((difference) => difference.fallbackUsed)).toEqual([]);
+  });
+
   it("keeps native block and macro navigation equivalent", () => {
     const navigationSource = `{% extends 'base.html.twig' %}\n{% import 'forms.twig' as forms %}\n{% from 'forms.twig' import input as field %}\n{% block body %}{{ forms.input() }} {{ field() }}{% endblock %}`;
     for (const engine of ["hybrid-shadow", "hybrid"] as const) {

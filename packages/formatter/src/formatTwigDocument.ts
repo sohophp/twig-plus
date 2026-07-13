@@ -17,13 +17,13 @@ export async function formatTwigDocument(source: string, options: FormatterOptio
     document = parseHybridDocument(source);
   } catch {
     options.onStage?.("parse", performance.now() - parseStarted);
-    options.onHybridDifference?.({ query: "format", reason: "hybrid-parse-error", range: { start: 0, end: source.length } });
+    options.onHybridDifference?.({ query: "format", reason: "hybrid-parse-error", range: { start: 0, end: source.length }, fallbackUsed: true });
     return formatLegacyDocument(source, options);
   }
   options.onStage?.("parse", performance.now() - parseStarted);
   if (validateHybridDocument(document).length > 0) {
     options.onHybridDifference?.({ query: "format", reason: "hybrid-validation-error", range: { start: 0, end: source.length } });
-    return formatLegacyDocument(source, options);
+    return source;
   }
 
   let hybrid: string;
@@ -35,7 +35,7 @@ export async function formatTwigDocument(source: string, options: FormatterOptio
       options.onEmbeddedSyntaxError?.({ language: error.language, message: cause, range: error.range });
       return source;
     }
-    options.onHybridDifference?.({ query: "format", reason: "hybrid-error", range: { start: 0, end: source.length } });
+    options.onHybridDifference?.({ query: "format", reason: "hybrid-error", range: { start: 0, end: source.length }, fallbackUsed: true });
     return formatLegacyDocument(source, options);
   }
   if (engine === "hybrid") return hybrid;
