@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
+import { TWIG_DOCUMENT_SELECTOR } from "./documentSelector";
 
-import { collectSelectionRanges } from "@twig-plus/parser";
+import { collectCompatibleSelectionRanges, collectHybridSelectionRanges } from "@twig-plus/parser";
+import { getCachedHybridDocument, getConfiguredParserEngine, getParserQueryOptions } from "./parserRuntime";
 
 export function registerTwigSelectionRangeProvider(
   context: vscode.ExtensionContext
@@ -15,7 +17,7 @@ export function registerTwigSelectionRangeProvider(
 
   context.subscriptions.push(
     vscode.languages.registerSelectionRangeProvider(
-      { language: "twig" },
+      TWIG_DOCUMENT_SELECTOR,
       provider
     )
   );
@@ -26,7 +28,10 @@ function buildSelectionRangeTree(
   position: vscode.Position
 ): vscode.SelectionRange {
   const source = document.getText();
-  const ranges = collectSelectionRanges(source, document.offsetAt(position));
+  const syntax = getConfiguredParserEngine() === "legacy" ? null : getCachedHybridDocument(document);
+  const ranges = syntax
+    ? collectHybridSelectionRanges(syntax, document.offsetAt(position))
+    : collectCompatibleSelectionRanges(source, document.offsetAt(position), getParserQueryOptions(document));
 
   let parent: vscode.SelectionRange | undefined;
 

@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+- Promoted Hybrid to the sole user runtime path and made legacy an internal fatal-error fallback.
+- Added LSP Hover, Signature Help, safe Range Formatting, debounced diagnostics, and template-root-scoped indexing.
+- Restored native VS Code ownership of ordinary typing and deletion while retaining safe atomic Enter enhancements.
+
+## 1.1.2 - 2026-07-13
+
+- Fixed clean CI test ordering so formatter tests no longer depend on stale local parser build output.
+
+## 1.1.1 - 2026-07-13
+
+- Stabilized `examples/basic-symfony/templates/base.html.twig` as the release smoke fixture and added byte-for-byte formatter idempotence coverage.
+
+## 1.1.0 - 2026-07-13
+
+- Added a lossless mixed HTML/Twig CST, tolerant Twig AST, lexical semantic model, and lazy cross-template workspace model.
+- Added the production TwigPlus language server and migrated VSCode semantic providers to LSP with local failure fallback.
+- Added scope-aware completion, navigation, references, rename, diagnostics, symbols, selection ranges, and CST-backed formatting.
+- Added bounded/cancellation-aware indexing, oversized-document degradation, CI release gates, real LSP/Extension Host tests, and verified VSIX packaging.
+
 ## 1.0.0 - 2026-07-09
 
 - Added stable Twig + HTML mixed-document formatting with embedded CSS and JavaScript formatting.

@@ -1,23 +1,70 @@
-{% block content %}
-    <main>
-        {{ content }}
-    </main>
-{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{% block title %}TwigPlus Demo{% endblock %}</title>
 
-{% block sidebar %}
-    <aside>
-        {{ sidebar }}
-    </aside>
-{% endblock %}
-{% if condition %}
-    asfasf
-    <br />
-    <p>sdfa</p>
-    {% block main %}
-    {% endblock %}
-    <p class="a">
-        <a href="s.html">{{ item.value| replace({}) }}</a>
-    </p>
+        {% block stylesheets %}
+            <style>
+                :root {
+                    color-scheme: light dark;
+                    font-family: system-ui, sans-serif;
+                }
 
-    <p>{{ url({}) }}</p>
-{% endif %}
+                .page-layout {
+                    display: grid;
+                    grid-template-columns: minmax(0, 1fr) 18rem;
+                    gap: 2rem;
+                    max-width: 72rem;
+                    margin: 0 auto;
+                    padding: 2rem;
+                }
+
+                .page-sidebar {
+                    border-inline-start: 1px solid currentColor;
+                    padding-inline-start: 1rem;
+                }
+            </style>
+        {% endblock %}
+    </head>
+    <body>
+        <div class="page-layout" data-page="{{ page_name|default('home') }}">
+            <main id="content">
+                {% block content %}
+                    <h1>{{ heading|default('TwigPlus Demo') }}</h1>
+                    <p>Edit this template to exercise Twig, HTML, CSS, and JavaScript support.</p>
+                {% endblock %}
+            </main>
+
+            <aside class="page-sidebar">
+                {% block sidebar %}
+                    <nav aria-label="Demo navigation">
+                        <a href="{{ path('home') }}">Home</a>
+                    </nav>
+                {% endblock %}
+            </aside>
+        </div>
+
+        {% block javascripts %}
+            <script type="module">
+                class PageController {
+                    constructor(root) {
+                        this.root = root;
+                    }
+
+                    start() {
+                        this.root.dataset.ready = "true";
+                    }
+                }
+
+                document.addEventListener("DOMContentLoaded", () => {
+                    const root = document.querySelector(".page-layout");
+                    if (root) {
+                        new PageController(root).start();
+                    }
+                });
+            </script>
+        {% endblock %}
+    </body>
+</html>

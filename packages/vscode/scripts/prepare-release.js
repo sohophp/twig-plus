@@ -6,6 +6,7 @@ const packageRoot = path.resolve(__dirname, "..");
 const workspaceRoot = path.resolve(packageRoot, "..", "..");
 const distNodeModulesRoot = path.join(packageRoot, "dist", "node_modules");
 const extensionEntrypoint = path.join(packageRoot, "dist", "extension.js");
+const serverEntrypoint = path.join(packageRoot, "dist", "server.js");
 
 prepareReleasePackage();
 
@@ -13,6 +14,12 @@ function prepareReleasePackage() {
   fs.rmSync(path.join(packageRoot, "node_modules"), { force: true, recursive: true });
   fs.rmSync(distNodeModulesRoot, { force: true, recursive: true });
   copyExternalPackageToDist("prettier");
+  copyExternalPackageToDist("typescript");
+  copyExternalPackageToDist("vscode-html-languageservice");
+  copyExternalPackageToDist("vscode-languageserver-textdocument");
+  copyExternalPackageToDist("vscode-languageserver-types");
+  copyExternalPackageToDist("vscode-uri");
+  copyExternalPackageToDist("@vscode/l10n");
   assertBundledEntrypoint();
 }
 
@@ -22,13 +29,17 @@ function assertBundledEntrypoint() {
       "Missing dist/extension.js. Run npm run build before packaging the VSCode extension."
     );
   }
+  if (!fs.existsSync(serverEntrypoint)) {
+    throw new Error("Missing dist/server.js. Run npm run build before packaging the VSCode extension.");
+  }
 
   const bundledSource = fs.readFileSync(extensionEntrypoint, "utf8");
   const forbiddenRuntimeRequires = [
     "require(\"@twig-plus/parser\")",
     "require('@twig-plus/parser')",
     "require(\"@twig-plus/formatter\")",
-    "require('@twig-plus/formatter')"
+    "require('@twig-plus/formatter')",
+    "./parser/htmlScanner"
   ];
 
   for (const runtimeRequire of forbiddenRuntimeRequires) {
@@ -41,6 +52,9 @@ function assertBundledEntrypoint() {
 
   const extensionRequire = createRequire(extensionEntrypoint);
   extensionRequire.resolve("prettier");
+  extensionRequire.resolve("vscode-html-languageservice");
+  extensionRequire.resolve("vscode-languageserver-textdocument");
+  createRequire(serverEntrypoint).resolve("typescript");
 }
 
 function copyExternalPackageToDist(packageName) {

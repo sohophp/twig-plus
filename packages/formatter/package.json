@@ -7,7 +7,7 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@twig-plus/parser": "file:../parser",
-    "prettier": "^3.9.4"
+    "prettier": "^3.9.5"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

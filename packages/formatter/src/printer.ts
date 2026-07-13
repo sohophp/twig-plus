@@ -4,6 +4,7 @@ import {
   getStandaloneTwigTagContent,
   getTwigTagKind
 } from "@twig-plus/parser";
+import type { HybridDifference, ParserEngine } from "@twig-plus/parser";
 
 export interface FormatterOptions {
   profile: "phpstorm" | "compact";
@@ -14,7 +15,30 @@ export interface FormatterOptions {
   htmlAttributeWrap: "preserve" | "auto" | "force";
   preserveSingleLineBlocks: boolean;
   lineBreakAfterTwigControlTag: boolean;
+  parserEngine?: ParserEngine;
+  onHybridDifference?: (difference: HybridDifference) => void;
+  onEmbeddedSyntaxError?: (error: { language: string; message: string; range?: { start: number; end: number } }) => void;
+  onStage?: (stage: FormatterStage, elapsedMs: number) => void;
+  isCancellationRequested?: () => boolean;
 }
+
+export type FormatterStage = "parse" | "twig" | "html" | "javascript" | "css" | "mapping" | "complete";
+
+export interface FormatterTiming { stage: FormatterStage; startedAt: number; durationMs: number; }
+export interface FormatterSuccess { ok: true; text: string; timings: FormatterTiming[]; }
+export interface FormatterFailure {
+  ok: false;
+  error: { code: "cancelled" | "embedded-syntax" | "format-failed"; language?: string; message: string; range?: { start: number; end: number } };
+  timings: FormatterTiming[];
+}
+export type FormatterResult = FormatterSuccess | FormatterFailure;
+export interface RangeFormatterSuccess extends FormatterSuccess { range: { start: number; end: number }; }
+export interface RangeFormatterFailure {
+  ok: false;
+  error: { code: "cancelled" | "unsafe-range" | "format-failed"; message: string };
+  timings: FormatterTiming[];
+}
+export type RangeFormatterResult = RangeFormatterSuccess | RangeFormatterFailure;
 
 export function printFormattedTwig(source: string, options: FormatterOptions): string {
   const lines = source.replace(/\r\n/g, "\n").split("\n");

@@ -51,6 +51,10 @@
     {
       "open": "'",
       "close": "'"
+    },
+    {
+      "open": "(",
+      "close": ")"
     }
   ],
   "indentationRules": {
@@ -58,6 +62,13 @@
     "decreaseIndentPattern": "^\\s*(</[^>]+>|\\{%\\s*end(if|for|block|embed|macro|apply|filter|autoescape|with|spaceless|set)\\s*%\\}|\\{%\\s*(else|elseif|empty)\\b.*%\\})\\s*$"
   },
   "onEnterRules": [
+    {
+      "beforeText": "^\\s*<(?!(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\\b)([A-Za-z][\\w:-]*)(?:\\s[^<>]*)?>\\s*$",
+      "afterText": "^\\s*</[A-Za-z][\\w:-]*\\s*>\\s*$",
+      "action": {
+        "indent": "indentOutdent"
+      }
+    },
     {
       "beforeText": "^\\s*\\{%\\s*(if|for|block|embed|macro|apply|filter|autoescape|with|spaceless|set)\\b.*%\\}\\s*$",
       "afterText": "^\\s*\\{%\\s*end(if|for|block|embed|macro|apply|filter|autoescape|with|spaceless|set)\\s*%\\}\\s*$",
@@ -86,6 +97,10 @@
     [
       "'",
       "'"
+    ],
+    [
+      "(",
+      ")"
     ],
     [
       "{%",

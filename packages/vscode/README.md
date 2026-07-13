@@ -4,6 +4,7 @@ TwigPlus brings a PHPStorm-like Twig editing workflow to VSCode, focused on thre
 
 - mixed Twig / HTML / CSS / JavaScript formatting
 - Twig tag, filter, function, and template path completion
+- Standard HTML tag, attribute, and attribute-value completion across Twig attribute branches
 - `Go to Definition` for `extends`, `include`, `embed`, `import`, `from`, blocks, and macros
 
 The default behavior is intentionally conservative: TwigPlus should improve `.twig` and `.html.twig` editing without taking over unrelated PHP, JavaScript, CSS, or HTML files.
@@ -41,6 +42,9 @@ TwigPlus: Show Status
 
 - Formats Twig files that mix Twig tags, HTML markup, embedded `<script>`, and embedded `<style>`
 - Preserves Twig placeholders while formatting embedded JavaScript and CSS
+- Highlights JavaScript inside `<script>` while preserving Twig delimiter scopes
+- Provides TypeScript-powered JavaScript completion in regular and `type="module"` scripts; JSON, import maps, and custom script types are excluded
+- Inserts callable JavaScript completions with paired parentheses and keeps the cursor inside the call
 - Completes Twig tags such as `if`, `block`, `for`, `else`, `elseif`, `extends`, `include`, `embed`, `import`, `from`, `macro`, `set`, `apply`, and `with`
 - Completes common Twig filters and functions
 - Completes template paths from Symfony-style roots:
@@ -50,7 +54,17 @@ TwigPlus: Show Status
 - Resolves same-directory, `./`, `../`, and legacy bundle-style references such as `BlogBundle:post:show.html.twig`
 - Navigates template references used by `extends`, `include`, `embed`, `import`, and `from`
 - Navigates block and macro references when the target can be resolved precisely
-- Provides PHPStorm-like typing helpers for Twig delimiters, Twig expression pairs, HTML closing tags, and HTML attribute quotes
+- Finds references and safely renames local variables and macros, including imported macro calls across templates
+- Shows Twig and embedded JavaScript hover information and signature help
+- Formats a selected range by expanding it to the smallest complete safe Twig/HTML structure
+- Uses a bundled Language Server Protocol implementation for editor-neutral semantic features
+- Uses VS Code native delimiter, quote, parenthesis, deletion, undo, and redo behavior so typing is never followed by a hidden corrective edit
+
+Embedded JavaScript uses the active VS Code theme for keyword, class, method, property, string, number, operator, and delimiter colors. Syntax errors are reported in the Twig document and cause formatting to preserve the original document. Hover, signature help, explicit TypeScript script types, and Symfony/PHP-derived Twig variable types are not enabled yet.
+
+TwigPlus can optionally merge project-provided Symfony metadata from `.twig-plus/symfony-metadata.json` when `composer.json` contains `symfony/framework-bundle` or `symfony/twig-bundle`. The snapshot uses the exported `ProjectMetadataSnapshot` shape; missing metadata never blocks generic Twig features.
+
+Completion and formatting follow the PHPStorm-style spaced delimiter baseline, including `{{  }}`, `{%  %}`, and `{#  #}`. Raw typing uses VS Code's native pairs and may remain compact until completion or formatting. Completion includes context-aware tags, filters, functions, and tests such as `is defined`; malformed embedded code aborts formatting without partial edits.
 
 ## Configuration Reference
 
@@ -65,7 +79,14 @@ TwigPlus: Show Status
 | `twigPlus.format.htmlAttributeWrap` | `"preserve"`, `"auto"`, or `"force"` | `"auto"` | Controls whether long HTML opening tags are wrapped to one attribute per line. |
 | `twigPlus.format.preserveSingleLineBlocks` | boolean | `true` | Keeps simple single-line HTML blocks such as `<span>{{ value }}</span>` on one line. |
 | `twigPlus.format.lineBreakAfterTwigControlTag` | boolean | `true` | Breaks lines after Twig control tags like `block`, `if`, `else`, and `endblock` when markup or text follows on the same line. |
-| `twigPlus.completion.autoInsertClosingTag` | boolean | `false` | When completing opening Twig control tags, also inserts the matching closing tag snippet. Disabled by default to match PHPStorm-style completion. |
+| `twigPlus.editing.autoCloseHtmlTags` | boolean | `true` | Atomically closes non-void HTML, script, style, and custom elements when Enter is pressed after a complete opening tag. Ordinary typing remains native. |
+| `twigPlus.editing.autoCloseTwigTags` | boolean | `true` | Atomically inserts the matching `end*` tag when Enter is pressed after a complete Twig control tag. |
+| `twigPlus.editing.autoCloseCssBraces` | boolean | `true` | Atomically inserts an indented `}` when Enter is pressed after `{` inside a style element. |
+| `twigPlus.editing.autoCloseJavaScriptBraces` | boolean | `true` | Atomically indents an existing JavaScript brace pair on Enter. Brace insertion and Backspace remain owned by VS Code. |
+| `twigPlus.editing.linkedHtmlTags` | boolean | `true` | Uses VS Code native linked editing to synchronize matching HTML opening and closing tag names. Twig documents enable `editor.linkedEditing` by default. |
+| `twigPlus.parser.engine` | string | `hybrid` | Uses the lossless CST/AST engine. Old `legacy` and `hybrid-shadow` values are deprecated aliases; legacy is retained only as an internal fatal-error fallback. |
+| `twigPlus.diagnostics.unresolvedNames` | boolean | `false` | Reports names not found in lexical scope. Enable after configuring application-provided globals. |
+| `twigPlus.diagnostics.globals` | string[] | `[]` | Names supplied by Symfony or the host application and excluded from unresolved-name diagnostics. |
 
 TwigPlus also contributes this language default:
 
@@ -85,6 +106,7 @@ TwigPlus does not require Prettier, PHP CS Fixer, PHP Intelephense, or GitHub Co
 - PHP CS Fixer affects PHP files, not TwigPlus formatting.
 - PHP Intelephense affects PHP language features, not TwigPlus Twig providers.
 - GitHub Copilot may add suggestions while typing, but it should not replace TwigPlus formatter, completion, or definition providers.
+- Use `TwigPlus: Select Parser Engine` to switch parser modes without editing workspace JSON manually.
 
 If another extension formats Twig files unexpectedly, set `editor.defaultFormatter` for `[twig]` to `sohophp.twig-plus`.
 
@@ -121,6 +143,7 @@ npm run package:vsix --workspace packages/vscode
 - TwigPlus aims to be close to PHPStorm for common Twig editing, not a byte-for-byte clone of every PHPStorm formatter decision.
 - HTML schema-aware features such as required attributes and required subtags are intentionally deferred.
 - Advanced PHPStorm-specific closed-source behavior is approximated from observable behavior and JetBrains IntelliJ Community platform behavior where available.
+- Immediate rewriting of `{%` to `{%  %}` is intentionally deferred because a second asynchronous edit conflicts with rapid typing, IME, Backspace, and the undo stack.
 
 ## 中文说明
 
