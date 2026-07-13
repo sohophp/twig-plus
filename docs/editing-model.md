@@ -14,7 +14,7 @@
 - 默认 quick suggestions 开启时，`{% blo` 通过 `%`/空格 LSP trigger 提供 `block`；关闭时不强制弹出，Ctrl+Space 提供相同列表。
 - completion 可生成 `{% block name %}`，formatter 将紧凑 delimiter 规范为空格样式。
 - 独立完整 opening tag 后的 Enter 由 `twigPlus.insertLineBreak` 单次原子编辑补齐缺失 closing tag；已有 closing、inline、script/style 或混合多光标完全委托原生 Enter。
-- `twigPlus.editing.htmlTagClosing` 默认为 `onType`：高度限定的 `>` command 仅在 Hybrid 确认单光标、空选区、完整且未配对的 HTML opening tag 时，以一次 edit 写入 `>` 与 matching closing tag。`onEnter` 保留旧工作流，`off` 完全关闭。
+- `twigPlus.editing.htmlTagClosing` 默认为 `onType`：高度限定的 `>` command 仅在 Hybrid 确认单光标、空选区、完整且未配对的 HTML opening tag 时，以一次 edit 写入 `>` 与 matching closing tag；所有不确定上下文立即委托 VS Code 原生 `type`。真实 Extension Host 验证表明 formatting provider 会强制产生第二个 Undo 事务，因此这里以 PHPStorm 风格的单次 Undo/Redo 为优先。`onEnter` 保留旧工作流，`off` 完全关闭。
 - void、自闭合、已有 closing、verbatim、snippet、结构不完整、多光标或 UI 冲突场景立即调用原生 `type`，不异步追改文档。一次 Undo/Redo 对称处理触发字符与 closing tag。
 - Twig 结构 Enter closing 可通过 `twigPlus.editing.autoCloseTwigTags` 独立关闭，默认开启。
 - `<style>` 内 CSS 规则的 Enter closing 由同一 Enter 控制器单次生成缩进和 `}`；开关为 `twigPlus.editing.autoCloseCssBraces`，默认开启。它不注册全局 `{}` 字符对，以免干扰 Twig `{{ }}`。
