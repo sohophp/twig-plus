@@ -6,6 +6,14 @@ import { collectTwigStructureSymbols } from "../src/blockAnalysis";
 import { collectHybridStructureSymbols } from "../src/hybridAst";
 
 describe("parseHybridDocument", () => {
+  it("ends Twig comments at #} even when their text contains unmatched quotes", () => {
+    const source = `<script>\n{# unmatched " ' quotes #}\n{% if user is defined %}\n{% endif %}\n</script>`;
+    const document = parseHybridDocument(source);
+    expect(document.children.filter((node) => node.kind === "TwigComment")).toHaveLength(1);
+    expect(document.children.filter((node) => node.kind === "TwigTag")).toHaveLength(2);
+    expect(validateHybridDocument(document)).toEqual([]);
+  });
+
   it("losslessly parses mixed HTML and Twig and records structural pairs", () => {
     const source = `{% if user %}\n<section class="{{ theme }}">Hello {{ user.name }}</section>\n{% endif %}`;
     const document = parseHybridDocument(source);

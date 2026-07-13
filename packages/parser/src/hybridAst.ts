@@ -486,7 +486,7 @@ function scanTwigNode(source: string, start: number, baseOffset = 0): TwigNode |
   const opening = source.slice(start, start + 2);
   const closing = opening === "{{" ? "}}" : opening === "{%" ? "%}" : opening === "{#" ? "#}" : null;
   if (!closing) return null;
-  const closingStart = findTwigClosing(source, start + 2, closing);
+  const closingStart = opening === "{#" ? source.indexOf(closing, start + 2) : findTwigClosing(source, start + 2, closing);
   const complete = closingStart !== -1;
   const end = complete ? closingStart + 2 : source.length;
   const raw = source.slice(start, end);

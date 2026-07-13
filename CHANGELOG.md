@@ -5,6 +5,7 @@
 - Promoted Hybrid to the sole user runtime path and made legacy an internal fatal-error fallback.
 - Added LSP Hover, Signature Help, safe Range Formatting, debounced diagnostics, and template-root-scoped indexing.
 - Restored native VS Code ownership of ordinary typing and deletion while retaining safe atomic Enter enhancements.
+- Fixed embedded formatting so Twig nodes do not acquire JavaScript semicolons, and completed `is defined` suggestions and `endif` Enter pairing inside scripts.
 
 ## 1.1.2 - 2026-07-13
 
