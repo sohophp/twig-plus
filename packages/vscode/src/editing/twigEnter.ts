@@ -1,4 +1,4 @@
-import { getHtmlContextAtOffset, parseHybridDocument, type TwigNode } from "@twig-plus/parser";
+import { parseHybridDocument, type TwigNode } from "@twig-plus/parser";
 
 export interface OffsetSelection { anchor: number; active: number; }
 export interface TwigEnterOptions { eol: "\n" | "\r\n"; indentUnit: string; }
@@ -45,10 +45,43 @@ function candidateAt(
     item.kind === "TwigTag" && item.complete && item.tagKind === "opening" && item.end <= offset &&
     source.slice(item.end, offset).trim() === "" && source.slice(lineStart, item.start).trim() === "");
   if (!node || !node.tagName || !CLOSING_TAGS[node.tagName]) return null;
-  if (getHtmlContextAtOffset(document, node.start).kind === "script" || getHtmlContextAtOffset(document, node.start).kind === "style") return null;
+  if (isInEmbeddedLiteralOrComment(document, source, node.start)) return null;
   if (document.twigControlBlocks.some((pair) => pair.openStart === node.start)) return null;
   const baseIndent = source.slice(lineStart, node.start).match(/^[\t ]*/)?.[0] ?? "";
   const innerIndent = baseIndent + options.indentUnit;
   const newText = `${options.eol}${innerIndent}${options.eol}${baseIndent}{% ${CLOSING_TAGS[node.tagName]} %}`;
   return { offset, tagName: node.tagName, newText, cursorDelta: options.eol.length + innerIndent.length };
+}
+
+function isInEmbeddedLiteralOrComment(
+  document: ReturnType<typeof parseHybridDocument>, source: string, offset: number
+): boolean {
+  const pair = document.htmlElements.find((item) =>
+    (item.name === "script" || item.name === "style") && offset >= item.openEnd && offset <= item.closeStart);
+  if (!pair) return false;
+  const script = pair.name === "script";
+  const twigRanges = document.children.filter((item) =>
+    (item.kind === "TwigTag" || item.kind === "TwigOutput" || item.kind === "TwigComment" || item.kind === "IncompleteNode") &&
+    item.start >= pair.openEnd && item.end <= offset);
+  let state: "code" | "single" | "double" | "template" | "line-comment" | "block-comment" = "code";
+  for (let index = pair.openEnd; index < offset; index += 1) {
+    const twig = twigRanges.find((item) => index >= item.start && index < item.end);
+    if (twig) { index = twig.end - 1; continue; }
+    const character = source[index];
+    const next = source[index + 1];
+    if (state === "line-comment") { if (character === "\n") state = "code"; continue; }
+    if (state === "block-comment") { if (character === "*" && next === "/") { state = "code"; index += 1; } continue; }
+    if (state !== "code") {
+      if (character === "\\") { index += 1; continue; }
+      if ((state === "single" && character === "'") || (state === "double" && character === '"') ||
+        (state === "template" && character === "`")) state = "code";
+      continue;
+    }
+    if (character === "/" && next === "*") { state = "block-comment"; index += 1; continue; }
+    if (script && character === "/" && next === "/") { state = "line-comment"; index += 1; continue; }
+    if (character === "'") state = "single";
+    else if (character === '"') state = "double";
+    else if (script && character === "`") state = "template";
+  }
+  return state !== "code";
 }

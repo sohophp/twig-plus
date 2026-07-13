@@ -73,7 +73,7 @@ export function getTwigCompletions(document: TextDocument, syntax: HybridDocumen
   const line = document.positionAt(offset).line;
   const lineStart = document.offsetAt({ line, character: 0 });
   const match = matchCompletion(document.getText().slice(lineStart, offset));
-  if (!match || (context.kind === "tag" && match.kind !== "tag") || (context.kind === "output" && match.kind === "tag")) return [];
+  if (!match || (match.kind === "tag" && context.kind !== "tag")) return [];
   const range = { start: document.positionAt(lineStart + match.start), end: document.positionAt(offset) };
   let source = match.kind === "tag" ? tags : match.kind === "filter" ? filters : match.kind === "test" ? tests : functions;
   source = [...(registry?.get(match.kind) ?? []), ...source];
@@ -114,7 +114,7 @@ function matchCompletion(prefix: string): { kind: "tag" | "filter" | "function" 
   match = prefix.match(/\{\{[\s\S]*\|\s*([A-Za-z_]*)$/);
   if (match) return { kind: "filter", prefix: match[1].toLowerCase(), start: prefix.length - match[1].length };
   match = prefix.match(/\bis\s+(?:not\s+)?([A-Za-z_ ]*)$/);
-  if (match && prefix.includes("{{")) return { kind: "test", prefix: match[1].toLowerCase(), start: prefix.length - match[1].length };
+  if (match) return { kind: "test", prefix: match[1].toLowerCase(), start: prefix.length - match[1].length };
   match = prefix.match(/\{\{[\s\S]*?\b([A-Za-z_][A-Za-z0-9_]*)$/);
   if (match) return { kind: "function", prefix: match[1].toLowerCase(), start: prefix.length - match[1].length };
   return null;

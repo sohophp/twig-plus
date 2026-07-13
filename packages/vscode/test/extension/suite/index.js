@@ -227,6 +227,14 @@ async function testAtomicTwigEnterClosing() {
   pairedEditor.selection = new vscode.Selection(pairedDocument.positionAt(openingEnd), pairedDocument.positionAt(openingEnd));
   await vscode.commands.executeCommand("twigPlus.insertLineBreak");
   await waitFor(() => pairedEditor.document.getText() === "{% block s %}\n    \n{% endblock %}");
+
+  const embedded = `<script>\n    {% if user is defined %}\n</script>`;
+  const embeddedDocument = await vscode.workspace.openTextDocument({ language: "twig", content: embedded });
+  const embeddedEditor = await vscode.window.showTextDocument(embeddedDocument);
+  const embeddedOffset = embedded.indexOf("%}") + 2;
+  embeddedEditor.selection = new vscode.Selection(embeddedDocument.positionAt(embeddedOffset), embeddedDocument.positionAt(embeddedOffset));
+  await vscode.commands.executeCommand("twigPlus.insertLineBreak");
+  await waitFor(() => embeddedEditor.document.getText() === `<script>\n    {% if user is defined %}\n        \n    {% endif %}\n</script>`);
 }
 
 async function testAtomicHtmlTagClosing() {
@@ -435,6 +443,11 @@ async function testTwigTagCompletion() {
   const testDocument = await vscode.workspace.openTextDocument({ language: "twig", content: testSource });
   const testLabels = await getCompletionLabels(testDocument, testDocument.positionAt(testSource.indexOf("def") + 3));
   assert.ok(testLabels.includes("defined"), "Twig is-expression should offer test completion");
+
+  const tagTestSource = `{% if user is def %}`;
+  const tagTestDocument = await vscode.workspace.openTextDocument({ language: "twig", content: tagTestSource });
+  const tagTestLabels = await getCompletionLabels(tagTestDocument, tagTestDocument.positionAt(tagTestSource.indexOf("def") + 3));
+  assert.ok(tagTestLabels.includes("defined"), "Twig if-expression should offer test completion");
 }
 
 async function testHtmlCompletion() {

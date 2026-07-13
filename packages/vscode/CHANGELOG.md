@@ -7,6 +7,7 @@
 - Added Twig and embedded JavaScript Hover, Signature Help, and safe structure-aware Range Formatting.
 - Reduced activation and large-workspace cost with language-only activation, debounced diagnostics, root-scoped template indexing, and reference prefiltering.
 - Hardened embedded formatter placeholders and bounded optional Symfony metadata loading.
+- Prevented JavaScript formatting from appending semicolons to Twig nodes and enabled test completion plus safe Twig control-tag Enter pairing inside scripts.
 
 ## 1.1.2 - 2026-07-13
 

@@ -43,9 +43,22 @@ describe("computeTwigEnterEdit", () => {
     expect(result?.selections).toHaveLength(2);
   });
 
-  it("does not close Twig-looking text inside script or style", () => {
+  it("closes standalone Twig control tags inside script and style", () => {
     for (const tag of ["script", "style"]) {
-      const source = `<${tag}>\n{% block x %}\n</${tag}>`;
+      const source = `<${tag}>\n{# quotes in earlier Twig must stay masked: " ' #}\n{% if user is defined %}\n</${tag}>`;
+      const offset = source.indexOf("%}") + 2;
+      expect(computeTwigEnterEdit(source, [{ anchor: offset, active: offset }], options)?.edits[0].newText, tag)
+        .toBe("\n    \n{% endif %}");
+    }
+  });
+
+  it("does not close Twig-looking text in embedded strings or comments", () => {
+    for (const source of [
+      `<script>\nconst value = "{% if user %}";\n</script>`,
+      `<script>\n// {% if user %}\n</script>`,
+      `<script>\n/*\n{% if user %}\n*/\n</script>`,
+      `<style>\n/*\n{% if user %}\n*/\n</style>`
+    ]) {
       const offset = source.indexOf("%}") + 2;
       expect(computeTwigEnterEdit(source, [{ anchor: offset, active: offset }], options)).toBeNull();
     }

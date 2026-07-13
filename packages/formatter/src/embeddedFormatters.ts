@@ -96,9 +96,9 @@ async function formatEmbeddedBlockContent(
 
 function protectTwigSegments(source: string): {
   protectedSource: string;
-  placeholders: Map<string, string>;
+  placeholders: Map<string, TwigPlaceholder>;
 } {
-  const placeholders = new Map<string, string>();
+  const placeholders = new Map<string, TwigPlaceholder>();
   let protectedSource = source;
   let offset = 0;
   let prefix = `__TWIGPLUS_${hashSource(source)}_`;
@@ -106,7 +106,10 @@ function protectTwigSegments(source: string): {
 
   for (const token of tokenizeTwig(source)) {
     const placeholder = `${prefix}${placeholders.size}__`;
-    placeholders.set(placeholder, token.raw);
+    placeholders.set(placeholder, {
+      raw: token.raw,
+      removeTrailingSemicolon: token.type !== "output" || isStandaloneTwigLine(source, token.start, token.end)
+    });
 
     const start = token.start + offset;
     const end = token.end + offset;
@@ -124,11 +127,24 @@ function protectTwigSegments(source: string): {
 
 function restoreTwigSegments(
   source: string,
-  placeholders: Map<string, string>
+  placeholders: Map<string, TwigPlaceholder>
 ): string {
   if (placeholders.size === 0) return source;
-  const pattern = new RegExp([...placeholders.keys()].map(escapeRegExp).join("|"), "g");
-  return source.replace(pattern, (placeholder) => placeholders.get(placeholder) ?? placeholder);
+  const pattern = new RegExp(`(${[...placeholders.keys()].map(escapeRegExp).join("|")})(;?)`, "g");
+  return source.replace(pattern, (_match, placeholder: string, semicolon: string) => {
+    const entry = placeholders.get(placeholder);
+    if (!entry) return placeholder + semicolon;
+    return entry.raw + (entry.removeTrailingSemicolon ? "" : semicolon);
+  });
+}
+
+interface TwigPlaceholder { raw: string; removeTrailingSemicolon: boolean; }
+
+function isStandaloneTwigLine(source: string, start: number, end: number): boolean {
+  const lineStart = source.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+  const nextNewline = source.indexOf("\n", end);
+  const lineEnd = nextNewline < 0 ? source.length : nextNewline;
+  return source.slice(lineStart, start).trim() === "" && /^\s*;?\s*$/.test(source.slice(end, lineEnd));
 }
 
 function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }

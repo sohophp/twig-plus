@@ -117,6 +117,26 @@ describe("safe range formatting", () => {
     expect(result).toContain(`<script data-label="a > b">`);
     expect(result).toContain("const value = { enabled: true };");
   });
+
+  it("does not add JavaScript semicolons to standalone Twig nodes", async () => {
+    const source = [
+      "<script>",
+      "{# defined works with variable names #};",
+      "{% if user is defined %};",
+      "{% endif %};",
+      "</script>"
+    ].join("\n");
+    const expected = [
+      "<script>",
+      "  {# defined works with variable names #}",
+      "  {% if user is defined %}",
+      "  {% endif %}",
+      "</script>"
+    ].join("\n");
+    const result = await formatTwig(source, getDefaultOptions());
+    expect(result).toBe(expected);
+    expect(await formatTwig(result, getDefaultOptions())).toBe(expected);
+  });
 });
 
 describe("embedded syntax errors", () => {
