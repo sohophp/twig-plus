@@ -1,0 +1,25 @@
+{
+  "name": "twig-plus/upstream-oracle",
+  "description": "Trusted development-only Twig and Symfony language fact exporter.",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.4",
+    "twig/twig": "3.28.0",
+    "twig/cache-extra": "3.28.0",
+    "twig/cssinliner-extra": "3.26.0",
+    "twig/html-extra": "3.28.0",
+    "twig/inky-extra": "3.26.0",
+    "twig/intl-extra": "3.26.0",
+    "twig/markdown-extra": "3.28.0",
+    "twig/string-extra": "3.24.0",
+    "symfony/twig-bridge": "8.1.1"
+  },
+  "config": {
+    "allow-plugins": false,
+    "platform": {
+      "php": "8.4.23"
+    },
+    "sort-packages": true
+  }
+}

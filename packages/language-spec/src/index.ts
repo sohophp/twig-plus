@@ -1,3 +1,5 @@
+import upstreamRuntime from "./generated/upstream-runtime.json";
+
 export type TwigSpecSource = "twig-core" | "twig-legacy" | "twig-extra" | "symfony-bridge" | "project";
 export type TwigCallableKind = "filter" | "function" | "test";
 export type TwigTagForm = "inline" | "block" | "conditional-block" | "branch" | "closing";
@@ -7,6 +9,11 @@ export interface VersionedTwigFact {
   removed?: string;
   deprecated?: string;
   source: TwigSpecSource;
+  documented?: boolean;
+  docsUrl?: string;
+  upstreamClass?: string;
+  aliases?: readonly string[];
+  alwaysAllowedInSandbox?: boolean;
 }
 
 export interface TwigTagSpec extends VersionedTwigFact {
@@ -30,12 +37,17 @@ export interface TwigOperatorSpec extends VersionedTwigFact {
   name: string;
   precedence: number;
   associativity: "left" | "right";
+  fixity?: "prefix" | "infix" | "postfix";
   allowsUndefinedInput?: boolean;
 }
 
 export interface TwigLanguageSpec {
-  schemaVersion: 1;
+  schemaVersion: 2;
   documentedVersion: string;
+  upstream: {
+    twig: { version: string; tag: string; commit: string };
+    symfony: { version: string; tag: string; commit: string };
+  };
   tags: readonly TwigTagSpec[];
   callables: readonly TwigCallableSpec[];
   operators: readonly TwigOperatorSpec[];
@@ -51,7 +63,7 @@ const openingTags: TwigTagSpec[] = [
   block("apply", "endapply", [], "apply ${1:filter}"),
   block("autoescape", "endautoescape", [], "autoescape ${1:'html'}"),
   block("block", "endblock", [], "block ${1:name}"),
-  block("cache", "endcache", [], "cache ${1:key}"),
+  { ...block("cache", "endcache", [], "cache ${1:key}"), source: "twig-extra" },
   block("embed", "endembed", [], "embed '${1:template.html.twig}'"),
   block("for", "endfor", ["else", "empty"], "for ${1:item} in ${2:items}"),
   block("guard", "endguard", [], "guard ${1:function}"),
@@ -97,56 +109,65 @@ const signatures: Record<string, string> = {
   divisible_by: "divisible by(number)", same_as: "same as(value)"
 };
 
-const coreFilters = [
-  "abs", "batch", "capitalize", "column", "convert_encoding", "country_name", "currency_name", "currency_symbol",
-  "data_uri", "date", "date_modify", "default", "escape", "e", "filter", "find", "first", "format", "format_currency",
-  "format_date", "format_datetime", "format_number", "format_time", "html_to_markdown", "inky_to_html", "inline_css", "invoke",
-  "join", "json_encode", "keys", "language_name", "last", "length", "locale_name", "lower", "map", "markdown_to_html",
-  "merge", "nl2br", "number_format", "plural", "raw", "reduce", "replace", "reverse", "round", "script_name", "shuffle",
-  "singular", "slice", "slug", "sort", "spaceless", "split", "striptags", "timezone_name", "title", "trim", "u", "upper", "url_encode"
-];
-const coreFunctions = [
-  "attribute", "block", "constant", "country_names", "country_timezones", "currency_names", "cycle", "date", "dump", "enum",
-  "enum_cases", "html_attr", "html_classes", "html_cva", "include", "language_names", "locale_names", "max", "min", "parent",
-  "random", "range", "script_names", "source", "template_from_string", "timezone_names"
-];
-const coreTests = ["constant", "defined", "divisible by", "empty", "even", "iterable", "mapping", "null", "odd", "same as", "sequence"];
 const EXTRA_FILTERS = new Set([
   "convert_encoding", "country_name", "currency_name", "currency_symbol", "data_uri", "format_currency", "format_date",
-  "format_datetime", "format_number", "format_time", "html_to_markdown", "inky_to_html", "inline_css", "language_name",
-  "locale_name", "markdown_to_html", "plural", "script_name", "singular", "slug", "timezone_name", "u"
+  "format_datetime", "format_number", "format_time", "html_attr_merge", "html_attr_type", "html_to_markdown", "inky_to_html", "inline_css", "language_name",
+  "locale_name", "markdown_to_html", "plural", "singular", "slug", "timezone_name", "u"
 ]);
 const EXTRA_FUNCTIONS = new Set([
   "country_names", "country_timezones", "currency_names", "html_attr", "html_classes", "html_cva", "language_names",
   "locale_names", "script_names", "template_from_string", "timezone_names"
 ]);
 
-const callable = (kind: TwigCallableKind, name: string, source: TwigSpecSource = "twig-core"): TwigCallableSpec => ({
-  source, kind, name, signature: signatures[name.replaceAll(" ", "_")],
+const callable = (
+  kind: TwigCallableKind, name: string, source: TwigSpecSource = "twig-core",
+  upstream?: { class: string; signature: string | null; deprecated: boolean; aliases: string[]; alwaysAllowedInSandbox: boolean | null }
+): TwigCallableSpec => ({
+  source, kind, name, signature: signatures[name.replaceAll(" ", "_")] ?? upstream?.signature ?? undefined,
+  upstreamClass: upstream?.class, aliases: upstream?.aliases,
+  deprecated: upstream?.deprecated ? "3.x" : undefined,
+  documented: !["none", "true"].includes(name),
+  alwaysAllowedInSandbox: upstream?.alwaysAllowedInSandbox ?? undefined,
   allowsUndefinedInput: (kind === "test" && name === "defined") || (kind === "filter" && name === "default")
 });
 
+const generatedCallables: TwigCallableSpec[] = (Object.entries(upstreamRuntime.callables) as Array<[
+  TwigCallableKind,
+  Array<{ name: string; class: string; signature: string | null; deprecated: boolean; aliases: string[]; alwaysAllowedInSandbox: boolean | null }>
+]>).flatMap(([kind, entries]) => entries
+  .filter((entry) => entry.name !== "format_*_number")
+  .map((entry) => callable(kind, entry.name,
+    kind === "filter" && EXTRA_FILTERS.has(entry.name) || kind === "function" && EXTRA_FUNCTIONS.has(entry.name) ? "twig-extra" : "twig-core",
+    entry)));
+
 const operators: TwigOperatorSpec[] = [
-  ["or", 1, "left"], ["xor", 2, "left"], ["and", 3, "left"], ["??", 4, "right"], ["?:", 5, "right"],
-  ["==", 6, "left"], ["!=", 6, "left"], ["===", 6, "left"], ["!==", 6, "left"], ["<=>", 6, "left"],
-  ["<", 6, "left"], [">", 6, "left"], ["<=", 6, "left"], [">=", 6, "left"], ["in", 6, "left"],
-  ["not in", 6, "left"], ["matches", 6, "left"], ["starts with", 6, "left"], ["ends with", 6, "left"],
-  ["has some", 6, "left"], ["has every", 6, "left"], ["b-or", 7, "left"], ["b-xor", 8, "left"], ["b-and", 9, "left"],
-  ["..", 10, "left"], ["+", 11, "left"], ["-", 11, "left"], ["~", 12, "left"], ["*", 13, "left"],
-  ["/", 13, "left"], ["//", 13, "left"], ["%", 13, "left"], ["**", 14, "right"], ["=", 0, "right"]
-].map(([name, precedence, associativity]) => ({
+  ["=", 0, "right", "infix"], ["?", 0, "left", "infix"], ["?:", 5, "right", "infix"],
+  ["or", 10, "left", "infix"], ["xor", 12, "left", "infix"], ["and", 15, "left", "infix"],
+  ["b-or", 16, "left", "infix"], ["b-xor", 17, "left", "infix"], ["b-and", 18, "left", "infix"],
+  ["==", 20, "left", "infix"], ["!=", 20, "left", "infix"], ["===", 20, "left", "infix"], ["!==", 20, "left", "infix"],
+  ["<=>", 20, "left", "infix"], ["<", 20, "left", "infix"], [">", 20, "left", "infix"], ["<=", 20, "left", "infix"], [">=", 20, "left", "infix"],
+  ["in", 20, "left", "infix"], ["not in", 20, "left", "infix"], ["matches", 20, "left", "infix"],
+  ["starts with", 20, "left", "infix"], ["ends with", 20, "left", "infix"], ["has some", 20, "left", "infix"], ["has every", 20, "left", "infix"],
+  ["..", 25, "left", "infix"], ["+", 30, "left", "infix"], ["-", 30, "left", "infix"], ["~", 40, "left", "infix"],
+  ["not", 50, "right", "prefix"], ["*", 60, "left", "infix"], ["/", 60, "left", "infix"], ["//", 60, "left", "infix"], ["%", 60, "left", "infix"],
+  ["is", 100, "left", "infix"], ["is not", 100, "left", "infix"], ["**", 200, "right", "infix"], ["=>", 250, "left", "infix"],
+  ["??", 300, "right", "infix"], ["...", 512, "right", "prefix"], [".", 512, "left", "infix"], ["|", 512, "left", "infix"]
+].map(([name, precedence, associativity, fixity]) => ({
   ...core, name: String(name), precedence: Number(precedence), associativity: associativity as "left" | "right",
+  fixity: fixity as "prefix" | "infix", aliases: name === "." ? ["?."] : name === "?:" ? ["? :"] : undefined,
   allowsUndefinedInput: name === "??", since: name === "=" ? "3.23" : undefined
 }));
 
 export const TWIG_3_SPEC: TwigLanguageSpec = {
-  schemaVersion: 1,
-  documentedVersion: "3.26.1",
+  schemaVersion: 2,
+  documentedVersion: "3.28.0",
+  upstream: {
+    twig: { version: "3.28.0", tag: "v3.28.0", commit: "762a989bf2f1a54939fa7da33065beba4ee46e3d" },
+    symfony: { version: "8.1.1", tag: "v8.1.1", commit: "12cba50951f46635e6a692c66aa5d8ed7a189302" }
+  },
   tags: [...openingTags, ...inlineTags, ...branchTags, ...closingTags],
   callables: [
-    ...coreFilters.map((name) => callable("filter", name, EXTRA_FILTERS.has(name) ? "twig-extra" : "twig-core")),
-    ...coreFunctions.map((name) => callable("function", name, EXTRA_FUNCTIONS.has(name) ? "twig-extra" : "twig-core")),
-    ...coreTests.map((name) => callable("test", name))
+    ...generatedCallables
   ],
   operators,
   globals: ["_self", "_context", "_charset"]

@@ -39,7 +39,7 @@ VSIX 统一输出到 `artifacts/vsix/`。F5 调试前必须先构建，Extension
 - 用户关闭 quick suggestions 后使用 Ctrl+Space；扩展不会绕过用户设置强制弹窗。
 - 在缺少对应 closing tag 的独立 Twig opening tag 后按 Enter，会通过一次原子编辑插入缩进空行和 `end*`；一次 Undo/Redo 对称恢复。
 - 在 Twig HTML 区域输入完整 `<div>` 后，默认以单次编辑插入 `></div>` 并把光标留在中间；一次 Undo/Redo 对称撤销或恢复 `>` 与 closing tag。void、自闭合、已有配对、verbatim 和多光标场景立即委托原生输入。
-- Twig Core 的 tag/function/filter/test/operator、版本和结束关系由单一 language spec 提供；Twig 2 legacy syntax 仅用于无损解析旧模板，不进入 Twig 3 补全。
+- Twig 3.28 的 tag/function/filter/test/operator、版本、来源和结束关系由 schema v2 language spec 提供；已提交的规范同时由官方 Composer 运行时快照与官网 reference manifest 审计。Twig 2 legacy syntax 仅用于无损解析旧模板，不进入 Twig 3 补全。
 
 ## 文档
 

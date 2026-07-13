@@ -5,3 +5,5 @@ coverage
 packages/*/dist
 packages/*/.vscode-test
 packages/*/.vscode-test-results
+tools/upstream-oracle/vendor
+tools/upstream-oracle/core/vendor
