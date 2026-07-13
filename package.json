@@ -24,7 +24,10 @@
     "dead-entries:check": "node scripts/check-dead-entries.js && node scripts/check-language-spec-usage.js",
     "clean": "rm -rf dist packages/*/dist",
     "language-assets:generate": "npm run build --workspace packages/language-spec && node scripts/generate-language-assets.js",
-    "language-assets:check": "node scripts/generate-language-assets.js --check"
+    "language-assets:check": "node scripts/generate-language-assets.js --check",
+    "upstream-oracle:generate": "php84 tools/upstream-oracle/export.php packages/language-spec/src/generated/upstream-runtime.json",
+    "upstream-oracle:check": "npm run build --workspace packages/language-spec && node scripts/check-upstream-oracle.js",
+    "upstream-oracle:core": "php81 tools/upstream-oracle/verify-core.php && php82 tools/upstream-oracle/verify-core.php && php84 tools/upstream-oracle/verify-core.php && php85 tools/upstream-oracle/verify-core.php"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

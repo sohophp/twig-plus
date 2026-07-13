@@ -1,0 +1,17 @@
+{
+  "name": "twig-plus/twig-core-oracle",
+  "description": "Twig 3.28 core oracle runnable on every supported PHP runtime.",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.1",
+    "twig/twig": "3.28.0"
+  },
+  "config": {
+    "allow-plugins": false,
+    "platform": {
+      "php": "8.1.34"
+    },
+    "sort-packages": true
+  }
+}

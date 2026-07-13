@@ -33,7 +33,7 @@
       "  $0",
       "{% endcache %}"
     ],
-    "description": "twig-core Twig block tag"
+    "description": "twig-extra Twig block tag"
   },
   "Twig embed": {
     "prefix": "twig-embed",

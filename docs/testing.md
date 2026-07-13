@@ -7,17 +7,23 @@
 - stdio LSP integration：initialize、completion、diagnostics、format progress/result、workspace index。
 - Extension Host：真实 type/delete/undo/redo/completion/format 命令。
 - Packaged VSIX：从 `artifacts/vsix/` 解包并重复 Extension Host 套件。
+- Upstream Oracle：固定 Twig 3.28/Symfony 8.1 Composer lock，重新枚举注册事实并与已提交 JSON、官网 reference manifest 比较。
+- PHP matrix：Twig 3.28 官方 parser 样本在 PHP 8.1、8.2、8.4、8.5 上产生一致结果。
 
 ## 命令
 
 ```bash
 npm test
+npm run upstream-oracle:check
+npm run upstream-oracle:core
 npm run vscode:test:min --workspace packages/vscode
 npm run vscode:test:current --workspace packages/vscode
 npm run package:vsix --workspace packages/vscode
 npm run vscode:test:packaged --workspace packages/vscode
 npm run docs:check
 ```
+
+Oracle 依赖使用 `php84 /usr/local/bin/composer` 安装在 `tools/upstream-oracle/`。该工具只用于可信开发与 CI；VSIX 和语言服务器不会运行 PHP、Composer 或工作区代码。
 
 退出码 0 不是单独的验收依据。UI runner 必须写报告并校验执行数量、每项断言、VS Code 版本和耗时。下载失败归类为 infrastructure，不得写成产品通过或失败。
 

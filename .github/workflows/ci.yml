@@ -13,6 +13,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  twig-core-oracle:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.1", "8.2", "8.4", "8.5"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - run: composer install --working-dir tools/upstream-oracle/core --no-interaction --prefer-dist
+      - run: php tools/upstream-oracle/verify-core.php
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -22,7 +37,18 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
       - run: npm ci
+      - name: Install pinned Twig/Symfony oracle
+        run: composer install --working-dir tools/upstream-oracle --no-interaction --prefer-dist
+      - name: Verify official runtime snapshot
+        run: |
+          php tools/upstream-oracle/export.php /tmp/twig-plus-upstream-runtime.json
+          diff -u packages/language-spec/src/generated/upstream-runtime.json /tmp/twig-plus-upstream-runtime.json
+          npm run upstream-oracle:check
       - run: npm run docs:check
       - run: npm run dead-entries:check
       - run: npm audit --omit=dev --audit-level=high --registry=https://registry.npmjs.org
