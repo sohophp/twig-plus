@@ -35,8 +35,9 @@
 ## Parser 模式
 
 - `hybrid` 是默认模式；无损 CST/AST 查询失败时只允许显式记录后降级。
-- `hybrid-shadow` 用于比较，不得改变用户编辑结果。
-- `legacy` 是兼容模式。模式、降级原因和差异写入 TwigPlus Output Channel，禁止静默差异。
+- `hybrid` 是唯一用户运行模式，正常查询不得预先计算 legacy 结果。
+- `hybrid-shadow` 只用于测试比较；`legacy` 只在 Hybrid parse、validation 或 query 致命失败时内部降级。
+- 旧的 `legacy`/`hybrid-shadow` 用户配置暂时映射到 Hybrid 并给出一次迁移提示；降级原因写入 TwigPlus Output Channel。
 
 ## 生命周期
 

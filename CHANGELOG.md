@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Promoted Hybrid to the sole user runtime path and made legacy an internal fatal-error fallback.
+- Added LSP Hover, Signature Help, safe Range Formatting, debounced diagnostics, and template-root-scoped indexing.
+- Restored native VS Code ownership of ordinary typing and deletion while retaining safe atomic Enter enhancements.
+
 ## 1.1.2 - 2026-07-13
 
 - Fixed clean CI test ordering so formatter tests no longer depend on stale local parser build output.

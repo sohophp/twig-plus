@@ -55,6 +55,8 @@ TwigPlus: Show Status
 - Navigates template references used by `extends`, `include`, `embed`, `import`, and `from`
 - Navigates block and macro references when the target can be resolved precisely
 - Finds references and safely renames local variables and macros, including imported macro calls across templates
+- Shows Twig and embedded JavaScript hover information and signature help
+- Formats a selected range by expanding it to the smallest complete safe Twig/HTML structure
 - Uses a bundled Language Server Protocol implementation for editor-neutral semantic features
 - Uses VS Code native delimiter, quote, parenthesis, deletion, undo, and redo behavior so typing is never followed by a hidden corrective edit
 
@@ -77,12 +79,12 @@ Completion and formatting follow the PHPStorm-style spaced delimiter baseline, i
 | `twigPlus.format.htmlAttributeWrap` | `"preserve"`, `"auto"`, or `"force"` | `"auto"` | Controls whether long HTML opening tags are wrapped to one attribute per line. |
 | `twigPlus.format.preserveSingleLineBlocks` | boolean | `true` | Keeps simple single-line HTML blocks such as `<span>{{ value }}</span>` on one line. |
 | `twigPlus.format.lineBreakAfterTwigControlTag` | boolean | `true` | Breaks lines after Twig control tags like `block`, `if`, `else`, and `endblock` when markup or text follows on the same line. |
-| `twigPlus.editing.autoCloseHtmlTags` | boolean | `true` | Atomically closes non-void HTML, script, style, and custom elements after `>` is typed or Enter is pressed after a complete opening tag. |
+| `twigPlus.editing.autoCloseHtmlTags` | boolean | `true` | Atomically closes non-void HTML, script, style, and custom elements when Enter is pressed after a complete opening tag. Ordinary typing remains native. |
 | `twigPlus.editing.autoCloseTwigTags` | boolean | `true` | Atomically inserts the matching `end*` tag when Enter is pressed after a complete Twig control tag. |
 | `twigPlus.editing.autoCloseCssBraces` | boolean | `true` | Atomically inserts an indented `}` when Enter is pressed after `{` inside a style element. |
-| `twigPlus.editing.autoCloseJavaScriptBraces` | boolean | `true` | Immediately inserts `{}` with the cursor inside, pair-deletes empty `{}` on Backspace, and atomically indents the pair on Enter. Strings, comments, and Twig regions are excluded. |
+| `twigPlus.editing.autoCloseJavaScriptBraces` | boolean | `true` | Atomically indents an existing JavaScript brace pair on Enter. Brace insertion and Backspace remain owned by VS Code. |
 | `twigPlus.editing.linkedHtmlTags` | boolean | `true` | Uses VS Code native linked editing to synchronize matching HTML opening and closing tag names. Twig documents enable `editor.linkedEditing` by default. |
-| `twigPlus.parser.engine` | string | `hybrid` | Uses the lossless CST/AST engine with automatic legacy fallback; `legacy` and comparison-only `hybrid-shadow` remain available. |
+| `twigPlus.parser.engine` | string | `hybrid` | Uses the lossless CST/AST engine. Old `legacy` and `hybrid-shadow` values are deprecated aliases; legacy is retained only as an internal fatal-error fallback. |
 | `twigPlus.diagnostics.unresolvedNames` | boolean | `false` | Reports names not found in lexical scope. Enable after configuring application-provided globals. |
 | `twigPlus.diagnostics.globals` | string[] | `[]` | Names supplied by Symfony or the host application and excluded from unresolved-name diagnostics. |
 

@@ -3,13 +3,13 @@
 ## 当前整改
 
 1. 文档和所有权基线。
-2. 删除异步输入追改、自定义 Backspace 和重复 completion。
-3. Formatter 结构化结果、进度、取消、预热和性能预算。
+2. 已删除异步输入追改、自定义 Backspace、brace/`>` 默认接管和重复 completion。
+3. Formatter 结构化结果、Range Formatting、进度、取消、预热和性能预算。
 4. 完整交互矩阵与真实 VSIX 验收。
 
 ## 基线稳定后
 
-- hover、signature help、definition 等 embedded virtual document 能力。
+- 更完整的 embedded definition、rename 与 semantic tokens。
 - Symfony extension、route、translation、asset、controller variable 类型索引。
 - range formatting、跨模板 rename 冲突检查和更完整 quick fixes。
 
