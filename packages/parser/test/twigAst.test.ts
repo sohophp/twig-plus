@@ -37,6 +37,12 @@ describe("Twig lexer and expression AST", () => {
     expect(statement.arguments[0].start).toBeGreaterThan(20);
   });
 
+  it("models variables declared by the Twig 3.28 types tag", () => {
+    const statement = parseTwigStatement("types {user: 'App\\Model\\User', title?: 'string'}");
+    expect(statement.bindings.map((binding) => binding.name)).toEqual(["user", "title"]);
+    expect(statement.arguments).toEqual([]);
+  });
+
   it("parses named arguments and compound Twig operators", () => {
     const expression = parseTwigExpression(`render(title: heading, compact = true) and role not in blocked`);
     const kinds: string[] = [];

@@ -94,7 +94,7 @@
       "name": "meta.tag.twig",
       "patterns": [
         {
-          "match": "\\b(apply|autoescape|block|cache|embed|for|guard|if|macro|sandbox|set|types|verbatim|with|deprecated|do|extends|flush|from|import|include|use|elseif|else|endapply|endautoescape|endblock|endcache|endembed|endfor|endguard|endif|endmacro|endsandbox|endset|endtypes|endverbatim|endwith)\\b",
+          "match": "\\b(apply|autoescape|block|cache|embed|for|guard|if|macro|sandbox|set|verbatim|with|deprecated|do|extends|flush|from|import|include|types|use|elseif|else|endapply|endautoescape|endblock|endcache|endembed|endfor|endguard|endif|endmacro|endsandbox|endset|endverbatim|endwith)\\b",
           "name": "keyword.control.twig"
         },
         {
