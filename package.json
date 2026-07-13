@@ -16,13 +16,15 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace packages/parser && npm run build --workspace packages/formatter && npm run build --workspace packages/vscode && npm run build --workspace packages/language-server",
-    "test": "npm run build && npm run test --workspace packages/parser && npm run test --workspace packages/formatter && npm run test --workspace packages/vscode && npm run test --workspace packages/language-server && vitest run tests/integration",
+    "build": "npm run build --workspace packages/language-spec && npm run language-assets:check && npm run build --workspace packages/parser && npm run build --workspace packages/formatter && npm run build --workspace packages/vscode && npm run build --workspace packages/language-server",
+    "test": "npm run build && npm run test --workspace packages/language-spec && npm run test --workspace packages/parser && npm run test --workspace packages/formatter && npm run test --workspace packages/vscode && npm run test --workspace packages/language-server && vitest run tests/integration",
     "check": "npm run build && npm run test",
     "docs:check": "node scripts/check-docs.js",
     "reports:check": "node scripts/verify-ui-reports.js",
-    "dead-entries:check": "node scripts/check-dead-entries.js",
-    "clean": "rm -rf dist packages/*/dist"
+    "dead-entries:check": "node scripts/check-dead-entries.js && node scripts/check-language-spec-usage.js",
+    "clean": "rm -rf dist packages/*/dist",
+    "language-assets:generate": "npm run build --workspace packages/language-spec && node scripts/generate-language-assets.js",
+    "language-assets:check": "node scripts/generate-language-assets.js --check"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

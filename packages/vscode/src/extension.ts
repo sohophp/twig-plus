@@ -8,6 +8,7 @@ import { getConfiguredTemplateRoots } from "./language/templateConfig";
 import { getConfiguredParserEngine, registerHybridParserRuntime, reportRuntimeError } from "./language/parserRuntime";
 import { registerTwigEnterController } from "./editing/enterController";
 import { registerHtmlLinkedEditingProvider } from "./editing/linkedEditingProvider";
+import { getHtmlTagClosingMode, registerHtmlOnTypeController } from "./editing/htmlOnType";
 import { initializeTwigPlusOutput } from "./output";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -15,6 +16,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registerHybridParserRuntime(context);
   registerCommands(context);
   registerTwigEnterController(context);
+  registerHtmlOnTypeController(context);
   registerHtmlLinkedEditingProvider(context);
   registerHtmlCompletionProvider(context);
   registerTwigCodeActionProvider(context);
@@ -96,6 +98,7 @@ async function showTwigPlusStatus(context: vscode.ExtensionContext): Promise<voi
     `twigPlus.format.enable: ${String(formatConfig.get("enable", true))}`,
     `twigPlus.format.profile: ${String(formatConfig.get("profile", "phpstorm"))}`,
     `twigPlus.parser.engine: ${getConfiguredParserEngine()}`,
+    `twigPlus.editing.htmlTagClosing: ${document ? getHtmlTagClosingMode(document.uri) : "(no active document)"}`,
     `TwigPlus language server: ${getTwigLanguageClientStatus()}`,
     `twigPlus.templates.roots: ${templateRoots.join(", ")}`
   ];

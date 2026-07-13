@@ -1,12 +1,48 @@
 {
-  "Twig if": {
-    "prefix": "twig-if",
+  "Twig apply": {
+    "prefix": "twig-apply",
     "body": [
-      "{% if ${1:condition} %}",
+      "{% apply ${1:filter} %}",
       "  $0",
-      "{% endif %}"
+      "{% endapply %}"
     ],
-    "description": "Twig if block"
+    "description": "twig-core Twig block tag"
+  },
+  "Twig autoescape": {
+    "prefix": "twig-autoescape",
+    "body": [
+      "{% autoescape ${1:'html'} %}",
+      "  $0",
+      "{% endautoescape %}"
+    ],
+    "description": "twig-core Twig block tag"
+  },
+  "Twig block": {
+    "prefix": "twig-block",
+    "body": [
+      "{% block ${1:name} %}",
+      "  $0",
+      "{% endblock %}"
+    ],
+    "description": "twig-core Twig block tag"
+  },
+  "Twig cache": {
+    "prefix": "twig-cache",
+    "body": [
+      "{% cache ${1:key} %}",
+      "  $0",
+      "{% endcache %}"
+    ],
+    "description": "twig-core Twig block tag"
+  },
+  "Twig embed": {
+    "prefix": "twig-embed",
+    "body": [
+      "{% embed '${1:template.html.twig}' %}",
+      "  $0",
+      "{% endembed %}"
+    ],
+    "description": "twig-core Twig block tag"
   },
   "Twig for": {
     "prefix": "twig-for",
@@ -15,37 +51,25 @@
       "  $0",
       "{% endfor %}"
     ],
-    "description": "Twig for block"
+    "description": "twig-core Twig block tag"
   },
-  "Twig include": {
-    "prefix": "twig-include",
+  "Twig guard": {
+    "prefix": "twig-guard",
     "body": [
-      "{% include '${1:partials/example.html.twig}' %}"
-    ],
-    "description": "Twig include tag"
-  },
-  "Twig extends": {
-    "prefix": "twig-extends",
-    "body": [
-      "{% extends '${1:base.html.twig}' %}"
-    ],
-    "description": "Twig extends tag"
-  },
-  "Twig embed": {
-    "prefix": "twig-embed",
-    "body": [
-      "{% embed '${1:components/card.html.twig}' %}",
+      "{% guard ${1:function} %}",
       "  $0",
-      "{% endembed %}"
+      "{% endguard %}"
     ],
-    "description": "Twig embed block"
+    "description": "twig-core Twig block tag"
   },
-  "Twig set": {
-    "prefix": "twig-set",
+  "Twig if": {
+    "prefix": "twig-if",
     "body": [
-      "{% set ${1:name} = ${2:value} %}"
+      "{% if ${1:condition} %}",
+      "  $0",
+      "{% endif %}"
     ],
-    "description": "Twig set tag"
+    "description": "twig-core Twig block tag"
   },
   "Twig macro": {
     "prefix": "twig-macro",
@@ -54,7 +78,43 @@
       "  $0",
       "{% endmacro %}"
     ],
-    "description": "Twig macro"
+    "description": "twig-core Twig block tag"
+  },
+  "Twig sandbox": {
+    "prefix": "twig-sandbox",
+    "body": [
+      "{% sandbox %}",
+      "  $0",
+      "{% endsandbox %}"
+    ],
+    "description": "twig-core Twig block tag"
+  },
+  "Twig set": {
+    "prefix": "twig-set",
+    "body": [
+      "{% set ${1:name} %}",
+      "  $0",
+      "{% endset %}"
+    ],
+    "description": "twig-core Twig conditional-block tag"
+  },
+  "Twig types": {
+    "prefix": "twig-types",
+    "body": [
+      "{% types %}",
+      "  $0",
+      "{% endtypes %}"
+    ],
+    "description": "twig-core Twig block tag"
+  },
+  "Twig verbatim": {
+    "prefix": "twig-verbatim",
+    "body": [
+      "{% verbatim %}",
+      "  $0",
+      "{% endverbatim %}"
+    ],
+    "description": "twig-core Twig block tag"
   },
   "Twig with": {
     "prefix": "twig-with",
@@ -63,15 +123,76 @@
       "  $0",
       "{% endwith %}"
     ],
-    "description": "Twig with block"
+    "description": "twig-core Twig block tag"
   },
-  "Twig apply": {
-    "prefix": "twig-apply",
+  "Twig deprecated": {
+    "prefix": "twig-deprecated",
     "body": [
-      "{% apply ${1:filter} %}",
-      "  $0",
-      "{% endapply %}"
+      "{% deprecated %}"
     ],
-    "description": "Twig apply block"
+    "description": "twig-core Twig inline tag"
+  },
+  "Twig do": {
+    "prefix": "twig-do",
+    "body": [
+      "{% do ${1:expression} %}"
+    ],
+    "description": "twig-core Twig inline tag"
+  },
+  "Twig extends": {
+    "prefix": "twig-extends",
+    "body": [
+      "{% extends '${1:base.html.twig}' %}"
+    ],
+    "description": "twig-core Twig inline tag"
+  },
+  "Twig flush": {
+    "prefix": "twig-flush",
+    "body": [
+      "{% flush %}"
+    ],
+    "description": "twig-core Twig inline tag"
+  },
+  "Twig from": {
+    "prefix": "twig-from",
+    "body": [
+      "{% from '${1:macros.html.twig}' import ${2:macro} %}"
+    ],
+    "description": "twig-core Twig inline tag"
+  },
+  "Twig import": {
+    "prefix": "twig-import",
+    "body": [
+      "{% import '${1:macros.html.twig}' as ${2:macros} %}"
+    ],
+    "description": "twig-core Twig inline tag"
+  },
+  "Twig include": {
+    "prefix": "twig-include",
+    "body": [
+      "{% include '${1:template.html.twig}' %}"
+    ],
+    "description": "twig-core Twig inline tag"
+  },
+  "Twig use": {
+    "prefix": "twig-use",
+    "body": [
+      "{% use '${1:blocks.html.twig}' %}"
+    ],
+    "description": "twig-core Twig inline tag"
+  },
+  "Twig elseif": {
+    "prefix": "twig-elseif",
+    "body": [
+      "{% elseif ${1:condition} %}"
+    ],
+    "description": "twig-core Twig branch tag"
+  },
+  "Twig else": {
+    "prefix": "twig-else",
+    "body": [
+      "{% else %}"
+    ],
+    "description": "twig-core Twig branch tag"
   }
 }

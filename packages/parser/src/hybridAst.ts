@@ -1,4 +1,5 @@
 import { getTwigTagKind, getTwigTagName, type TwigTagKind } from "./twigStructure";
+import { getTwigTag, selectTwigSpec } from "@twig-plus/language-spec";
 import type { SourceRange } from "./selectionRanges";
 import type { TwigBlockSymbolData, TwigMacroImport, TwigMacroReference, TwigStructureSymbolKind } from "./blockAnalysis";
 import { parseTwigExpression, parseTwigStatement, visitTwigExpression, type TwigExpression, type TwigStatement } from "./twigAst";
@@ -109,14 +110,6 @@ const VOID_HTML_TAGS = new Set([
   "meta", "param", "source", "track", "wbr"
 ]);
 
-const TWIG_CLOSERS: Record<string, string> = {
-  endif: "if", endfor: "for", endblock: "block", endembed: "embed",
-  endmacro: "macro", endapply: "apply", endfilter: "filter",
-  endautoescape: "autoescape", endwith: "with", endspaceless: "spaceless",
-  endset: "set",
-  endcache: "cache", endguard: "guard", endsandbox: "sandbox", endtypes: "types", endverbatim: "verbatim"
-};
-
 export function parseHybridDocument(source: string): HybridDocument {
   const children: HybridNode[] = [];
   let offset = 0;
@@ -200,7 +193,7 @@ function collectPairBranches(children: HybridNode[], pair: NodePair): HybridBran
     if (node.start < pair.openEnd || node.end > pair.closeStart || node.kind !== "TwigTag" || !node.tagName || !node.tagKind) continue;
     if (node.tagKind === "opening") nested.push(node.tagName);
     else if (node.tagKind === "closing") {
-      const opening = TWIG_CLOSERS[node.tagName];
+      const opening = getTwigTag(node.tagName)?.opens;
       const index = findLastIndex(nested, (name) => name === opening);
       if (index >= 0) nested.splice(index, 1);
     } else if (node.tagKind === "middle" && nested.length === 0 && supportsMiddle(pair.name, node.tagName)) markers.push(node);
@@ -388,15 +381,14 @@ export function getHybridCompletionContext(document: HybridDocument, offset: num
       const index = findLastIndex(stack, (entry) => supportsMiddle(entry.name, node.tagName!));
       if (index >= 0) stack[index].middles.push(node.tagName);
     } else if (node.tagKind === "closing") {
-      const opening = TWIG_CLOSERS[node.tagName];
+      const opening = getTwigTag(node.tagName)?.opens;
       const index = findLastIndex(stack, (entry) => entry.name === opening);
       if (index >= 0) stack.splice(index, 1);
     }
   }
   const top = stack.at(-1);
-  const allowedMiddleTags = !top ? [] : top.name === "if"
-    ? [...(top.middles.includes("else") ? [] : ["elseif", "else"])]
-    : top.name === "for" && !top.middles.includes("else") && !top.middles.includes("empty") ? ["else", "empty"] : [];
+  const currentNames = new Set(selectTwigSpec().tags.map((tag) => tag.name));
+  const allowedMiddleTags = !top || top.middles.includes("else") ? [] : [...(getTwigTag(top.name)?.branches ?? [])].filter((name) => currentNames.has(name));
   return { unclosedTags: stack.map((item) => item.name), topLevelTag: top?.name ?? null, allowedMiddleTags, preferredClosingTags: [...stack].reverse().map((item) => getClosingTag(item.name)).filter((item): item is string => Boolean(item)) };
 }
 
@@ -439,8 +431,8 @@ function findTwigNodeAtOffset(document: HybridDocument, offset: number): TwigNod
   }
   return null;
 }
-function supportsMiddle(open: string, middle: string): boolean { return open === "if" ? middle === "else" || middle === "elseif" : open === "for" && (middle === "else" || middle === "empty"); }
-function getClosingTag(open: string): string | null { const entry = Object.entries(TWIG_CLOSERS).find(([, value]) => value === open); return entry?.[0] ?? null; }
+function supportsMiddle(open: string, middle: string): boolean { return getTwigTag(open)?.branches?.includes(middle) ?? false; }
+function getClosingTag(open: string): string | null { return getTwigTag(open)?.closing ?? null; }
 function flattenStructure(nodes: HybridStructureNode[]): HybridStructureNode[] { return nodes.flatMap((node) => [node, ...flattenStructure(node.children)]); }
 function trimRange(source: string, range: SourceRange): SourceRange | null {
   let start = range.start; let end = range.end;
@@ -649,7 +641,8 @@ function pairTwigBlocks(nodes: HybridNode[]): NodePair[] {
     if (node.kind !== "TwigTag" || !node.tagName || !node.tagKind) continue;
     if (node.tagKind === "opening") stack.push(node);
     else if (node.tagKind === "closing") {
-      const opening = TWIG_CLOSERS[node.tagName];
+      const opening = getTwigTag(node.tagName)?.opens;
+      if (!opening) continue;
       const index = findLastIndex(stack, (candidate) => candidate.tagName === opening);
       if (index >= 0) {
         const open = stack.splice(index, 1)[0];

@@ -1,0 +1,12 @@
+{
+  "name": "@twig-plus/language-spec",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Version-aware Twig language facts shared by TwigPlus packages.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run test"
+  }
+}

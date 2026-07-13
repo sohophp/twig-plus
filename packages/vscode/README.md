@@ -60,7 +60,7 @@ TwigPlus: Show Status
 - Uses a bundled Language Server Protocol implementation for editor-neutral semantic features
 - Uses VS Code native delimiter, quote, parenthesis, deletion, undo, and redo behavior so typing is never followed by a hidden corrective edit
 
-Embedded JavaScript uses the active VS Code theme for keyword, class, method, property, string, number, operator, and delimiter colors. Syntax errors are reported in the Twig document and cause formatting to preserve the original document. Hover, signature help, explicit TypeScript script types, and Symfony/PHP-derived Twig variable types are not enabled yet.
+Embedded JavaScript uses the active VS Code theme for keyword, class, method, property, string, number, operator, and delimiter colors. Syntax errors are reported in the Twig document and cause formatting to preserve the original document. Twig and embedded JavaScript Hover and Signature Help are provided by the bundled language server; richer Symfony/PHP-derived variable types depend on optional project metadata.
 
 TwigPlus can optionally merge project-provided Symfony metadata from `.twig-plus/symfony-metadata.json` when `composer.json` contains `symfony/framework-bundle` or `symfony/twig-bundle`. The snapshot uses the exported `ProjectMetadataSnapshot` shape; missing metadata never blocks generic Twig features.
 
@@ -79,13 +79,16 @@ Completion and formatting follow the PHPStorm-style spaced delimiter baseline, i
 | `twigPlus.format.htmlAttributeWrap` | `"preserve"`, `"auto"`, or `"force"` | `"auto"` | Controls whether long HTML opening tags are wrapped to one attribute per line. |
 | `twigPlus.format.preserveSingleLineBlocks` | boolean | `true` | Keeps simple single-line HTML blocks such as `<span>{{ value }}</span>` on one line. |
 | `twigPlus.format.lineBreakAfterTwigControlTag` | boolean | `true` | Breaks lines after Twig control tags like `block`, `if`, `else`, and `endblock` when markup or text follows on the same line. |
-| `twigPlus.editing.autoCloseHtmlTags` | boolean | `true` | Atomically closes non-void HTML, script, style, and custom elements when Enter is pressed after a complete opening tag. Ordinary typing remains native. |
+| `twigPlus.editing.htmlTagClosing` | `onType` / `onEnter` / `off` | `onType` | Atomically types `>` and a closing tag only for a provably safe single-cursor HTML opening; every uncertain case delegates to native typing. |
+| `twigPlus.editing.autoCloseHtmlTags` | boolean | `true` | Deprecated compatibility switch; explicit `false` maps to `off`. |
 | `twigPlus.editing.autoCloseTwigTags` | boolean | `true` | Atomically inserts the matching `end*` tag when Enter is pressed after a complete Twig control tag. |
 | `twigPlus.editing.autoCloseCssBraces` | boolean | `true` | Atomically inserts an indented `}` when Enter is pressed after `{` inside a style element. |
 | `twigPlus.editing.autoCloseJavaScriptBraces` | boolean | `true` | Atomically indents an existing JavaScript brace pair on Enter. Brace insertion and Backspace remain owned by VS Code. |
 | `twigPlus.editing.linkedHtmlTags` | boolean | `true` | Uses VS Code native linked editing to synchronize matching HTML opening and closing tag names. Twig documents enable `editor.linkedEditing` by default. |
 | `twigPlus.parser.engine` | string | `hybrid` | Uses the lossless CST/AST engine. Old `legacy` and `hybrid-shadow` values are deprecated aliases; legacy is retained only as an internal fatal-error fallback. |
-| `twigPlus.diagnostics.unresolvedNames` | boolean | `false` | Reports names not found in lexical scope. Enable after configuring application-provided globals. |
+| `twigPlus.diagnostics.unresolvedNameMode` | `safe` / `strict` / `off` | `safe` | Safe mode avoids reporting application variables unless authoritative template context metadata is available. |
+| `twigPlus.diagnostics.unresolvedNames` | boolean | `false` | Deprecated compatibility switch; `true` maps to strict and `false` to off. |
+| `twigPlus.twig.version` | string | detected | Overrides the Twig 3.x version otherwise read from safe metadata or `composer.lock`. |
 | `twigPlus.diagnostics.globals` | string[] | `[]` | Names supplied by Symfony or the host application and excluded from unresolved-name diagnostics. |
 
 TwigPlus also contributes this language default:

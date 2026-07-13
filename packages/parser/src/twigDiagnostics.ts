@@ -5,6 +5,7 @@ import {
 import { getTwigTagKind, getTwigTagName } from "./twigStructure";
 import { tokenizeTwig } from "./twigTokenizer";
 import type { HybridDocument, TwigNode } from "./hybridAst";
+import { getTwigTag } from "@twig-plus/language-spec";
 
 export type TwigDiagnosticSeverity = "error" | "warning" | "hint";
 
@@ -31,26 +32,6 @@ interface StackEntry {
   tokenStart: number;
   tokenEnd: number;
 }
-
-const CLOSING_TO_OPENING: Record<string, string> = {
-  endif: "if",
-  endfor: "for",
-  endblock: "block",
-  endembed: "embed",
-  endmacro: "macro",
-  endapply: "apply",
-  endfilter: "filter",
-  endautoescape: "autoescape",
-  endwith: "with",
-  endspaceless: "spaceless",
-  endset: "set"
-};
-
-const MIDDLE_EXPECTATIONS: Record<string, string> = {
-  else: "if",
-  elseif: "if",
-  empty: "for"
-};
 
 export function analyzeTwigDiagnostics(
   source: string,
@@ -128,10 +109,9 @@ export function analyzeTwigDiagnostics(
     }
 
     if (tagKind === "middle") {
-      const expected = MIDDLE_EXPECTATIONS[tagName];
       const top = structureStack.at(-1);
 
-      if (!expected || !top || top.name !== expected) {
+      if (!top || !getTwigTag(top.name)?.branches?.includes(tagName)) {
         diagnostics.push({
           message: `Unexpected Twig tag "${tagName}".`,
           severity: "error",
@@ -143,7 +123,7 @@ export function analyzeTwigDiagnostics(
     }
 
     if (tagKind === "closing") {
-      const expectedOpening = CLOSING_TO_OPENING[tagName];
+      const expectedOpening = getTwigTag(tagName)?.opens;
       const top = structureStack.at(-1);
 
       if (!expectedOpening || !top || top.name !== expectedOpening) {
@@ -199,10 +179,10 @@ export function analyzeHybridDiagnostics(
     }
     if (node.tagKind === "opening") stack.push(node);
     else if (node.tagKind === "middle") {
-      const expected = MIDDLE_EXPECTATIONS[node.tagName];
-      if (!expected || stack.at(-1)?.tagName !== expected) diagnostics.push({ message: `Unexpected Twig tag "${node.tagName}".`, severity: "error", start: node.start, end: node.end });
+      const top = stack.at(-1);
+      if (!top?.tagName || !getTwigTag(top.tagName)?.branches?.includes(node.tagName)) diagnostics.push({ message: `Unexpected Twig tag "${node.tagName}".`, severity: "error", start: node.start, end: node.end });
     } else if (node.tagKind === "closing") {
-      const expected = CLOSING_TO_OPENING[node.tagName];
+      const expected = getTwigTag(node.tagName)?.opens;
       if (!expected || stack.at(-1)?.tagName !== expected) diagnostics.push({ message: `Unexpected closing Twig tag "${node.tagName}".`, severity: "error", start: node.start, end: node.end });
       else stack.pop();
     }

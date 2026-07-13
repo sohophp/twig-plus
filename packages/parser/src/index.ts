@@ -13,3 +13,4 @@ export * from "./semanticModel";
 export * from "./workspaceModel";
 export * from "./projectMetadata";
 export * from "./formattingRange";
+export { getTwigTag, getTwigCallable, getTwigOperator, TWIG_3_SPEC } from "@twig-plus/language-spec";

@@ -58,8 +58,8 @@
     }
   ],
   "indentationRules": {
-    "increaseIndentPattern": "^\\s*(<(?!(?:/|(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\\b))[^>]+>(?!.*</)|\\{%\\s*(if|for|block|embed|macro|apply|filter|autoescape|with|spaceless|set)\\b.*%\\}|\\{%\\s*(else|elseif|empty)\\b.*%\\})\\s*$",
-    "decreaseIndentPattern": "^\\s*(</[^>]+>|\\{%\\s*end(if|for|block|embed|macro|apply|filter|autoescape|with|spaceless|set)\\s*%\\}|\\{%\\s*(else|elseif|empty)\\b.*%\\})\\s*$"
+    "increaseIndentPattern": "^\\s*(<(?!(?:/|(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\\b))[^>]+>(?!.*</)|\\{%\\s*(apply|autoescape|block|cache|embed|for|guard|if|macro|sandbox|set|types|verbatim|with)\\b.*%\\}|\\{%\\s*(elseif|else)\\b.*%\\})\\s*$",
+    "decreaseIndentPattern": "^\\s*(</[^>]+>|\\{%\\s*(endapply|endautoescape|endblock|endcache|endembed|endfor|endguard|endif|endmacro|endsandbox|endset|endtypes|endverbatim|endwith)\\b.*%\\}|\\{%\\s*(elseif|else)\\b.*%\\})\\s*$"
   },
   "onEnterRules": [
     {
@@ -70,20 +70,20 @@
       }
     },
     {
-      "beforeText": "^\\s*\\{%\\s*(if|for|block|embed|macro|apply|filter|autoescape|with|spaceless|set)\\b.*%\\}\\s*$",
-      "afterText": "^\\s*\\{%\\s*end(if|for|block|embed|macro|apply|filter|autoescape|with|spaceless|set)\\s*%\\}\\s*$",
+      "beforeText": "^\\s*\\{%\\s*(apply|autoescape|block|cache|embed|for|guard|if|macro|sandbox|set|types|verbatim|with)\\b.*%\\}\\s*$",
+      "afterText": "^\\s*\\{%\\s*(endapply|endautoescape|endblock|endcache|endembed|endfor|endguard|endif|endmacro|endsandbox|endset|endtypes|endverbatim|endwith)\\b.*%\\}\\s*$",
       "action": {
         "indent": "indentOutdent"
       }
     },
     {
-      "beforeText": "^\\s*\\{%\\s*(else|elseif|empty)\\b.*%\\}\\s*$",
+      "beforeText": "^\\s*\\{%\\s*(elseif|else)\\b.*%\\}\\s*$",
       "action": {
         "indent": "indent"
       }
     },
     {
-      "beforeText": "^\\s*\\{%\\s*(if|for|block|embed|macro|apply|filter|autoescape|with|spaceless|set)\\b.*%\\}\\s*$",
+      "beforeText": "^\\s*\\{%\\s*(apply|autoescape|block|cache|embed|for|guard|if|macro|sandbox|set|types|verbatim|with)\\b.*%\\}\\s*$",
       "action": {
         "indent": "indent"
       }

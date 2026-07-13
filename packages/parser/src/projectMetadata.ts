@@ -9,10 +9,24 @@ export interface ProjectCompletionEntry {
 }
 
 export interface ProjectMetadataSnapshot {
+  schemaVersion?: 1 | 2;
   providerId: string;
   projectRoot: string;
   generatedAt: number;
+  environment?: {
+    twigVersion?: string;
+    packages?: string[];
+    catalogComplete?: boolean;
+  };
   completions: ProjectCompletionEntry[];
+  symbols?: {
+    globals?: ProjectCompletionEntry[];
+    functions?: ProjectCompletionEntry[];
+    filters?: ProjectCompletionEntry[];
+    tests?: ProjectCompletionEntry[];
+    tags?: ProjectCompletionEntry[];
+  };
+  contexts?: Array<{ template: string; complete: boolean; variables: string[] }>;
   templates: string[];
   blocks: Array<{ template: string; name: string }>;
   macros: Array<{ template: string; name: string; parameters: string[] }>;
@@ -26,5 +40,5 @@ export interface ProjectMetadataProvider {
 }
 
 export function emptyProjectMetadata(providerId: string, projectRoot: string): ProjectMetadataSnapshot {
-  return { providerId, projectRoot, generatedAt: Date.now(), completions: [], templates: [], blocks: [], macros: [] };
+  return { schemaVersion: 2, providerId, projectRoot, generatedAt: Date.now(), completions: [], templates: [], blocks: [], macros: [] };
 }

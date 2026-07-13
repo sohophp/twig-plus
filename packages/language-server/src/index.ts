@@ -22,8 +22,19 @@ interface TwigPlusSettings {
   format?: Partial<FormatterOptions> & { enable?: boolean };
   parser?: { engine?: ParserEngine };
   templates?: { roots?: string[] };
-  diagnostics?: { unresolvedNames?: boolean; globals?: string[] };
+  diagnostics?: { unresolvedNames?: boolean; unresolvedNameMode?: "safe" | "strict" | "off"; globals?: string[] };
+  twig?: { version?: string };
 }
+
+interface LoadedProjectMetadata {
+  completions: ProjectCompletionEntry[];
+  globals: string[];
+  catalogComplete: boolean;
+  twigVersion?: string;
+  contexts: Array<{ template: string; complete: boolean; variables: string[] }>;
+  packages: string[];
+}
+interface ComposerEnvironment { twigVersion?: string; packages: string[]; }
 
 export function getServerCapabilities(): InitializeResult["capabilities"] {
   return {
@@ -57,6 +68,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   const cache = new Map<string, CachedModel>();
   const embeddedJavaScript = new EmbeddedJavaScriptService();
   const completionRegistry = new TwigCompletionRegistry();
+  let projectMetadata: LoadedProjectMetadata = { completions: [], globals: [], catalogComplete: false, contexts: [], packages: [] };
   const indexedDocuments = new Map<string, string>();
   let workspaceFolders: string[] = [];
   let workspaceReady: Promise<void> = Promise.resolve();
@@ -80,9 +92,13 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const cached = cache.get(document.uri);
     if (cached?.version === document.version) return cached.model;
     const documentSettings = settingsFor(document.uri);
+    const legacyUnresolved = documentSettings.diagnostics?.unresolvedNames ?? options.diagnoseUnresolvedNames;
+    const context = projectMetadata.contexts.find((item) => document.uri.replaceAll("\\", "/").endsWith(item.template.replaceAll("\\", "/")));
     const model = createDocumentModel(parseDocument(document.getText()), {
-      globals: documentSettings.diagnostics?.globals ?? options.globals,
-      diagnoseUnresolvedNames: documentSettings.diagnostics?.unresolvedNames ?? options.diagnoseUnresolvedNames
+      globals: [...(documentSettings.diagnostics?.globals ?? options.globals ?? []), ...projectMetadata.globals, ...(context?.variables ?? [])],
+      unresolvedNameMode: documentSettings.diagnostics?.unresolvedNameMode ?? (legacyUnresolved === undefined ? "safe" : legacyUnresolved ? "strict" : "off"),
+      contextComplete: context?.complete,
+      catalogComplete: projectMetadata.catalogComplete
     });
     cache.set(document.uri, { version: document.version, model });
     return model;
@@ -101,7 +117,12 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       if (document.getText().length <= MAX_DOCUMENT_LENGTH) indexedDocuments.set(document.uri, document.getText());
     }
     workspaceModelCache = null;
-    completionRegistry.replaceProject(await readProjectCompletionMetadata(workspaceFolders));
+    projectMetadata = await readProjectCompletionMetadata(workspaceFolders);
+    completionRegistry.replaceProject(projectMetadata.completions);
+    const composer = await readComposerEnvironment(workspaceFolders);
+    completionRegistry.setPackages([...projectMetadata.packages, ...composer.packages]);
+    const configuredVersion = workspaceFolders.map((folder) => settingsFor(folder).twig?.version).find(Boolean);
+    connection.console.info(`Twig language specification: ${configuredVersion ?? projectMetadata.twigVersion ?? composer.twigVersion ?? "3.x latest (version unknown)"}.`);
     const message = `Indexed ${indexedDocuments.size.toLocaleString()} Twig files.`;
     if (indexedDocuments.size >= MAX_INDEXED_FILES) connection.console.warn(`${message} The ${MAX_INDEXED_FILES.toLocaleString()} file safety limit was reached.`);
     else connection.console.info(message);
@@ -357,7 +378,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     if (target) return toRange(document, target.nameRange);
     await workspaceReady;
     const reference = model.getReferenceAt(offset);
-    return reference?.role === "call" && workspaceFor().getDefinition(document.uri, offset) ? toRange(document, reference) : null;
+    return reference?.role === "function-call" && workspaceFor().getDefinition(document.uri, offset) ? toRange(document, reference) : null;
   });
   connection.onRenameRequest(async (params, cancellation) => {
     const document = documents.get(params.textDocument.uri); if (!document || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(params.newName)) return null;
@@ -562,8 +583,13 @@ async function readWorkspaceIndex(folders: string[], rootsFor?: (folderUri: stri
   return target;
 }
 
-async function readProjectCompletionMetadata(folders: string[]): Promise<ProjectCompletionEntry[]> {
+async function readProjectCompletionMetadata(folders: string[]): Promise<LoadedProjectMetadata> {
   const completions: ProjectCompletionEntry[] = [];
+  const globals: string[] = [];
+  const contexts: LoadedProjectMetadata["contexts"] = [];
+  let catalogComplete = false;
+  let twigVersion: string | undefined;
+  const packages: string[] = [];
   const maxMetadataBytes = 5_000_000;
   const maxEntries = 10_000;
   for (const uri of folders.filter((item) => item.startsWith("file:"))) {
@@ -571,8 +597,13 @@ async function readProjectCompletionMetadata(folders: string[]): Promise<Project
       const file = path.join(fileURLToPath(uri), ".twig-plus", "symfony-metadata.json");
       if ((await stat(file)).size > maxMetadataBytes) continue;
       const value = JSON.parse(await readFile(file, "utf8"));
-      if (!Array.isArray(value?.completions)) continue;
-      for (const entry of value.completions.slice(0, maxEntries)) {
+      const workspaceRoot = fileURLToPath(uri);
+      if (typeof value?.projectRoot === "string" && path.resolve(value.projectRoot) !== path.resolve(workspaceRoot)) continue;
+      const rawEntries = [
+        ...(Array.isArray(value?.completions) ? value.completions : []),
+        ...Object.values(isRecord(value?.symbols) ? value.symbols : {}).flatMap((entries) => Array.isArray(entries) ? entries : [])
+      ];
+      for (const entry of rawEntries.slice(0, maxEntries)) {
         if (!isRecord(entry) || !["tag", "filter", "function", "test"].includes(String(entry.kind)) || typeof entry.name !== "string") continue;
         completions.push({
           kind: entry.kind as ProjectCompletionEntry["kind"], name: entry.name,
@@ -581,9 +612,38 @@ async function readProjectCompletionMetadata(folders: string[]): Promise<Project
           documentation: typeof entry.documentation === "string" ? entry.documentation : undefined
         });
       }
+      const symbolGlobals = isRecord(value?.symbols) && Array.isArray(value.symbols.globals) ? value.symbols.globals : [];
+      for (const entry of symbolGlobals.slice(0, maxEntries)) if (isRecord(entry) && typeof entry.name === "string") globals.push(entry.name);
+      if (Array.isArray(value?.contexts)) for (const entry of value.contexts.slice(0, maxEntries)) {
+        if (!isRecord(entry) || typeof entry.template !== "string" || typeof entry.complete !== "boolean" || !Array.isArray(entry.variables)) continue;
+        const variables = entry.variables.filter((item): item is string => typeof item === "string").slice(0, maxEntries);
+        contexts.push({ template: entry.template, complete: entry.complete, variables });
+      }
+      if (isRecord(value?.environment)) {
+        if (typeof value.environment.twigVersion === "string" && /^3\.\d+(?:\.\d+)?/.test(value.environment.twigVersion)) twigVersion ??= value.environment.twigVersion;
+        if (value.environment.catalogComplete === true) catalogComplete = true;
+        if (Array.isArray(value.environment.packages)) packages.push(...value.environment.packages.filter((item: unknown): item is string => typeof item === "string").slice(0, maxEntries));
+      }
     } catch { /* optional metadata never blocks generic Twig features */ }
   }
-  return completions;
+  return { completions, globals, contexts, catalogComplete, twigVersion, packages: [...new Set(packages)] };
+}
+
+async function readComposerEnvironment(folders: string[]): Promise<ComposerEnvironment> {
+  const result: ComposerEnvironment = { packages: [] };
+  for (const uri of folders.filter((item) => item.startsWith("file:"))) {
+    try {
+      const file = path.join(fileURLToPath(uri), "composer.lock");
+      if ((await stat(file)).size > 10_000_000) continue;
+      const value = JSON.parse(await readFile(file, "utf8"));
+      const packages = [...(Array.isArray(value?.packages) ? value.packages : []), ...(Array.isArray(value?.["packages-dev"]) ? value["packages-dev"] : [])];
+      result.packages.push(...packages.filter(isRecord).map((entry) => entry.name).filter((name): name is string => typeof name === "string"));
+      const twig = packages.find((entry) => isRecord(entry) && entry.name === "twig/twig");
+      if (isRecord(twig) && typeof twig.version === "string") result.twigVersion ??= twig.version.replace(/^v/, "");
+    } catch { /* composer metadata is optional */ }
+  }
+  result.packages = [...new Set(result.packages)];
+  return result;
 }
 async function collectTwigFiles(directory: string, budget: { remaining: number }): Promise<string[]> {
   if (budget.remaining <= 0) return [];

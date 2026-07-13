@@ -3,6 +3,7 @@ import { computeTwigEnterEdit } from "./twigEnter";
 import { computeStyleEnterEdit } from "./styleEnter";
 import { computeHtmlEnterEdit } from "./htmlTagClose";
 import { computeScriptEnterEdit } from "./scriptEnter";
+import { getHtmlTagClosingMode } from "./htmlOnType";
 
 export function registerTwigEnterController(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
@@ -19,7 +20,7 @@ export function registerTwigEnterController(context: vscode.ExtensionContext): v
     const result = editing.get("autoCloseTwigTags", true)
       ? computeTwigEnterEdit(source, selections, options)
       : null;
-    const htmlResult = editing.get("autoCloseHtmlTags", true)
+    const htmlResult = getHtmlTagClosingMode(editor.document.uri) !== "off"
       ? computeHtmlEnterEdit(source, selections, options)
       : null;
     const styleResult = editing.get("autoCloseCssBraces", true)

@@ -1,5 +1,6 @@
 import { getTwigTagKind, getTwigTagName } from "./twigStructure";
 import { tokenizeTwig } from "./twigTokenizer";
+import { getTwigTag } from "@twig-plus/language-spec";
 
 export interface SourceRange {
   start: number;
@@ -10,20 +11,6 @@ interface PairedRange extends SourceRange {
   openEnd: number;
   closeStart: number;
 }
-
-const CLOSING_TO_OPENING: Record<string, string> = {
-  endif: "if",
-  endfor: "for",
-  endblock: "block",
-  endembed: "embed",
-  endmacro: "macro",
-  endapply: "apply",
-  endfilter: "filter",
-  endautoescape: "autoescape",
-  endwith: "with",
-  endspaceless: "spaceless",
-  endset: "set"
-};
 
 const WORD_CHARACTER = /[A-Za-z0-9_:-]/;
 const HTML_TAG_PATTERN =
@@ -182,7 +169,7 @@ function collectTwigPairedRanges(source: string): PairedRange[] {
       continue;
     }
 
-    const openingName = CLOSING_TO_OPENING[tagName];
+      const openingName = getTwigTag(tagName)?.opens;
     if (!openingName) {
       continue;
     }

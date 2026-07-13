@@ -1,15 +1,9 @@
-import { parseHybridDocument, type TwigNode } from "@twig-plus/parser";
+import { getTwigTag, parseHybridDocument, type TwigNode } from "@twig-plus/parser";
 
 export interface OffsetSelection { anchor: number; active: number; }
 export interface TwigEnterOptions { eol: "\n" | "\r\n"; indentUnit: string; }
 export interface TwigEnterEdit { start: number; end: number; newText: string; }
 export interface TwigEnterResult { edits: TwigEnterEdit[]; selections: OffsetSelection[]; }
-
-const CLOSING_TAGS: Record<string, string> = {
-  block: "endblock", if: "endif", for: "endfor", embed: "endembed", macro: "endmacro",
-  apply: "endapply", autoescape: "endautoescape", with: "endwith", set: "endset",
-  cache: "endcache", guard: "endguard", sandbox: "endsandbox", types: "endtypes", verbatim: "endverbatim"
-};
 
 export function computeTwigEnterEdit(
   source: string,
@@ -44,12 +38,13 @@ function candidateAt(
   const node = document.children.find((item): item is TwigNode =>
     item.kind === "TwigTag" && item.complete && item.tagKind === "opening" && item.end <= offset &&
     source.slice(item.end, offset).trim() === "" && source.slice(lineStart, item.start).trim() === "");
-  if (!node || !node.tagName || !CLOSING_TAGS[node.tagName]) return null;
+  const closing = node?.tagName ? getTwigTag(node.tagName)?.closing : undefined;
+  if (!node || !node.tagName || !closing) return null;
   if (isInEmbeddedLiteralOrComment(document, source, node.start)) return null;
   if (document.twigControlBlocks.some((pair) => pair.openStart === node.start)) return null;
   const baseIndent = source.slice(lineStart, node.start).match(/^[\t ]*/)?.[0] ?? "";
   const innerIndent = baseIndent + options.indentUnit;
-  const newText = `${options.eol}${innerIndent}${options.eol}${baseIndent}{% ${CLOSING_TAGS[node.tagName]} %}`;
+  const newText = `${options.eol}${innerIndent}${options.eol}${baseIndent}{% ${closing} %}`;
   return { offset, tagName: node.tagName, newText, cursorDelta: options.eol.length + innerIndent.length };
 }
 

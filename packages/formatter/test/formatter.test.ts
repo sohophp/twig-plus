@@ -80,6 +80,19 @@ describe("structured formatter results", () => {
     expect(stages).toEqual(expect.arrayContaining(["parse", "twig", "html", "mapping", "javascript", "complete"]));
   });
 
+  it("keeps current Twig 3 expressions and inline comments idempotent", async () => {
+    const source = [
+      "{% do [first, last] = names %}",
+      "{{ user?.profile ?? fallback }}",
+      "{{ items|reduce((carry, item) => carry + item.value, 0) }}",
+      "{{ value # Twig 3.15 inline comment",
+      "}}"
+    ].join("\n");
+    const once = await formatTwig(source, getDefaultOptions());
+    expect(await formatTwig(once, getDefaultOptions())).toBe(once);
+    expect(await formatTwig(await formatTwig(once, getDefaultOptions()), getDefaultOptions())).toBe(once);
+  });
+
   it("honours cancellation before formatting starts", async () => {
     const result = await formatTwigWithResult("<div></div>", { ...getDefaultOptions(), isCancellationRequested: () => true });
     expect(result).toMatchObject({ ok: false, error: { code: "cancelled" } });

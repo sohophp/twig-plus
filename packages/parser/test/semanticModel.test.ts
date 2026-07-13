@@ -20,12 +20,17 @@ describe("DocumentModel", () => {
     const source = `{% set selected = account.profile %}{% for key, value in records %}{{ selected }}{{ key }}{{ value }}{% endfor %}`;
     const model = createDocumentModel(parseDocument(source));
     expect(model.symbols.map((symbol) => symbol.name)).toEqual(["selected", "key", "value"]);
-    expect(model.references.map((reference) => reference.name)).toEqual(["account", "records", "selected", "key", "value"]);
+    expect(model.references.map((reference) => [reference.name, reference.role])).toEqual([
+      ["account", "variable-read"], ["profile", "member"], ["records", "variable-read"],
+      ["selected", "variable-read"], ["key", "variable-read"], ["value", "variable-read"]
+    ]);
   });
 
   it("does not treat named argument labels as variable references", () => {
     const model = createDocumentModel(parseDocument(`{{ render(title: heading) }}`));
-    expect(model.references.map((reference) => reference.name)).toEqual(["render", "heading"]);
+    expect(model.references.map((reference) => [reference.name, reference.role])).toEqual([
+      ["render", "function-call"], ["title", "named-argument"], ["heading", "variable-read"]
+    ]);
   });
 
   it("models with-map keys as inner lexical bindings", () => {
@@ -33,7 +38,9 @@ describe("DocumentModel", () => {
     const model = createDocumentModel(parseDocument(source), { diagnoseUnresolvedNames: true, globals: ["currentUser"] });
     const inner = source.indexOf("user.name");
     expect(model.getVisibleSymbolsAt(inner).map((symbol) => symbol.name)).toContain("user");
-    expect(model.references.map((reference) => reference.name)).toEqual(["currentUser", "user", "user"]);
+    expect(model.references.map((reference) => [reference.name, reference.role])).toEqual([
+      ["currentUser", "variable-read"], ["user", "variable-read"], ["name", "member"], ["user", "variable-read"]
+    ]);
     expect(model.diagnostics.filter((diagnostic) => diagnostic.code === "unresolved-name")).toHaveLength(1);
   });
 
@@ -85,5 +92,35 @@ describe("DocumentModel", () => {
     const document = parseDocument(`<p>{{ user.name|upper }}</p>`);
     const output = document.children.find((node) => node.kind === "TwigOutput");
     expect(output && "expression" in output ? output.expression?.kind : null).toBe("FilterExpression");
+  });
+
+  it("resolves callable roles and protects undefined-safe inputs", () => {
+    const source = `{% if user is defined %}{{ user.name|default('guest') }}{% endif %}`;
+    const model = createDocumentModel(parseDocument(source), { unresolvedNameMode: "strict" });
+    expect(model.references.map((reference) => [reference.name, reference.role])).toEqual([
+      ["defined", "test"], ["name", "member"], ["default", "filter"]
+    ]);
+    expect(model.diagnostics.filter((diagnostic) => diagnostic.code === "unresolved-name")).toEqual([]);
+  });
+
+  it("keeps undefined protection local to the protected operand", () => {
+    const source = `{% if user is defined and user.active %}ok{% endif %}`;
+    const model = createDocumentModel(parseDocument(source), { unresolvedNameMode: "strict" });
+    expect(model.diagnostics.map((diagnostic) => diagnostic.message)).toEqual(["Unresolved name 'user'."]);
+  });
+
+  it("narrows a defined variable throughout the true if branch", () => {
+    const source = `{% if user is defined %}<span>{{ user.name }}</span>{% endif %}`;
+    const model = createDocumentModel(parseDocument(source), { unresolvedNameMode: "strict" });
+    const user = model.symbols.find((symbol) => symbol.name === "user" && symbol.scopeId !== "scope:document");
+    expect(user).toBeDefined();
+    expect(model.references.find((reference) => reference.name === "user")?.resolvedSymbolId).toBe(user?.id);
+    expect(model.diagnostics.filter((diagnostic) => diagnostic.code === "unresolved-name")).toEqual([]);
+  });
+
+  it("uses safe diagnostics only with authoritative project context", () => {
+    const source = `{{ application_value }}`;
+    expect(createDocumentModel(parseDocument(source), { unresolvedNameMode: "safe" }).diagnostics).toEqual([]);
+    expect(createDocumentModel(parseDocument(source), { unresolvedNameMode: "safe", contextComplete: true }).diagnostics).toHaveLength(1);
   });
 });

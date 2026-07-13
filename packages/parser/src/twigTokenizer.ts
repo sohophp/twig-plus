@@ -10,7 +10,7 @@ export interface TwigToken {
 
 export type TwigLexemeKind =
   | "name" | "number" | "string" | "operator" | "punctuation"
-  | "whitespace" | "unknown" | "eof";
+  | "whitespace" | "comment" | "unknown" | "eof";
 
 export interface TwigLexeme {
   kind: TwigLexemeKind;
@@ -20,8 +20,9 @@ export interface TwigLexeme {
   complete: boolean;
 }
 
-const WORD_OPERATORS = new Set(["and", "or", "not", "in", "is", "matches", "starts", "ends", "with"]);
-const TWO_CHARACTER_OPERATORS = new Set(["==", "!=", ">=", "<=", "=>", "..", "**", "//", "??", "?:"]);
+const WORD_OPERATORS = new Set(["and", "or", "xor", "not", "in", "is", "matches", "starts", "ends", "with", "has", "some", "every", "b-and", "b-xor", "b-or"]);
+const THREE_CHARACTER_OPERATORS = new Set(["===", "!==", "<=>", "..."]);
+const TWO_CHARACTER_OPERATORS = new Set(["==", "!=", ">=", "<=", "=>", "..", "**", "//", "??", "?:", "?."]);
 
 export function tokenizeTwig(source: string): TwigToken[] {
   const tokens: TwigToken[] = [];
@@ -52,8 +53,11 @@ export function lexTwig(source: string, baseOffset = 0): TwigLexeme[] {
     if (/\s/.test(character)) {
       while (index < source.length && /\s/.test(source[index])) index += 1;
       tokens.push(makeLexeme("whitespace", source, start, index, baseOffset));
+    } else if (character === "#") {
+      while (index < source.length && source[index] !== "\n" && source[index] !== "\r") index += 1;
+      tokens.push(makeLexeme("comment", source, start, index, baseOffset));
     } else if (/[A-Za-z_]/.test(character)) {
-      while (index < source.length && /[A-Za-z0-9_]/.test(source[index])) index += 1;
+      while (index < source.length && /[A-Za-z0-9_-]/.test(source[index])) index += 1;
       const value = source.slice(start, index);
       tokens.push(makeLexeme(WORD_OPERATORS.has(value.toLowerCase()) ? "operator" : "name", source, start, index, baseOffset));
     } else if (/\d/.test(character)) {
@@ -74,11 +78,13 @@ export function lexTwig(source: string, baseOffset = 0): TwigLexeme[] {
       }
       tokens.push({ ...makeLexeme("string", source, start, index, baseOffset), complete });
     } else {
+      const triple = source.slice(index, index + 3);
       const pair = source.slice(index, index + 2);
-      if (TWO_CHARACTER_OPERATORS.has(pair)) index += 2;
+      if (THREE_CHARACTER_OPERATORS.has(triple)) index += 3;
+      else if (TWO_CHARACTER_OPERATORS.has(pair)) index += 2;
       else index += 1;
       const value = source.slice(start, index);
-      const kind: TwigLexemeKind = TWO_CHARACTER_OPERATORS.has(value) || "+-*/%~|=<>!?".includes(value)
+      const kind: TwigLexemeKind = THREE_CHARACTER_OPERATORS.has(value) || TWO_CHARACTER_OPERATORS.has(value) || "+-*/%~|=<>!?".includes(value)
         ? "operator"
         : "()[]{},.:".includes(value) ? "punctuation" : "unknown";
       tokens.push(makeLexeme(kind, source, start, index, baseOffset));
@@ -95,12 +101,16 @@ function makeLexeme(kind: TwigLexemeKind, source: string, start: number, end: nu
 function findDelimiter(source: string, start: number, closing: string, comment: boolean): number {
   if (comment) return source.indexOf(closing, start);
   let quote: string | null = null;
+  let inlineComment = false;
   for (let index = start; index < source.length - 1; index += 1) {
     const character = source[index];
-    if (quote) {
+    if (inlineComment) {
+      if (character === "\n" || character === "\r") inlineComment = false;
+    } else if (quote) {
       if (character === "\\") index += 1;
       else if (character === quote) quote = null;
     } else if (character === "'" || character === '"') quote = character;
+    else if (character === "#") inlineComment = true;
     else if (source.startsWith(closing, index)) return index;
   }
   return -1;

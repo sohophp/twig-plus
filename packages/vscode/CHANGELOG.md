@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added a version-aware shared Twig 3.26 language specification, role-aware semantic diagnostics, `defined` branch narrowing, safe unresolved-name mode, and generated language assets.
+- Added atomic, Hybrid-guarded HTML closing with `twigPlus.editing.htmlTagClosing`; unsafe contexts delegate immediately to native typing, while Enter expansion and the deprecated boolean compatibility setting remain available.
+
 - Made Hybrid the only user runtime parser path while retaining legacy solely as an instrumented fatal-error fallback.
 - Returned ordinary braces, `>`, Backspace, Undo, and Redo to VS Code while preserving atomic Twig/HTML/CSS/JavaScript Enter behavior.
 - Added Twig and embedded JavaScript Hover, Signature Help, and safe structure-aware Range Formatting.

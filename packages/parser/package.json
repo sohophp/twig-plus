@@ -5,6 +5,9 @@
   "description": "Lightweight Twig tokenization and structural analysis for TwigPlus.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@twig-plus/language-spec": "file:../language-spec"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run test"

@@ -238,17 +238,25 @@ async function testAtomicTwigEnterClosing() {
 }
 
 async function testAtomicHtmlTagClosing() {
-  const source = "<script>";
-  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
+  const document = await vscode.workspace.openTextDocument({ language: "twig", content: "" });
   const editor = await vscode.window.showTextDocument(document);
-  const end = document.positionAt(source.length);
-  editor.selection = new vscode.Selection(end, end);
-  await vscode.commands.executeCommand("twigPlus.insertLineBreak");
-  const expected = "<script>\n    \n</script>";
+  await typeCharacters("<div");
+  await vscode.commands.executeCommand("twigPlus.typeHtmlTagEnd");
+  const expected = "<div></div>";
   await waitFor(() => editor.document.getText() === expected);
-  assert.strictEqual(editor.document.offsetAt(editor.selection.active), "<script>\n    ".length);
+  assert.strictEqual(editor.document.offsetAt(editor.selection.active), "<div>".length);
   await vscode.commands.executeCommand("undo");
-  await waitFor(() => editor.document.getText() === source);
+  await waitFor(() => editor.document.getText() === "<div");
+  await vscode.commands.executeCommand("redo");
+  await waitFor(() => editor.document.getText() === expected);
+
+  const enterSource = "<script>";
+  const enterDocument = await vscode.workspace.openTextDocument({ language: "twig", content: enterSource });
+  const enterEditor = await vscode.window.showTextDocument(enterDocument);
+  const end = enterDocument.positionAt(enterSource.length);
+  enterEditor.selection = new vscode.Selection(end, end);
+  await vscode.commands.executeCommand("twigPlus.insertLineBreak");
+  await waitFor(() => enterEditor.document.getText() === "<script>\n    \n</script>");
 }
 
 async function testLinkedHtmlTagEditing() {

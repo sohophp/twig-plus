@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 2,
+  "providerId": "example-fixture",
+  "generatedAt": 0,
+  "environment": {
+    "twigVersion": "3.26.1",
+    "packages": ["twig/twig", "symfony/twig-bundle"],
+    "catalogComplete": false
+  },
+  "completions": [],
+  "templates": [],
+  "blocks": [],
+  "macros": [],
+  "contexts": []
+}
