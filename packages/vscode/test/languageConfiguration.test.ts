@@ -77,13 +77,9 @@ describe("language configuration", () => {
     expect(properties["twigPlus.editing.autoCloseCssBraces"].default).toBe(true);
     expect(properties["twigPlus.editing.autoCloseJavaScriptBraces"].default).toBe(true);
     expect(properties["twigPlus.editing.linkedHtmlTags"].default).toBe(true);
-    const binding = manifest.contributes.keybindings.find((item) => item.command === "twigPlus.insertHtmlCloseTag");
-    expect(binding?.key).toBe("shift+.");
-    expect(binding?.when).not.toContain("!suggestWidgetVisible");
-    const braceBinding = manifest.contributes.keybindings.find((item) => item.command === "twigPlus.insertJavaScriptBracePair");
-    expect(braceBinding?.key).toBe("shift+[");
-    const deleteBinding = manifest.contributes.keybindings.find((item) => item.command === "twigPlus.deleteJavaScriptBracePair");
-    expect(deleteBinding?.key).toBe("backspace");
+    expect(manifest.contributes.keybindings.some((item) => [
+      "twigPlus.insertHtmlCloseTag", "twigPlus.insertJavaScriptBracePair", "twigPlus.deleteJavaScriptBracePair"
+    ].includes(item.command))).toBe(false);
     expect(manifest.contributes.configurationDefaults?.["[twig]"]?.["editor.linkedEditing"]).toBe(true);
   });
 });

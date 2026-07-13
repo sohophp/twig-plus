@@ -16,8 +16,6 @@ async function run() {
     testAtomicTwigEnterClosing,
     testAtomicCssBraceClosing,
     testAtomicJavaScriptBraceClosing,
-    testImmediateJavaScriptBracePair,
-    testAtomicJavaScriptBracePairDeletion,
     testRapidTypingIsStable,
     testMultiCursorNativePairUndoRedo,
     testImeTextTypingIsUntouched,
@@ -26,6 +24,7 @@ async function run() {
     testDeletedClosingTagCanUndo,
     testTwigOutputTypingInsideEmbeddedJavaScriptString,
     testDocumentFormatting,
+    testHoverSignatureAndRangeFormatting,
     testInvalidEmbeddedJavaScriptFormattingFailsFast,
     testTwigTagCompletion,
     testHtmlCompletion,
@@ -231,14 +230,15 @@ async function testAtomicTwigEnterClosing() {
 }
 
 async function testAtomicHtmlTagClosing() {
-  const source = "<script";
+  const source = "<script>";
   const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
   const editor = await vscode.window.showTextDocument(document);
   const end = document.positionAt(source.length);
   editor.selection = new vscode.Selection(end, end);
-  await vscode.commands.executeCommand("twigPlus.insertHtmlCloseTag");
-  await waitFor(() => editor.document.getText() === "<script></script>");
-  assert.strictEqual(editor.document.offsetAt(editor.selection.active), "<script>".length);
+  await vscode.commands.executeCommand("twigPlus.insertLineBreak");
+  const expected = "<script>\n    \n</script>";
+  await waitFor(() => editor.document.getText() === expected);
+  assert.strictEqual(editor.document.offsetAt(editor.selection.active), "<script>\n    ".length);
   await vscode.commands.executeCommand("undo");
   await waitFor(() => editor.document.getText() === source);
 }
@@ -297,33 +297,6 @@ async function testAtomicJavaScriptBraceClosing() {
   await waitFor(() => editor.document.getText() === source);
 }
 
-async function testImmediateJavaScriptBracePair() {
-  const source = '<script>document.addEventListener("DOMContentLoaded",()=>)</script>';
-  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
-  const editor = await vscode.window.showTextDocument(document);
-  const offset = source.indexOf(")</script>");
-  editor.selection = new vscode.Selection(document.positionAt(offset), document.positionAt(offset));
-  await vscode.commands.executeCommand("twigPlus.insertJavaScriptBracePair");
-  const expected = '<script>document.addEventListener("DOMContentLoaded",()=>{})</script>';
-  await waitFor(() => editor.document.getText() === expected);
-  assert.strictEqual(editor.document.offsetAt(editor.selection.active), offset + 1);
-  await vscode.commands.executeCommand("undo");
-  await waitFor(() => editor.document.getText() === source);
-}
-
-async function testAtomicJavaScriptBracePairDeletion() {
-  const source = '<script>document.addEventListener("DOMContentLoaded",()=>{})</script>';
-  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
-  const editor = await vscode.window.showTextDocument(document);
-  const offset = source.indexOf("})</script>");
-  editor.selection = new vscode.Selection(document.positionAt(offset), document.positionAt(offset));
-  await vscode.commands.executeCommand("twigPlus.deleteJavaScriptBracePair");
-  const expected = '<script>document.addEventListener("DOMContentLoaded",()=>)</script>';
-  await waitFor(() => editor.document.getText() === expected);
-  await vscode.commands.executeCommand("undo");
-  await waitFor(() => editor.document.getText() === source);
-}
-
 async function testRapidTypingIsStable() {
   const document = await vscode.workspace.openTextDocument({ language: "twig", content: "" });
   const editor = await vscode.window.showTextDocument(document);
@@ -331,6 +304,19 @@ async function testRapidTypingIsStable() {
   await waitFor(() => editor.document.getText() === "{% block%}");
   await new Promise((resolve) => setTimeout(resolve, 500));
   assert.strictEqual(editor.document.getText(), "{% block%}");
+}
+
+async function testHoverSignatureAndRangeFormatting() {
+  const source = `{% block body %}\n    <div>{{ path("home", {}) }}</div>\n{% endblock %}`;
+  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
+  await vscode.window.showTextDocument(document);
+  const hover = await vscode.commands.executeCommand("vscode.executeHoverProvider", document.uri, document.positionAt(source.indexOf("path") + 2));
+  assert.ok(Array.isArray(hover) && hover.length > 0, "Twig function hover should be provided by the language server");
+  const signatures = await vscode.commands.executeCommand("vscode.executeSignatureHelpProvider", document.uri, document.positionAt(source.indexOf("{}") + 1), "(");
+  assert.ok(signatures && signatures.signatures.length > 0, "Twig function signature help should be available");
+  const line = document.lineAt(1);
+  const edits = await vscode.commands.executeCommand("vscode.executeFormatRangeProvider", document.uri, line.range, { tabSize: 4, insertSpaces: true });
+  assert.ok(Array.isArray(edits), "range formatter should return a deterministic edit list");
 }
 
 async function testMultiCursorNativePairUndoRedo() {

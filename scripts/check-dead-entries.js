@@ -4,7 +4,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const files = walk(path.join(root, "packages", "vscode", "src")).filter((file) => file.endsWith(".ts"));
 const source = files.map((file) => fs.readFileSync(file, "utf8")).join("\n");
-for (const forbidden of ["twigPlus.deleteLeft", "registerTwigCompletionProvider", "getTwigAutoCloseEdit", "autoInsertClosingTag"]) {
+for (const forbidden of ["twigPlus.deleteLeft", "registerTwigCompletionProvider", "getTwigAutoCloseEdit", "autoInsertClosingTag", "computeScriptBracePairEdit", "computeScriptBracePairDelete", "computeHtmlTagCloseEdit"]) {
   if (source.includes(forbidden)) throw new Error(`Dead editing entry returned: ${forbidden}`);
 }
 console.log(`Dead-entry check passed across ${files.length} VS Code source files.`);
