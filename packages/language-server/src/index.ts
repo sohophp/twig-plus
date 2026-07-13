@@ -71,7 +71,10 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   let projectMetadata: LoadedProjectMetadata = { completions: [], globals: [], catalogComplete: false, contexts: [], packages: [] };
   const indexedDocuments = new Map<string, string>();
   let workspaceFolders: string[] = [];
-  let workspaceReady: Promise<void> = Promise.resolve();
+  let workspaceQueue: Promise<void> = Promise.resolve();
+  let workspaceReady: Promise<void> = workspaceQueue;
+  let fullIndexTimer: NodeJS.Timeout | null = null;
+  let fullIndexGate: { promise: Promise<void>; resolve: () => void } | null = null;
   let settings: TwigPlusSettings = {};
   const resourceSettings = new Map<string, TwigPlusSettings>();
   const folderSettings = new Map<string, TwigPlusSettings>();
@@ -147,17 +150,36 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     workspaceModelCache = null;
   };
   const scheduleWorkspace = (task: () => Promise<void>) => {
-    workspaceReady = workspaceReady
+    workspaceQueue = workspaceQueue
       .catch((error) => connection.console.error(`Previous workspace indexing failed: ${formatError(error)}`))
       .then(task)
       .then(() => republishDiagnostics?.())
       .catch((error) => connection.console.error(`Workspace indexing failed: ${formatError(error)}`));
+    workspaceReady = workspaceQueue;
+  };
+  const scheduleFullIndex = (delayMs = 50) => {
+    if (fullIndexTimer) clearTimeout(fullIndexTimer);
+    if (!fullIndexGate) {
+      let resolve!: () => void;
+      const promise = new Promise<void>((done) => { resolve = done; });
+      fullIndexGate = { promise, resolve };
+      workspaceReady = promise;
+    }
+    fullIndexTimer = setTimeout(() => {
+      fullIndexTimer = null;
+      const gate = fullIndexGate;
+      fullIndexGate = null;
+      scheduleWorkspace(async () => {
+        await refreshFolderSettings();
+        await refreshIndex();
+      });
+      void workspaceQueue.finally(() => gate?.resolve());
+    }, delayMs);
   };
 
   connection.onInitialize((params): InitializeResult => {
     workspaceFolders = (params.workspaceFolders ?? []).map((folder) => folder.uri);
     supportsConfiguration = Boolean(params.capabilities.workspace?.configuration);
-    scheduleWorkspace(refreshIndex);
     return { capabilities: getServerCapabilities() };
   });
   connection.onInitialized(() => {
@@ -168,7 +190,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
         lineBreakAfterTwigControlTag: true, parserEngine: "hybrid"
       }).catch((error) => connection.console.warn(`Formatter prewarm failed: ${formatError(error)}`));
     }, 0);
-    setTimeout(() => { void refreshFolderSettings(); }, 100);
+    scheduleFullIndex();
   });
   connection.onDidChangeConfiguration((change) => {
     const received = isRecord(change.settings) && "twigPlus" in change.settings ? change.settings.twigPlus : change.settings;
@@ -181,12 +203,11 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     resourceSettings.clear();
     folderSettings.clear();
     workspaceModelCache = null;
-    scheduleWorkspace(refreshIndex);
-    void refreshFolderSettings();
+    scheduleFullIndex();
     for (const document of documents.all()) scheduleDiagnostics(document, 0);
   });
   connection.onDidChangeWatchedFiles((event) => {
-    if (event.changes.some((change) => change.uri.endsWith("/.twig-plus/symfony-metadata.json"))) scheduleWorkspace(refreshIndex);
+    if (event.changes.some((change) => change.uri.endsWith("/.twig-plus/symfony-metadata.json"))) scheduleFullIndex();
     else scheduleWorkspace(() => refreshUris(event.changes.map((change) => change.uri)));
   });
 
@@ -253,7 +274,6 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
         if (isRecord(value)) folderSettings.set(folder, normalizeSettings(value as TwigPlusSettings));
       } catch (error) { connection.console.warn(`Unable to load workspace-folder settings for ${folder}: ${formatError(error)}`); }
     }));
-    scheduleWorkspace(refreshIndex);
   }
   republishDiagnostics = () => { for (const document of documents.all()) scheduleDiagnostics(document, 0); };
   documents.onDidOpen((event) => { updateOpenDocumentIndex(event.document, indexedDocuments); workspaceModelCache = null; scheduleDiagnostics(event.document, 0); void refreshResourceSettings(event.document); });
