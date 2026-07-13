@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { formatTwig, formatTwigWithResult } from "../src";
+import { formatTwig, formatTwigRangeWithResult, formatTwigWithResult } from "../src";
 
 const fixtureNames = [
   "basic-if",
@@ -83,6 +83,39 @@ describe("structured formatter results", () => {
   it("honours cancellation before formatting starts", async () => {
     const result = await formatTwigWithResult("<div></div>", { ...getDefaultOptions(), isCancellationRequested: () => true });
     expect(result).toMatchObject({ ok: false, error: { code: "cancelled" } });
+  });
+});
+
+describe("safe range formatting", () => {
+  it("expands to a complete element and preserves its outer indentation", async () => {
+    const source = `{% block body %}\n    <div>{{name}}</div>\n{% endblock %}`;
+    const start = source.indexOf("{{name}}");
+    const result = await formatTwigRangeWithResult(source, { start, end: start + 4 }, getDefaultOptions());
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(source.slice(result.range.start, result.range.end)).toBe(`    <div>{{name}}</div>\n`);
+      expect(result.text).toBe(`    <div>{{ name }}</div>\n`);
+    }
+  });
+
+  it("rejects an unclosed embedded script range", async () => {
+    const source = `<script>\nconst value={{ value }};`;
+    const result = await formatTwigRangeWithResult(source, { start: 0, end: source.length }, getDefaultOptions());
+    expect(result).toMatchObject({ ok: false, error: { code: "unsafe-range" } });
+  });
+
+  it("does not replace user code that resembles the old placeholder format", async () => {
+    const source = `<script>const TWIGPLUS_PLACEHOLDER_0 = 1; const value = {{ value }};</script>`;
+    const result = await formatTwig(source, getDefaultOptions());
+    expect(result).toContain("TWIGPLUS_PLACEHOLDER_0");
+    expect(result).toContain("{{ value }}");
+  });
+
+  it("formats embedded code when an opening-tag attribute contains >", async () => {
+    const source = `<script data-label="a > b">const value={enabled:true};</script>`;
+    const result = await formatTwig(source, getDefaultOptions());
+    expect(result).toContain(`<script data-label="a > b">`);
+    expect(result).toContain("const value = { enabled: true };");
   });
 });
 

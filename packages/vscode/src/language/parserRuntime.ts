@@ -1,21 +1,26 @@
 import * as vscode from "vscode";
 import { createDocumentModel, parseHybridDocument, validateHybridDocument, type DocumentModel, type HybridDifference, type HybridDocument, type HybridQueryOptions, type ParserEngine } from "@twig-plus/parser";
+import { getTwigPlusOutput } from "../output";
 
-let outputChannel: vscode.OutputChannel | null = null;
 const documentCache = new Map<string, { version: number; document: HybridDocument; model?: DocumentModel }>();
 const MAX_HYBRID_SOURCE_LENGTH = 2_000_000;
+let deprecatedEngineReported = false;
 
 export function registerHybridParserRuntime(context: vscode.ExtensionContext): void {
-  outputChannel = vscode.window.createOutputChannel("TwigPlus");
   context.subscriptions.push(
-    outputChannel,
     vscode.workspace.onDidCloseTextDocument((document) => documentCache.delete(document.uri.toString())),
     vscode.workspace.onDidChangeTextDocument((event) => documentCache.delete(event.document.uri.toString()))
   );
 }
 
 export function getConfiguredParserEngine(): ParserEngine {
-  return vscode.workspace.getConfiguration("twigPlus.parser").get<ParserEngine>("engine", "hybrid");
+  const configured = vscode.workspace.getConfiguration("twigPlus.parser").get<ParserEngine>("engine", "hybrid");
+  if (configured !== "hybrid" && !deprecatedEngineReported) {
+    deprecatedEngineReported = true;
+    getTwigPlusOutput().appendLine(`[parser] '${configured}' is deprecated and is treated as hybrid; legacy remains an internal fatal-error fallback only.`);
+    void vscode.window.showWarningMessage(`TwigPlus parser mode '${configured}' is deprecated. Hybrid is now always used.`);
+  }
+  return "hybrid";
 }
 
 export function getParserQueryOptions(document?: vscode.TextDocument): HybridQueryOptions {
@@ -62,10 +67,10 @@ export function reportHybridDifference(difference: HybridDifference, document?: 
   const summaries = difference.legacySummary || difference.hybridSummary
     ? `; legacy=${difference.legacySummary ?? "missing"}; hybrid=${difference.hybridSummary ?? "missing"}`
     : "";
-  outputChannel?.appendLine(`[hybrid-shadow] ${difference.query}: ${difference.reason}; ${file}; ${location}; offsets ${difference.range.start}-${difference.range.end}${summaries}`);
+  getTwigPlusOutput().appendLine(`[hybrid] ${difference.query}: ${difference.reason}; ${file}; ${location}; offsets ${difference.range.start}-${difference.range.end}${summaries}`);
 }
 
 export function reportRuntimeError(message: string, error: unknown): void {
   const detail = error instanceof Error ? error.stack ?? error.message : String(error);
-  outputChannel?.appendLine(`[error] ${message}: ${detail}`);
+  getTwigPlusOutput().appendLine(`[error] ${message}: ${detail}`);
 }

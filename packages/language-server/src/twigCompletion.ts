@@ -2,16 +2,22 @@ import { CompletionItemKind, InsertTextFormat, TextEdit, type CompletionItem } f
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import { getHybridCompletionContext, getHybridTokenContextAtOffset, type HybridDocument } from "@twig-plus/parser";
 
-interface Entry { label: string; detail: string; insertText?: string; priority?: number; }
-export interface ProjectCompletionEntry { kind: "tag" | "filter" | "function" | "test"; name: string; detail?: string; signature?: string; }
+interface Entry { label: string; detail: string; insertText?: string; priority?: number; signature?: string; documentation?: string; }
+export interface ProjectCompletionEntry { kind: "tag" | "filter" | "function" | "test"; name: string; detail?: string; signature?: string; documentation?: string; }
+export interface TwigCatalogEntry { kind: ProjectCompletionEntry["kind"]; name: string; detail: string; signature?: string; documentation?: string; }
 
 export class TwigCompletionRegistry {
   private project: ProjectCompletionEntry[] = [];
   replaceProject(entries: ProjectCompletionEntry[]): void { this.project = [...entries]; }
+  find(name: string, kinds?: ProjectCompletionEntry["kind"][]): TwigCatalogEntry | null {
+    const entry = this.project.find((item) => item.name === name && (!kinds || kinds.includes(item.kind)));
+    return entry ? { kind: entry.kind, name: entry.name, detail: entry.detail ?? `Project Twig ${entry.kind}`, signature: entry.signature, documentation: entry.documentation } : null;
+  }
   get(kind: "tag" | "filter" | "function" | "test"): Entry[] {
     return this.project.filter((entry) => entry.kind === kind).map((entry) => ({
       label: entry.name, detail: entry.detail ?? `Project Twig ${entry.kind}`,
       insertText: entry.kind === "function" && entry.signature ? `${entry.name}(\${1})` : undefined,
+      signature: entry.signature, documentation: entry.documentation,
       priority: 120
     }));
   }
@@ -41,6 +47,25 @@ const functions: Entry[] = [
 for (const label of ["attribute", "block", "constant", "cycle", "date", "enum", "max", "min", "parent", "random", "range"]) functions.push({ label, detail: "Twig function", insertText: `${label}(\${1})` });
 const tests = entries("test", ["constant", "defined", "divisible by", "empty", "enum", "even", "iterable", "mapping", "null", "odd", "same as", "sequence", "string", "true", "false"]);
 const closing = ["endif", "endfor", "endblock", "endembed", "endmacro", "endwith", "endapply", "endautoescape", "endcache", "endguard", "endsandbox", "endset", "endtypes", "endverbatim"];
+const signatures: Record<string, string> = {
+  path: "path(route_name, parameters = {}, relative = false)", url: "url(route_name, parameters = {}, schemeRelative = false)",
+  asset: "asset(path, packageName = null)", include: "include(template, variables = {}, withContext = true, ignoreMissing = false)",
+  source: "source(name, ignoreMissing = false)", dump: "dump(...values)", csrf_token: "csrf_token(intention)",
+  is_granted: "is_granted(attribute, subject = null)", date: "date(format = null, timezone = null)",
+  default: "default(defaultValue = '')", replace: "replace(from)", slice: "slice(start, length = null)",
+  round: "round(precision = 0, method = 'common')", number_format: "number_format(decimal = 0, decimalPoint = '.', thousandSeparator = ',')",
+  range: "range(low, high, step = 1)", random: "random(values = null, max = null)"
+};
+
+export function getTwigCatalogEntry(name: string, registry?: TwigCompletionRegistry, preferredKinds?: ProjectCompletionEntry["kind"][]): TwigCatalogEntry | null {
+  const project = registry?.find(name, preferredKinds); if (project) return project;
+  for (const [kind, source] of [["tag", tags], ["filter", filters], ["function", functions], ["test", tests]] as const) {
+    if (preferredKinds && !preferredKinds.includes(kind)) continue;
+    const entry = source.find((item) => item.label === name);
+    if (entry) return { kind, name, detail: entry.detail, signature: entry.signature ?? signatures[name], documentation: entry.documentation };
+  }
+  return null;
+}
 
 export function getTwigCompletions(document: TextDocument, syntax: HybridDocument, offset: number, registry?: TwigCompletionRegistry): CompletionItem[] {
   const context = getHybridTokenContextAtOffset(syntax, offset);

@@ -68,4 +68,17 @@ describe("EmbeddedJavaScriptService", () => {
     expect(diagnostics[0].range.start).toBeGreaterThanOrEqual(source.indexOf("for"));
     expect(diagnostics[0].range.end).toBeLessThan(source.indexOf("</script>"));
   });
+
+  it("maps TypeScript hover and signature help back into embedded scripts", async () => {
+    const source = `<script>document.addEventListener("load", () => {});</script>`;
+    const service = new EmbeddedJavaScriptService();
+    const document = parseHybridDocument(source);
+    const hover = await service.getHover("file:///template.html.twig", 1, document, source.indexOf("addEventListener") + 2);
+    expect(hover?.contents).toContain("addEventListener");
+    expect(hover?.range.start).toBeGreaterThan(source.indexOf("<script>"));
+    const signatureOffset = source.indexOf("\"load\"") + 1;
+    const signature = await service.getSignatureHelp("file:///template.html.twig", 1, document, signatureOffset);
+    expect(signature?.label).toContain("addEventListener");
+    expect(signature?.parameters.length).toBeGreaterThan(0);
+  });
 });

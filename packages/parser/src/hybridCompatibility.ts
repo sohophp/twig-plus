@@ -91,7 +91,7 @@ export function getCompatibleCompletionContext(source: string, offset: number, o
 
 export function collectCompatibleSelectionRanges(source: string, offset: number, options: HybridQueryOptions = {}): SourceRange[] {
   return resolveQuery("selection-ranges", source, options, () => collectSelectionRanges(source, offset), (document) =>
-    collectHybridSelectionRanges(document, offset));
+    collectHybridSelectionRanges(document, offset).map(({ start, end }) => ({ start, end })));
 }
 
 export function analyzeCompatibleDiagnostics(
@@ -113,26 +113,26 @@ function resolveQuery<T>(
   legacy: () => T,
   hybrid: (document: HybridDocument) => T
 ): T {
-  const engine = options.engine ?? "legacy";
+  const engine = options.engine ?? "hybrid";
   if (engine === "legacy") return legacy();
-  const legacyResult = legacy();
   try {
     const document = options.hybridDocument?.source === source
       ? options.hybridDocument
       : parseHybridDocument(source);
     if (validateHybridDocument(document).length > 0) {
       report(options, query, "invalid-document", source.length);
-      return legacyResult;
+      return legacy();
     }
     const hybridResult = hybrid(document);
-    if (!equalResults(legacyResult, hybridResult)) {
-      reportMismatch(options, query, legacyResult, hybridResult, source.length);
+    if (engine === "hybrid-shadow") {
+      const legacyResult = legacy();
+      if (!equalResults(legacyResult, hybridResult)) reportMismatch(options, query, legacyResult, hybridResult, source.length);
       return legacyResult;
     }
-    return engine === "hybrid" ? hybridResult : legacyResult;
+    return hybridResult;
   } catch {
     report(options, query, "hybrid-error", source.length);
-    return legacyResult;
+    return legacy();
   }
 }
 

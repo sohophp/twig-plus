@@ -1,8 +1,7 @@
-import { tokenizeTwig } from "@twig-plus/parser";
+import { parseHybridDocument, tokenizeTwig } from "@twig-plus/parser";
 
 import type { FormatterOptions } from "./printer";
 
-const EMBEDDED_BLOCK_PATTERN = /<(script|style)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
 const SCRIPT_PARSER = "babel";
 const STYLE_PARSER = "css";
 let prettierPromise: Promise<typeof import("prettier")> | null = null;
@@ -24,12 +23,15 @@ export async function formatEmbeddedBlocks(
 ): Promise<string> {
   let result = "";
   let lastIndex = 0;
-
-  for (const match of source.matchAll(EMBEDDED_BLOCK_PATTERN)) {
+  const embedded = parseHybridDocument(source).htmlElements
+    .filter((pair) => pair.name === "script" || pair.name === "style")
+    .sort((left, right) => left.start - right.start);
+  for (const pair of embedded) {
     if (options.isCancellationRequested?.()) throw new Error("TwigPlus formatting cancelled");
-    const [fullMatch, tagName, attributes, innerContent] = match;
-    const start = match.index ?? 0;
-    const end = start + fullMatch.length;
+    const tagName = pair.name;
+    const start = pair.openStart;
+    const end = pair.closeEnd;
+    const innerContent = source.slice(pair.openEnd, pair.closeStart);
 
     result += source.slice(lastIndex, start);
 
@@ -39,7 +41,7 @@ export async function formatEmbeddedBlocks(
       formattedInner = await formatEmbeddedBlockContent(tagName.toLowerCase(), innerContent, options);
     } catch (error) {
       if (error instanceof EmbeddedSyntaxError) {
-        const contentStart = start + `<${tagName}${attributes}>`.length;
+        const contentStart = pair.openEnd;
         throw new EmbeddedSyntaxError(error.language, {
           cause: error.cause ?? error,
           range: { start: contentStart, end: contentStart + innerContent.length }
@@ -49,7 +51,7 @@ export async function formatEmbeddedBlocks(
     }
     options.onStage?.(tagName.toLowerCase() === "script" ? "javascript" : "css", performance.now() - started);
 
-    result += `<${tagName}${attributes}>${formattedInner}</${tagName}>`;
+    result += source.slice(pair.openStart, pair.openEnd) + formattedInner + source.slice(pair.closeStart, pair.closeEnd);
     lastIndex = end;
   }
 
@@ -99,9 +101,11 @@ function protectTwigSegments(source: string): {
   const placeholders = new Map<string, string>();
   let protectedSource = source;
   let offset = 0;
+  let prefix = `__TWIGPLUS_${hashSource(source)}_`;
+  while (source.includes(prefix)) prefix = `_${prefix}`;
 
   for (const token of tokenizeTwig(source)) {
-    const placeholder = `TWIGPLUS_PLACEHOLDER_${placeholders.size}`;
+    const placeholder = `${prefix}${placeholders.size}__`;
     placeholders.set(placeholder, token.raw);
 
     const start = token.start + offset;
@@ -122,13 +126,17 @@ function restoreTwigSegments(
   source: string,
   placeholders: Map<string, string>
 ): string {
-  let restored = source;
+  if (placeholders.size === 0) return source;
+  const pattern = new RegExp([...placeholders.keys()].map(escapeRegExp).join("|"), "g");
+  return source.replace(pattern, (placeholder) => placeholders.get(placeholder) ?? placeholder);
+}
 
-  for (const [placeholder, original] of placeholders) {
-    restored = restored.replaceAll(placeholder, original);
-  }
+function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
-  return restored;
+function hashSource(source: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) hash = Math.imul(hash ^ source.charCodeAt(index), 16777619);
+  return (hash >>> 0).toString(36);
 }
 
 function trimBlankLines(source: string): string {

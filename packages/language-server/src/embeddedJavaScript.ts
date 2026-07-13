@@ -21,6 +21,8 @@ export interface EmbeddedJavaScriptDiagnostic {
   message: string;
   code?: number;
 }
+export interface EmbeddedHover { range: SourceRange; contents: string; }
+export interface EmbeddedSignatureHelp { label: string; parameters: string[]; activeParameter: number; documentation?: string; }
 
 interface CachedDocument {
   version: number;
@@ -77,6 +79,30 @@ export class EmbeddedJavaScriptService {
   }
 
   delete(uri: string): void { this.cache.delete(uri); }
+
+  async getHover(uri: string, version: number, document: HybridDocument, originalOffset: number): Promise<EmbeddedHover | null> {
+    const script = (await this.getDocument(uri, version, document)).scripts.find((item) =>
+      originalOffset >= item.document.sourceRange.start && originalOffset <= item.document.sourceRange.end);
+    if (!script) return null;
+    const generatedOffset = script.document.toGeneratedOffset(originalOffset); if (generatedOffset === null) return null;
+    const info = script.service.getQuickInfoAtPosition(script.fileName, generatedOffset); if (!info) return null;
+    const range = script.document.toOriginalRange(info.textSpan.start, info.textSpan.start + info.textSpan.length); if (!range) return null;
+    const display = displayParts(info.displayParts);
+    const documentation = displayParts(info.documentation);
+    return { range, contents: [`\`\`\`javascript`, display, "\`\`\`", documentation].filter(Boolean).join("\n") };
+  }
+
+  async getSignatureHelp(uri: string, version: number, document: HybridDocument, originalOffset: number): Promise<EmbeddedSignatureHelp | null> {
+    const script = (await this.getDocument(uri, version, document)).scripts.find((item) =>
+      originalOffset >= item.document.sourceRange.start && originalOffset <= item.document.sourceRange.end);
+    if (!script) return null;
+    const generatedOffset = script.document.toGeneratedOffset(originalOffset); if (generatedOffset === null) return null;
+    const help = script.service.getSignatureHelpItems(script.fileName, generatedOffset, undefined); if (!help?.items.length) return null;
+    const item = help.items[Math.min(help.selectedItemIndex, help.items.length - 1)];
+    const parameters = item.parameters.map((parameter) => displayParts(parameter.displayParts));
+    const label = displayParts(item.prefixDisplayParts) + parameters.join(displayParts(item.separatorDisplayParts)) + displayParts(item.suffixDisplayParts);
+    return { label, parameters, activeParameter: Math.min(help.argumentIndex, Math.max(0, parameters.length - 1)), documentation: displayParts(item.documentation) || undefined };
+  }
 
   async getDiagnostics(uri: string, version: number, document: HybridDocument): Promise<EmbeddedJavaScriptDiagnostic[]> {
     return (await this.getDocument(uri, version, document)).scripts.flatMap((script) =>
@@ -182,3 +208,5 @@ function flattenDiagnosticMessage(message: string | ts.DiagnosticMessageChain): 
   if (typeof message === "string") return message;
   return [message.messageText, ...(message.next ?? []).map(flattenDiagnosticMessage)].join("\n");
 }
+
+function displayParts(parts: readonly ts.SymbolDisplayPart[] | undefined): string { return parts?.map((part) => part.text).join("") ?? ""; }
