@@ -1,85 +1,5 @@
+import { getTwigTag, selectTwigSpec } from "@twig-plus/language-spec";
 import { tokenizeTwig } from "./twigTokenizer";
-
-const OPENING_TAGS = new Set([
-  "if",
-  "for",
-  "block",
-  "embed",
-  "macro",
-  "apply",
-  "filter",
-  "autoescape",
-  "with",
-  "spaceless",
-  "cache",
-  "guard",
-  "sandbox",
-  "types",
-  "verbatim"
-]);
-
-const MIDDLE_TAGS = new Set([
-  "else",
-  "elseif",
-  "empty"
-]);
-
-const CLOSING_TAGS = new Set([
-  "endif",
-  "endfor",
-  "endblock",
-  "endembed",
-  "endmacro",
-  "endapply",
-  "endfilter",
-  "endautoescape",
-  "endwith",
-  "endspaceless",
-  "endset",
-  "endcache",
-  "endguard",
-  "endsandbox",
-  "endtypes",
-  "endverbatim"
-]);
-
-const CLOSING_TO_OPENING: Record<string, string> = {
-  endif: "if",
-  endfor: "for",
-  endblock: "block",
-  endembed: "embed",
-  endmacro: "macro",
-  endapply: "apply",
-  endfilter: "filter",
-  endautoescape: "autoescape",
-  endwith: "with",
-  endspaceless: "spaceless",
-  endset: "set",
-  endcache: "cache",
-  endguard: "guard",
-  endsandbox: "sandbox",
-  endtypes: "types",
-  endverbatim: "verbatim"
-};
-
-const OPENING_TO_CLOSING: Record<string, string> = {
-  if: "endif",
-  for: "endfor",
-  block: "endblock",
-  embed: "endembed",
-  macro: "endmacro",
-  apply: "endapply",
-  filter: "endfilter",
-  autoescape: "endautoescape",
-  with: "endwith",
-  spaceless: "endspaceless",
-  set: "endset",
-  cache: "endcache",
-  guard: "endguard",
-  sandbox: "endsandbox",
-  types: "endtypes",
-  verbatim: "endverbatim"
-};
 
 export type TwigTagKind = "opening" | "middle" | "closing" | "inline";
 export type LineTokenKind = "twig" | "html-open" | "html-close";
@@ -100,17 +20,18 @@ export function getTwigTagName(content: string): string | null {
 
 export function isTwigOpeningTag(content: string): boolean {
   const name = getTwigTagName(content);
-  return name !== null && (OPENING_TAGS.has(name) || isTwigSetCaptureTag(content));
+  const tag = name ? getTwigTag(name) : undefined;
+  return Boolean(tag && (tag.form === "block" || (tag.form === "conditional-block" && isTwigSetCaptureTag(content))));
 }
 
 export function isTwigMiddleTag(content: string): boolean {
   const name = getTwigTagName(content);
-  return name !== null && MIDDLE_TAGS.has(name);
+  return name !== null && getTwigTag(name)?.form === "branch";
 }
 
 export function isTwigClosingTag(content: string): boolean {
   const name = getTwigTagName(content);
-  return name !== null && CLOSING_TAGS.has(name);
+  return name !== null && getTwigTag(name)?.form === "closing";
 }
 
 export function getTwigTagKind(content: string): TwigTagKind {
@@ -204,7 +125,7 @@ export function collectUnclosedTwigControlTags(
       continue;
     }
 
-    const openingTag = CLOSING_TO_OPENING[tagName];
+    const openingTag = getTwigTag(tagName)?.opens;
     if (!openingTag) {
       continue;
     }
@@ -270,7 +191,7 @@ export function getTwigCompletionContext(
       continue;
     }
 
-    const openingTag = CLOSING_TO_OPENING[tagName];
+    const openingTag = getTwigTag(tagName)?.opens;
     if (!openingTag) {
       continue;
     }
@@ -311,23 +232,9 @@ function getAllowedMiddleTags(
   topLevelTag: string | null,
   seenMiddleTags: string[]
 ): string[] {
-  if (topLevelTag === "if") {
-    if (seenMiddleTags.includes("else")) {
-      return [];
-    }
-
-    return ["else", "elseif"];
-  }
-
-  if (topLevelTag === "for") {
-    if (seenMiddleTags.includes("else") || seenMiddleTags.includes("empty")) {
-      return [];
-    }
-
-    return ["else", "empty"];
-  }
-
-  return [];
+  if (!topLevelTag || seenMiddleTags.includes("else")) return [];
+  const currentNames = new Set(selectTwigSpec().tags.map((tag) => tag.name));
+  return [...(getTwigTag(topLevelTag)?.branches ?? [])].filter((name) => currentNames.has(name));
 }
 
 function getPreferredClosingTags(unclosedTags: string[]): string[] {
@@ -335,7 +242,7 @@ function getPreferredClosingTags(unclosedTags: string[]): string[] {
   const closingTags: string[] = [];
 
   for (const tagName of [...unclosedTags].reverse()) {
-    const closingTag = OPENING_TO_CLOSING[tagName];
+    const closingTag = getTwigTag(tagName)?.closing;
     if (!closingTag || seen.has(closingTag)) {
       continue;
     }
@@ -348,10 +255,7 @@ function getPreferredClosingTags(unclosedTags: string[]): string[] {
 }
 
 function isCompatibleMiddleTag(openingTag: string, middleTag: string): boolean {
-  return (
-    (openingTag === "if" && (middleTag === "else" || middleTag === "elseif")) ||
-    (openingTag === "for" && (middleTag === "else" || middleTag === "empty"))
-  );
+  return getTwigTag(openingTag)?.branches?.includes(middleTag) ?? false;
 }
 
 function findLastIndex<T>(

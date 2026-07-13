@@ -30,7 +30,7 @@ export function registerTwigSemanticProviders(context: vscode.ExtensionContext):
         const target = getTarget(document, position);
         if (target) return new vscode.Range(document.positionAt(target.symbol.nameRange.start), document.positionAt(target.symbol.nameRange.end));
         const reference = getCachedDocumentModel(document)?.getReferenceAt(document.offsetAt(position));
-        if (reference?.role === "call") return new vscode.Range(document.positionAt(reference.start), document.positionAt(reference.end));
+        if (reference?.role === "function-call") return new vscode.Range(document.positionAt(reference.start), document.positionAt(reference.end));
         throw new Error("No renameable Twig symbol at the cursor.");
       },
       async provideRenameEdits(document, position, newName) {

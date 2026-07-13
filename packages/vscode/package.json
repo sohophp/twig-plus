@@ -108,6 +108,12 @@
     ],
     "keybindings": [
       {
+        "command": "twigPlus.typeHtmlTagEnd",
+        "key": "shift+.",
+        "mac": "shift+.",
+        "when": "editorTextFocus && editorLangId == twig && !editorHasMultipleSelections && !editorHasSelection && !suggestWidgetVisible && !inlineSuggestionVisible && !inSnippetMode && !renameInputVisible"
+      },
+      {
         "command": "twigPlus.insertLineBreak",
         "key": "enter",
         "mac": "enter",
@@ -211,11 +217,25 @@
           },
           "description": "Workspace-relative Twig template roots used for template completion, diagnostics, and Go to Definition. Use * for one path segment, for example src/*/Resources/views."
         },
+        "twigPlus.twig.version": {
+          "type": "string",
+          "scope": "resource",
+          "pattern": "^3\\.\\d+(?:\\.\\d+)?$",
+          "description": "Optional Twig 3.x version override. When omitted, TwigPlus reads safe project metadata, then composer.lock, then uses the latest bundled 3.x specification without version-only diagnostics."
+        },
         "twigPlus.diagnostics.unresolvedNames": {
           "type": "boolean",
           "scope": "resource",
           "default": false,
-          "description": "Report Twig names that are not declared in lexical scope or listed as configured globals. Disabled by default because Symfony may inject variables dynamically."
+          "deprecationMessage": "Use twigPlus.diagnostics.unresolvedNameMode. This compatibility setting will be removed in a future release.",
+          "description": "Legacy unresolved-name switch. false maps to off and true maps to strict when unresolvedNameMode is not configured."
+        },
+        "twigPlus.diagnostics.unresolvedNameMode": {
+          "type": "string",
+          "scope": "resource",
+          "enum": ["safe", "strict", "off"],
+          "default": "safe",
+          "description": "Control unresolved Twig diagnostics. Safe only reports application names when authoritative project metadata is available; strict reports every unknown name; off disables these diagnostics."
         },
         "twigPlus.diagnostics.globals": {
           "type": "array",
@@ -230,7 +250,16 @@
           "type": "boolean",
           "scope": "resource",
           "default": true,
-          "description": "Atomically insert the matching HTML closing tag when Enter is pressed after a complete opening tag in a Twig document. Ordinary typing remains owned by VS Code."
+          "deprecationMessage": "Use twigPlus.editing.htmlTagClosing. Explicit false remains compatible with off.",
+          "description": "Legacy HTML closing switch retained for one compatibility release."
+        },
+        "twigPlus.editing.htmlTagClosing": {
+          "type": "string",
+          "scope": "resource",
+          "enum": ["onType", "onEnter", "off"],
+          "enumDescriptions": ["Atomically type > and its closing tag when the Hybrid model proves the opening tag is safe.", "Only expand a complete opening tag when Enter is pressed.", "Disable TwigPlus HTML tag closing."],
+          "default": "onType",
+          "description": "Choose how TwigPlus closes complete non-void HTML tags. On-type handling immediately delegates to native typing unless a single atomic closing edit is provably safe."
         },
         "twigPlus.editing.autoCloseTwigTags": {
           "type": "boolean",
@@ -284,6 +313,7 @@
     "publish:marketplace": "npx @vscode/vsce publish --no-dependencies"
   },
   "dependencies": {
+    "@twig-plus/parser": "file:../parser",
     "vscode-html-languageservice": "^5.6.2",
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12"

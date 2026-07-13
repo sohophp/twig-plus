@@ -96,7 +96,7 @@ function resolveCrossFileCall(
   uri: string, model: DocumentModel, reference: SemanticReference | null,
   getDocument: (uri: string) => DocumentModel | null, resolver: TemplateUriResolver
 ): { uri: string; symbol: SemanticSymbol } | null {
-  if (!reference || reference.role !== "call") return null;
+  if (!reference || reference.role !== "function-call") return null;
   let template: string | null = null;
   let exportedName = reference.name;
   if (reference.qualifier) {

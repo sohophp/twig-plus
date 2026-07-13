@@ -83,17 +83,11 @@ describe("collectTwigBlockSymbols", () => {
     const ifSource = "{% if user %}\n  <div>\n";
     const forSource = "{% for item in items %}\n  <div>\n";
 
-    expect(getTwigCompletionContext(ifSource, ifSource.length).allowedMiddleTags).toEqual([
-      "else",
-      "elseif"
-    ]);
-    expect(getTwigCompletionContext(forSource, forSource.length).allowedMiddleTags).toEqual([
-      "else",
-      "empty"
-    ]);
+    expect(getTwigCompletionContext(ifSource, ifSource.length).allowedMiddleTags).toEqual(["elseif", "else"]);
+    expect(getTwigCompletionContext(forSource, forSource.length).allowedMiddleTags).toEqual(["else"]);
   });
 
-  it("stops suggesting invalid middle tags after else or empty has already appeared", () => {
+  it("stops after else and does not treat the Twig empty test as a for branch", () => {
     const afterElseIfSource = [
       "{% if user %}",
       "  {{ user.name }}",
@@ -112,9 +106,7 @@ describe("collectTwigBlockSymbols", () => {
     expect(
       getTwigCompletionContext(afterElseIfSource, afterElseIfSource.length).allowedMiddleTags
     ).toEqual([]);
-    expect(
-      getTwigCompletionContext(afterEmptyForSource, afterEmptyForSource.length).allowedMiddleTags
-    ).toEqual([]);
+    expect(getTwigCompletionContext(afterEmptyForSource, afterEmptyForSource.length).allowedMiddleTags).toEqual(["else"]);
   });
 
   it("returns preferred closing tags from the innermost unclosed structure outward", () => {

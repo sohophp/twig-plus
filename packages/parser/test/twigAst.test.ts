@@ -61,4 +61,21 @@ describe("Twig lexer and expression AST", () => {
     visitTwigExpression(parenthesized, (node) => arrowKinds.push(node.kind));
     expect(arrowKinds).toContain("ArrowFunctionExpression");
   });
+
+  it("parses current Twig 3 operators, safe navigation, spread and assignment", () => {
+    expect(parseTwigExpression(`value === other`).kind).toBe("BinaryExpression");
+    expect(parseTwigExpression(`items has every (item => item.active)`)).toMatchObject({ operator: "has every" });
+    expect(parseTwigExpression(`user?.profile`)).toMatchObject({ kind: "MemberExpression", optional: true });
+    expect(parseTwigExpression(`[...items]`)).toMatchObject({ kind: "ArrayExpression", items: [{ kind: "SpreadExpression" }] });
+    expect(parseTwigExpression(`[first, last] = names`)).toMatchObject({ kind: "BinaryExpression", operator: "=" });
+  });
+
+  it("parses multi-parameter arrows and ignores Twig 3.15 inline comments", () => {
+    const arrow = parseTwigExpression(`items|reduce((carry, item) => carry + item.value, 0)`);
+    const parameters: string[][] = [];
+    visitTwigExpression(arrow, (node) => { if (node.kind === "ArrowFunctionExpression") parameters.push(node.parameters.map((item) => item.name)); });
+    expect(parameters).toEqual([["carry", "item"]]);
+    expect(parseTwigExpression("value # explanation\n|upper").complete).toBe(true);
+    expect(tokenizeTwig("{{ value # closing delimiter is commented }}")).toMatchObject([{ raw: "{{ value # closing delimiter is commented }}" }]);
+  });
 });

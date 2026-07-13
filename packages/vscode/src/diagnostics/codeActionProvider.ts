@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { TWIG_DOCUMENT_SELECTOR } from "../language/documentSelector";
+import { getTwigTag } from "@twig-plus/parser";
 
 export function registerTwigCodeActionProvider(
   context: vscode.ExtensionContext
@@ -47,7 +48,7 @@ export function registerTwigCodeActionProvider(
 }
 
 function closingTagFor(opening: string): string | null {
-  return ({ if: "endif", for: "endfor", block: "endblock", embed: "endembed", macro: "endmacro", with: "endwith", apply: "endapply", autoescape: "endautoescape", cache: "endcache", guard: "endguard", sandbox: "endsandbox", set: "endset", types: "endtypes", verbatim: "endverbatim" } as Record<string, string>)[opening] ?? null;
+  return getTwigTag(opening)?.closing ?? null;
 }
 
 function normalizeDelimiterSpacing(source: string): string {

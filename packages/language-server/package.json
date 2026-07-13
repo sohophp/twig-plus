@@ -7,6 +7,7 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@twig-plus/formatter": "file:../formatter",
+    "@twig-plus/language-spec": "file:../language-spec",
     "@twig-plus/parser": "file:../parser",
     "typescript": "^5.8.3",
     "vscode-languageserver": "^9.0.1",

@@ -58,19 +58,47 @@ describe("bundled TwigPlus language server", () => {
     expect((await progress).params).toMatchObject({ uri, stage: "parse", status: "started" });
   }, 15_000);
 
+  it("keeps defined completion, narrowing and closing-tag context consistent", async () => {
+    const client = startClient();
+    await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
+    client.notify("initialized", {});
+    client.notify("workspace/didChangeConfiguration", { settings: { twigPlus: { diagnostics: { unresolvedNameMode: "strict" } } } });
+    const uri = "untitled:defined-narrowing.html.twig";
+    const source = `{% if user is defined %}\n    <span>user is {{ user.name }}</span>\n{% endif %}`;
+    const published = client.waitForNotification("textDocument/publishDiagnostics");
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const diagnostics = await published;
+    expect(diagnostics.params.diagnostics.filter((item: { code?: string }) => item.code === "unresolved-name")).toEqual([]);
+    const definedOffset = source.indexOf("defined") + 2;
+    const hover = await client.request("textDocument/hover", { textDocument: { uri }, position: positionAt(source, definedOffset) });
+    expect(hover.result.contents.value).toContain("Twig test");
+
+    const completionUri = "untitled:defined-completion.html.twig";
+    const completionSource = `{% if user is def %}`;
+    client.notify("textDocument/didOpen", { textDocument: { uri: completionUri, languageId: "twig", version: 1, text: completionSource } });
+    const completion = await client.request("textDocument/completion", { textDocument: { uri: completionUri }, position: positionAt(completionSource, completionSource.indexOf("def") + 3) });
+    expect(completion.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "defined" })]));
+
+    const closingUri = "untitled:closing-completion.html.twig";
+    const closingSource = `{% if user %}\n{% end %}`;
+    client.notify("textDocument/didOpen", { textDocument: { uri: closingUri, languageId: "twig", version: 1, text: closingSource } });
+    const closing = await client.request("textDocument/completion", { textDocument: { uri: closingUri }, position: positionAt(closingSource, closingSource.indexOf("end") + 3) });
+    expect(closing.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "endif" })]));
+  });
+
   it("provides Twig hover, signature help, and safe range formatting", async () => {
     const client = startClient();
     await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
     client.notify("initialized", {});
     const uri = "untitled:intelligence.html.twig";
-    const source = `{% block body %}\n    <div>{{ path("home", {}) }}</div>\n{% endblock %}`;
+    const source = `{% block body %}\n    <div>{{ range(1, 3) }}</div>\n{% endblock %}`;
     client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
-    const pathOffset = source.indexOf("path") + 2;
-    const hover = await client.request("textDocument/hover", { textDocument: { uri }, position: positionAt(source, pathOffset) });
-    expect(hover.result.contents.value).toContain("path(route_name");
-    const signatureOffset = source.indexOf("{}") + 1;
+    const functionOffset = source.indexOf("range") + 2;
+    const hover = await client.request("textDocument/hover", { textDocument: { uri }, position: positionAt(source, functionOffset) });
+    expect(hover.result.contents.value).toContain("range(low");
+    const signatureOffset = source.indexOf(", 3") + 2;
     const signature = await client.request("textDocument/signatureHelp", { textDocument: { uri }, position: positionAt(source, signatureOffset) });
-    expect(signature.result.signatures[0].label).toContain("path(route_name");
+    expect(signature.result.signatures[0].label).toContain("range(low");
     expect(signature.result.activeParameter).toBe(1);
     const line = 1;
     const formatted = await client.request("textDocument/rangeFormatting", {
