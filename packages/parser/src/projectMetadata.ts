@@ -1,4 +1,8 @@
-export type ProjectCompletionKind = "tag" | "filter" | "function" | "test" | "global" | "route" | "translation" | "asset";
+export type ProjectCompletionKind = "tag" | "filter" | "function" | "test" | "global" | "route" | "translation" | "asset" | "form" | "security" | "fragment" | "importmap";
+
+export interface ProjectReferenceEntry extends ProjectCompletionEntry {
+  source?: { path: string; line?: number; character?: number };
+}
 
 export interface ProjectCompletionEntry {
   kind: ProjectCompletionKind;
@@ -15,8 +19,11 @@ export interface ProjectMetadataSnapshot {
   generatedAt: number;
   environment?: {
     twigVersion?: string;
+    symfonyVersion?: string;
     packages?: string[];
+    packageVersions?: Record<string, string>;
     catalogComplete?: boolean;
+    referenceCatalogsComplete?: Array<"route" | "asset" | "translation" | "form" | "security" | "fragment" | "importmap">;
   };
   completions: ProjectCompletionEntry[];
   symbols?: {
@@ -28,10 +35,13 @@ export interface ProjectMetadataSnapshot {
   };
   contexts?: Array<{ template: string; complete: boolean; variables: string[] }>;
   references?: {
-    routes?: ProjectCompletionEntry[];
-    translations?: ProjectCompletionEntry[];
-    assets?: ProjectCompletionEntry[];
-    forms?: ProjectCompletionEntry[];
+    routes?: ProjectReferenceEntry[];
+    translations?: ProjectReferenceEntry[];
+    assets?: ProjectReferenceEntry[];
+    forms?: ProjectReferenceEntry[];
+    security?: ProjectReferenceEntry[];
+    fragments?: ProjectReferenceEntry[];
+    importmaps?: ProjectReferenceEntry[];
   };
   templates: string[];
   blocks: Array<{ template: string; name: string }>;

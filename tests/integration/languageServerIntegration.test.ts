@@ -166,16 +166,27 @@ describe("bundled TwigPlus language server", () => {
     temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "twig-plus-symfony-"));
     const metadataDirectory = path.join(temporaryDirectory, ".twig-plus");
     await mkdir(metadataDirectory, { recursive: true });
+    const referenceFile = path.join(temporaryDirectory, "references.yaml");
+    await writeFile(referenceFile, "admin_users: /admin/users\nROLE_ADMIN: admin\napp: importmap\n", "utf8");
     await writeFile(path.join(metadataDirectory, "symfony-metadata.json"), JSON.stringify({
       schemaVersion: 3,
       providerId: "integration",
       generatedAt: 0,
-      environment: { packages: ["symfony/twig-bundle"] },
+      environment: {
+        symfonyVersion: "7.4.14",
+        packages: ["symfony/twig-bundle", "symfony/twig-bridge", "symfony/routing", "symfony/asset", "symfony/translation", "symfony/form", "symfony/security-core", "symfony/http-kernel", "symfony/asset-mapper"],
+        packageVersions: { "symfony/twig-bridge": "7.4.14" },
+        referenceCatalogsComplete: ["route", "asset", "translation", "form", "security", "fragment", "importmap"]
+      },
       completions: [], templates: [], blocks: [], macros: [], contexts: [],
       references: {
-        routes: [{ name: "admin_users", detail: "GET /admin/users" }, "home"],
+        routes: [{ name: "admin_users", detail: "GET /admin/users", documentation: "Lists application users.", source: { path: "references.yaml", line: 0, character: 0 } }, "home"],
         assets: ["images/logo.svg"],
-        translations: ["account.login"]
+        translations: ["account.login"],
+        forms: ["form_div_layout.html.twig"],
+        security: [{ name: "ROLE_ADMIN", source: { path: "references.yaml", line: 1, character: 0 } }],
+        fragments: ["dashboard_summary"],
+        importmaps: [{ name: "app", source: { path: "references.yaml", line: 2, character: 0 } }]
       }
     }), "utf8");
     const rootUri = pathToFileURL(temporaryDirectory).toString();
@@ -183,14 +194,25 @@ describe("bundled TwigPlus language server", () => {
     await client.request("initialize", { processId: process.pid, rootUri, capabilities: {}, workspaceFolders: [{ uri: rootUri, name: "fixture" }] });
     client.notify("initialized", {});
     const uri = pathToFileURL(path.join(temporaryDirectory, "page.html.twig")).toString();
-    const source = `{{ path('admin_') }} {{ asset('images/') }} {{ 'account.'|trans }}`;
+    const source = `{{ path('admin_') }} {{ asset('images/') }} {{ 'account.'|trans }} {{ is_granted('ROLE_') }} {{ controller('dashboard_') }} {{ importmap('ap') }} {{ access_dec }} {{ path('admin_users') }}`;
     client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
 
-    for (const [needle, label] of [["admin_", "admin_users"], ["images/", "images/logo.svg"], ["account.", "account.login"]]) {
-      const offset = source.indexOf(needle) + needle.length;
+    for (const [needle, label] of [["admin_", "admin_users"], ["images/", "images/logo.svg"], ["account.", "account.login"], ["ROLE_", "ROLE_ADMIN"], ["dashboard_", "dashboard_summary"], ["ap", "app"]]) {
+      const offset = (needle === "ap" ? source.indexOf("'ap") + 1 : source.indexOf(needle)) + needle.length;
       const completion = await client.request("textDocument/completion", { textDocument: { uri }, position: positionAt(source, offset) });
       expect(completion.result).toEqual(expect.arrayContaining([expect.objectContaining({ label })]));
     }
+    const callableCompletion = await client.request("textDocument/completion", {
+      textDocument: { uri }, position: positionAt(source, source.indexOf("access_dec") + "access_dec".length)
+    });
+    expect(callableCompletion.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "access_decision" })]));
+    expect(callableCompletion.result).not.toEqual(expect.arrayContaining([expect.objectContaining({ label: "form_flow_steps" })]));
+
+    const routeOffset = source.lastIndexOf("admin_users") + 2;
+    const hover = await client.request("textDocument/hover", { textDocument: { uri }, position: positionAt(source, routeOffset) });
+    expect(hover.result?.contents?.value).toContain("Lists application users");
+    const definition = await client.request("textDocument/definition", { textDocument: { uri }, position: positionAt(source, routeOffset) });
+    expect(definition.result).toMatchObject({ uri: pathToFileURL(referenceFile).toString(), range: { start: { line: 0, character: 0 } } });
 
     client.notify("workspace/didChangeConfiguration", { settings: { twigPlus: { symfony: { reference: "off" } } } });
     const disabledUri = pathToFileURL(path.join(temporaryDirectory, "disabled.html.twig")).toString();

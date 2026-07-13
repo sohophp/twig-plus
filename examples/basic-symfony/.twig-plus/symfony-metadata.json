@@ -4,8 +4,11 @@
   "generatedAt": 0,
   "environment": {
     "twigVersion": "3.26.1",
-    "packages": ["twig/twig", "symfony/twig-bundle"],
-    "catalogComplete": false
+    "symfonyVersion": "7.4.14",
+    "packages": ["twig/twig", "symfony/twig-bundle", "symfony/routing", "symfony/asset", "symfony/translation", "symfony/form", "symfony/security-core", "symfony/http-kernel", "symfony/asset-mapper"],
+    "packageVersions": { "twig/twig": "3.26.1", "symfony/twig-bridge": "7.4.14" },
+    "catalogComplete": false,
+    "referenceCatalogsComplete": ["route", "asset", "translation", "form", "security", "fragment", "importmap"]
   },
   "completions": [],
   "templates": [],
@@ -19,6 +22,9 @@
     ],
     "assets": ["images/logo.svg", "styles/app.css", "app.js"],
     "translations": ["navigation.home", "account.login", "account.logout"],
-    "forms": []
+    "forms": ["form_div_layout.html.twig"],
+    "security": ["ROLE_USER", "ROLE_ADMIN"],
+    "fragments": ["App\\Controller\\DashboardController::summary"],
+    "importmaps": ["app", "admin"]
   }
 }

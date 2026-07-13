@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-- Added a version-aware shared Twig 3.26 language specification, role-aware semantic diagnostics, `defined` branch narrowing, safe unresolved-name mode, and generated language assets.
+- Added pinned Twig 3.0-3.28 source oracles, version-gated language facts, recoverable Hybrid incomplete-document handling, and fatal-fallback accounting.
+- Expanded optional Symfony references to forms, security, fragments, and importmaps with package-aware completion, Hover, navigation, safe diagnostics, and bounded static indexes.
+
+- Added a version-aware shared Twig 3.28 language specification, role-aware semantic diagnostics, `defined` branch narrowing, safe unresolved-name mode, and generated language assets.
 - Added atomic, Hybrid-guarded HTML closing with `twigPlus.editing.htmlTagClosing`; unsafe contexts delegate immediately to native typing, while Enter expansion and the deprecated boolean compatibility setting remain available.
 
 - Made Hybrid the only user runtime parser path while retaining legacy solely as an instrumented fatal-error fallback.
