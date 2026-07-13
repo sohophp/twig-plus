@@ -307,7 +307,7 @@ async function testRapidTypingIsStable() {
 }
 
 async function testHoverSignatureAndRangeFormatting() {
-  const source = `{% block body %}\n    <div>{{ path("home", {}) }}</div>\n{% endblock %}`;
+  const source = `{% block body %}\n    <div>{{path("home",{})}}</div>\n{% endblock %}`;
   const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
   await vscode.window.showTextDocument(document);
   const hover = await vscode.commands.executeCommand("vscode.executeHoverProvider", document.uri, document.positionAt(source.indexOf("path") + 2));
@@ -316,7 +316,12 @@ async function testHoverSignatureAndRangeFormatting() {
   assert.ok(signatures && signatures.signatures.length > 0, "Twig function signature help should be available");
   const line = document.lineAt(1);
   const edits = await vscode.commands.executeCommand("vscode.executeFormatRangeProvider", document.uri, line.range, { tabSize: 4, insertSpaces: true });
-  assert.ok(Array.isArray(edits), "range formatter should return a deterministic edit list");
+  assert.ok(Array.isArray(edits) && edits.length > 0, "range formatter should return edits");
+  assert.strictEqual(
+    applyTextEdits(document, edits),
+    `{% block body %}\n    <div>{{ path("home", {}) }}</div>\n{% endblock %}`,
+    "VS Code should preserve the expanded-range formatting result when it minimizes the LSP edit"
+  );
 }
 
 async function testMultiCursorNativePairUndoRedo() {
