@@ -29,4 +29,6 @@ Oracle 依赖使用 `php84 /usr/local/bin/composer` 安装在 `tools/upstream-or
 
 日志和报告：`packages/vscode/.vscode-test-results/`。必须存在 `ui-1.90.2.json`、`ui-stable.json` 和 `ui-packaged.json`；packaged 报告还必须记录 VSIX 路径与 SHA-256。使用 `npm run reports:check` 校验。VSIX 位于 `artifacts/vsix/`。
 
+机器可读输入回放位于 `packages/vscode/test/input-replays.json`。每个场景必须指向真实 Extension Host 或 bundled LSP integration test；`reports:check` 会验证最低版、稳定版和 packaged VSIX 报告没有遗漏这些回放所有者。
+
 当前 Extension Host 矩阵覆盖自动/手动 completion、HTML linked editing、HTML/Twig/CSS/JavaScript 原子 Enter、原生删除与 Undo/Redo、IME、Hover、Signature Help、Range Formatting 和错误格式化。Formatter/LSP 核心冷路径目标小于 2000ms；Extension Host 首次 provider 调度容差小于 2500ms；热路径小于 500ms。报告必须保留实际值，不能用容差隐藏阶段超时。

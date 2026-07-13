@@ -65,13 +65,12 @@ const openingTags: TwigTagSpec[] = [
   block("block", "endblock", [], "block ${1:name}"),
   { ...block("cache", "endcache", [], "cache ${1:key}"), source: "twig-extra" },
   block("embed", "endembed", [], "embed '${1:template.html.twig}'"),
-  block("for", "endfor", ["else", "empty"], "for ${1:item} in ${2:items}"),
-  block("guard", "endguard", [], "guard ${1:function}"),
+  block("for", "endfor", ["else"], "for ${1:item} in ${2:items}"),
+  block("guard", "endguard", ["else"], "guard ${1:function} ${2:name}"),
   block("if", "endif", ["elseif", "else"], "if ${1:condition}"),
   block("macro", "endmacro", [], "macro ${1:name}(${2:args})"),
   block("sandbox", "endsandbox"),
   { ...block("set", "endset", [], "set ${1:name}"), form: "conditional-block" },
-  block("types", "endtypes"),
   block("verbatim", "endverbatim"),
   block("with", "endwith", [], "with ${1:context}"),
   { ...block("filter", "endfilter"), source: "twig-legacy", removed: "3.0" },
@@ -82,7 +81,8 @@ const inlineTags: TwigTagSpec[] = [
   inline("deprecated"), inline("do", "do ${1:expression}"), inline("extends", "extends '${1:base.html.twig}'"),
   inline("flush"), inline("from", "from '${1:macros.html.twig}' import ${2:macro}"),
   inline("import", "import '${1:macros.html.twig}' as ${2:macros}"),
-  inline("include", "include '${1:template.html.twig}'"), inline("use", "use '${1:blocks.html.twig}'")
+  inline("include", "include '${1:template.html.twig}'"), inline("types", "types {${1:name}: '${2:type}'}"),
+  inline("use", "use '${1:blocks.html.twig}'")
 ];
 
 const branchTags: TwigTagSpec[] = [
@@ -174,17 +174,17 @@ export const TWIG_3_SPEC: TwigLanguageSpec = {
 };
 
 
-export function getTwigTag(name: string): TwigTagSpec | undefined {
-  return TWIG_3_SPEC.tags.find((tag) => tag.name === name);
+export function getTwigTag(name: string, version = TWIG_3_SPEC.documentedVersion): TwigTagSpec | undefined {
+  return TWIG_3_SPEC.tags.find((tag) => tag.name === name && isAvailableInVersion(tag, version));
 }
-export function getTwigCallable(kind: TwigCallableKind, name: string): TwigCallableSpec | undefined {
-  return TWIG_3_SPEC.callables.find((entry) => entry.kind === kind && entry.name === name);
+export function getTwigCallable(kind: TwigCallableKind, name: string, version = TWIG_3_SPEC.documentedVersion): TwigCallableSpec | undefined {
+  return TWIG_3_SPEC.callables.find((entry) => entry.kind === kind && entry.name === name && isAvailableInVersion(entry, version));
 }
-export function getTwigOperator(name: string): TwigOperatorSpec | undefined {
-  return TWIG_3_SPEC.operators.find((entry) => entry.name === name);
+export function getTwigOperator(name: string, version = TWIG_3_SPEC.documentedVersion): TwigOperatorSpec | undefined {
+  return TWIG_3_SPEC.operators.find((entry) => (entry.name === name || entry.aliases?.includes(name)) && isAvailableInVersion(entry, version));
 }
 export function getTwigOpeningTags(): readonly TwigTagSpec[] {
-  return TWIG_3_SPEC.tags.filter((tag) => tag.form === "block" || tag.form === "conditional-block");
+  return selectTwigSpec().tags.filter((tag) => tag.form === "block" || tag.form === "conditional-block");
 }
 export function isVersionAtLeast(actual: string, required: string): boolean {
   const parse = (value: string) => value.split(".").map((part) => Number(part.replace(/\D.*$/, "")) || 0);
@@ -196,7 +196,11 @@ export function isVersionAtLeast(actual: string, required: string): boolean {
 }
 
 export function selectTwigSpec(version = TWIG_3_SPEC.documentedVersion): TwigLanguageSpec {
-  const available = <T extends VersionedTwigFact>(items: readonly T[]) => items.filter((item) =>
-    (!item.since || isVersionAtLeast(version, item.since)) && (!item.removed || !isVersionAtLeast(version, item.removed)));
+  const available = <T extends VersionedTwigFact>(items: readonly T[]) => items.filter((item) => isAvailableInVersion(item, version));
   return { ...TWIG_3_SPEC, documentedVersion: version, tags: available(TWIG_3_SPEC.tags), callables: available(TWIG_3_SPEC.callables), operators: available(TWIG_3_SPEC.operators) };
+}
+
+function isAvailableInVersion(item: VersionedTwigFact, version: string): boolean {
+  return (!item.since || isVersionAtLeast(version, item.since))
+    && (!item.removed || !isVersionAtLeast(version, item.removed));
 }

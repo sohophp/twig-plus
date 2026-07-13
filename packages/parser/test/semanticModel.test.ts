@@ -21,7 +21,7 @@ describe("DocumentModel", () => {
     const model = createDocumentModel(parseDocument(source));
     expect(model.symbols.map((symbol) => symbol.name)).toEqual(["selected", "key", "value"]);
     expect(model.references.map((reference) => [reference.name, reference.role])).toEqual([
-      ["account", "variable-read"], ["profile", "member"], ["records", "variable-read"],
+      ["account", "variable-read"], [".", "operator"], ["profile", "member"], ["records", "variable-read"],
       ["selected", "variable-read"], ["key", "variable-read"], ["value", "variable-read"]
     ]);
   });
@@ -39,7 +39,7 @@ describe("DocumentModel", () => {
     const inner = source.indexOf("user.name");
     expect(model.getVisibleSymbolsAt(inner).map((symbol) => symbol.name)).toContain("user");
     expect(model.references.map((reference) => [reference.name, reference.role])).toEqual([
-      ["currentUser", "variable-read"], ["user", "variable-read"], ["name", "member"], ["user", "variable-read"]
+      ["currentUser", "variable-read"], ["user", "variable-read"], [".", "operator"], ["name", "member"], ["user", "variable-read"]
     ]);
     expect(model.diagnostics.filter((diagnostic) => diagnostic.code === "unresolved-name")).toHaveLength(1);
   });
@@ -98,8 +98,9 @@ describe("DocumentModel", () => {
     const source = `{% if user is defined %}{{ user.name|default('guest') }}{% endif %}`;
     const model = createDocumentModel(parseDocument(source), { unresolvedNameMode: "strict" });
     expect(model.references.map((reference) => [reference.name, reference.role])).toEqual([
-      ["defined", "test"], ["name", "member"], ["default", "filter"]
+      ["user", "variable-read"], ["defined", "test"], ["user", "variable-read"], [".", "operator"], ["name", "member"], ["default", "filter"]
     ]);
+    expect(model.references.filter((reference) => reference.name === "user").map((reference) => reference.allowsUndefined)).toEqual([true, true]);
     expect(model.diagnostics.filter((diagnostic) => diagnostic.code === "unresolved-name")).toEqual([]);
   });
 
@@ -114,7 +115,7 @@ describe("DocumentModel", () => {
     const model = createDocumentModel(parseDocument(source), { unresolvedNameMode: "strict" });
     const user = model.symbols.find((symbol) => symbol.name === "user" && symbol.scopeId !== "scope:document");
     expect(user).toBeDefined();
-    expect(model.references.find((reference) => reference.name === "user")?.resolvedSymbolId).toBe(user?.id);
+    expect(model.references.find((reference) => reference.name === "user" && reference.start > source.indexOf("<span>"))?.resolvedSymbolId).toBe(user?.id);
     expect(model.diagnostics.filter((diagnostic) => diagnostic.code === "unresolved-name")).toEqual([]);
   });
 
@@ -122,5 +123,14 @@ describe("DocumentModel", () => {
     const source = `{{ application_value }}`;
     expect(createDocumentModel(parseDocument(source), { unresolvedNameMode: "safe" }).diagnostics).toEqual([]);
     expect(createDocumentModel(parseDocument(source), { unresolvedNameMode: "safe", contextComplete: true }).diagnostics).toHaveLength(1);
+  });
+
+  it("exposes operator references and variables declared by types", () => {
+    const source = `{% types {user: 'App\\Model\\User'} %}{{ user?.name ?? 'guest' }}`;
+    const model = createDocumentModel(parseDocument(source), { unresolvedNameMode: "strict" });
+    expect(model.symbols.map((symbol) => symbol.name)).toEqual(["user"]);
+    expect(model.references.filter((reference) => reference.role === "operator").map((reference) => reference.name).sort()).toEqual(["?.", "??"]);
+    expect(model.references.find((reference) => reference.name === "user")?.resolvedSymbolId).toBe(model.symbols[0].id);
+    expect(model.diagnostics).toEqual([]);
   });
 });

@@ -62,7 +62,7 @@ TwigPlus: Show Status
 
 Embedded JavaScript uses the active VS Code theme for keyword, class, method, property, string, number, operator, and delimiter colors. Syntax errors are reported in the Twig document and cause formatting to preserve the original document. Twig and embedded JavaScript Hover and Signature Help are provided by the bundled language server; richer Symfony/PHP-derived variable types depend on optional project metadata.
 
-TwigPlus can optionally merge project-provided Symfony metadata from `.twig-plus/symfony-metadata.json` when `composer.json` contains `symfony/framework-bundle` or `symfony/twig-bundle`. The snapshot uses the exported `ProjectMetadataSnapshot` shape; missing metadata never blocks generic Twig features.
+TwigPlus can optionally merge project-provided Symfony metadata v3 from `.twig-plus/symfony-metadata.json`. In `auto` mode it activates only when static metadata or `composer.lock` reports Symfony Twig Bundle/Bridge. Routes used by `path`/`url`, asset paths, and translation keys used by `trans`/`t` then receive package-aware completion. Missing or incomplete metadata never blocks generic Twig features, and TwigPlus never loads an autoloader or executes workspace PHP.
 
 Completion and formatting follow the PHPStorm-style spaced delimiter baseline, including `{{  }}`, `{%  %}`, and `{#  #}`. Raw typing uses VS Code's native pairs and may remain compact until completion or formatting. Completion includes context-aware tags, filters, functions, and tests such as `is defined`; malformed embedded code aborts formatting without partial edits.
 
@@ -89,6 +89,7 @@ Completion and formatting follow the PHPStorm-style spaced delimiter baseline, i
 | `twigPlus.diagnostics.unresolvedNameMode` | `safe` / `strict` / `off` | `safe` | Safe mode avoids reporting application variables unless authoritative template context metadata is available. |
 | `twigPlus.diagnostics.unresolvedNames` | boolean | `false` | Deprecated compatibility switch; `true` maps to strict and `false` to off. |
 | `twigPlus.twig.version` | string | detected | Overrides the Twig 3.x version otherwise read from safe metadata or `composer.lock`. |
+| `twigPlus.symfony.reference` | `auto` / `on` / `off` | `auto` | Enables static Symfony route, asset, and translation references; `auto` requires detected Symfony Twig packages. |
 | `twigPlus.diagnostics.globals` | string[] | `[]` | Names supplied by Symfony or the host application and excluded from unresolved-name diagnostics. |
 
 TwigPlus also contributes this language default:

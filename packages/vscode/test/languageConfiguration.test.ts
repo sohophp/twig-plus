@@ -66,6 +66,7 @@ describe("language configuration", () => {
     expect(properties["twigPlus.editing.autoCloseHtmlTags"].default).toBe(true);
     expect((properties["twigPlus.editing.htmlTagClosing"] as unknown as { default: string }).default).toBe("onType");
     expect((properties["twigPlus.diagnostics.unresolvedNameMode"] as unknown as { default: string }).default).toBe("safe");
+    expect((properties["twigPlus.symfony.reference"] as unknown as { default: string }).default).toBe("auto");
     expect(properties["twigPlus.editing.autoCloseTwigTags"].default).toBe(true);
     expect(properties["twigPlus.editing.autoCloseCssBraces"].default).toBe(true);
     expect(properties["twigPlus.editing.autoCloseJavaScriptBraces"].default).toBe(true);

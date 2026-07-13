@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getTwigCallable, getTwigTag, TWIG_3_SPEC } from "../src";
+import { getTwigCallable, getTwigTag, selectTwigSpec, TWIG_3_SPEC } from "../src";
 
 describe("Twig 3 language specification", () => {
   it("is pinned to the audited Twig 3.28 and Symfony 8.1 sources", () => {
@@ -19,9 +19,22 @@ describe("Twig 3 language specification", () => {
         : TWIG_3_SPEC.callables.filter((entry) => entry.kind === kind).map((entry) => entry.name);
       expect(new Set(names).size).toBe(names.length);
     }
-    for (const tag of TWIG_3_SPEC.tags.filter((entry) => entry.closing)) {
+    for (const tag of selectTwigSpec().tags.filter((entry) => entry.closing)) {
       expect(getTwigTag(tag.closing!)?.opens).toBe(tag.name);
     }
+  });
+
+  it("does not expose removed Twig 2 control tags to Twig 3 editor features", () => {
+    expect(getTwigTag("filter")).toBeUndefined();
+    expect(getTwigTag("spaceless")).toBeUndefined();
+    expect(getTwigTag("empty")).toBeUndefined();
+    expect(getTwigTag("empty", "2.99")).toMatchObject({ form: "branch", opens: "for" });
+  });
+
+  it("models Twig 3.28 types and guard structures from the upstream parser", () => {
+    expect(getTwigTag("types")).toMatchObject({ form: "inline" });
+    expect(getTwigTag("guard")).toMatchObject({ closing: "endguard", branches: ["else"] });
+    expect(getTwigTag("endtypes")).toBeUndefined();
   });
 
   it("models undefined-safe Twig constructs", () => {

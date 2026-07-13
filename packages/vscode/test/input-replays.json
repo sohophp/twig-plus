@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "scenarios": [
+    {
+      "id": "defined-if-enter",
+      "extensionHostTest": "testAtomicTwigEnterClosing",
+      "initialText": "",
+      "selections": [{ "anchor": 0, "active": 0 }],
+      "actions": [
+        { "type": "type", "text": "{% if user is def" },
+        { "type": "acceptCompletion", "label": "defined" },
+        { "type": "type", "text": " %}" },
+        { "type": "command", "command": "twigPlus.insertLineBreak" }
+      ],
+      "checkpoints": [
+        { "textIncludes": "{% if user is defined %}", "completions": ["defined"], "diagnosticCodes": [] },
+        { "textIncludes": "{% endif %}" }
+      ]
+    },
+    {
+      "id": "atomic-html-close",
+      "extensionHostTest": "testAtomicHtmlTagClosing",
+      "initialText": "",
+      "selections": [{ "anchor": 0, "active": 0 }],
+      "actions": [
+        { "type": "type", "text": "<div>" },
+        { "type": "undo" },
+        { "type": "redo" }
+      ],
+      "checkpoints": [
+        { "text": "<div></div>", "selections": [{ "anchor": 5, "active": 5 }] },
+        { "text": "<div" },
+        { "text": "<div></div>" }
+      ]
+    },
+    {
+      "id": "native-ime-multicursor",
+      "extensionHostTest": "testImeTextTypingIsUntouched",
+      "initialText": "{{  }}\n{{  }}",
+      "selections": [{ "anchor": 3, "active": 3 }, { "anchor": 10, "active": 10 }],
+      "actions": [
+        { "type": "imeCommit", "text": "用户" },
+        { "type": "undo" },
+        { "type": "redo" }
+      ],
+      "checkpoints": [{ "textIncludes": "用户" }]
+    },
+    {
+      "id": "hover-signature-range-format",
+      "extensionHostTest": "testHoverSignatureAndRangeFormatting",
+      "initialText": "{{ range(1, 3) }}",
+      "selections": [{ "anchor": 15, "active": 15 }],
+      "actions": [{ "type": "command", "command": "editor.action.formatSelection" }],
+      "checkpoints": [{ "hoverIncludes": "range(low", "signatureIncludes": "range(low" }]
+    },
+    {
+      "id": "symfony-references",
+      "integrationTest": "provides package-aware Symfony metadata v3 references without executing project code",
+      "initialText": "{{ path('admin_') }} {{ asset('images/') }} {{ 'account.'|trans }}",
+      "selections": [{ "anchor": 15, "active": 15 }],
+      "actions": [{ "type": "acceptCompletion", "label": "admin_users" }],
+      "checkpoints": [{ "completions": ["admin_users", "images/logo.svg", "account.login"] }]
+    }
+  ]
+}

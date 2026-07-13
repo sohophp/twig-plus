@@ -1,0 +1,7 @@
+{% macro badge(label, tone = 'neutral') %}
+    <span class="badge badge--{{ tone }}">{{ label }}</span>
+{% endmacro %}
+
+{% macro button(label, type = 'button', disabled = false) %}
+    <button type="{{ type }}"{% if disabled %} disabled{% endif %}>{{ label }}</button>
+{% endmacro %}

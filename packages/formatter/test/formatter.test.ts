@@ -93,6 +93,17 @@ describe("structured formatter results", () => {
     expect(await formatTwig(await formatTwig(once, getDefaultOptions()), getDefaultOptions())).toBe(once);
   });
 
+  it("formats the legal Twig, HTML, CSS, JavaScript, and Symfony showcase three times idempotently", async () => {
+    const source = readFileSync(path.resolve(process.cwd(), "../../examples/showcase/showcase.html.twig"), "utf8");
+    const result = await formatTwigWithResult(source, getDefaultOptions());
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const twice = await formatTwig(result.text, getDefaultOptions());
+    const threeTimes = await formatTwig(twice, getDefaultOptions());
+    expect(twice).toBe(result.text);
+    expect(threeTimes).toBe(result.text);
+  });
+
   it("honours cancellation before formatting starts", async () => {
     const result = await formatTwigWithResult("<div></div>", { ...getDefaultOptions(), isCancellationRequested: () => true });
     expect(result).toMatchObject({ ok: false, error: { code: "cancelled" } });

@@ -223,6 +223,14 @@
           "pattern": "^3\\.\\d+(?:\\.\\d+)?$",
           "description": "Optional Twig 3.x version override. When omitted, TwigPlus reads safe project metadata, then composer.lock, then uses the latest bundled 3.x specification without version-only diagnostics."
         },
+        "twigPlus.symfony.reference": {
+          "type": "string",
+          "scope": "resource",
+          "enum": ["auto", "on", "off"],
+          "enumDescriptions": ["Enable when Symfony Twig Bundle or Bridge is detected in static Composer/metadata files.", "Enable Symfony reference features for this resource.", "Disable Symfony reference features."],
+          "default": "auto",
+          "description": "Enable package-aware Symfony route, asset, and translation references from static metadata. TwigPlus never executes workspace PHP."
+        },
         "twigPlus.diagnostics.unresolvedNames": {
           "type": "boolean",
           "scope": "resource",
