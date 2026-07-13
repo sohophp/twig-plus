@@ -229,7 +229,7 @@
           "enum": ["auto", "on", "off"],
           "enumDescriptions": ["Enable when Symfony Twig Bundle or Bridge is detected in static Composer/metadata files.", "Enable Symfony reference features for this resource.", "Disable Symfony reference features."],
           "default": "auto",
-          "description": "Enable package-aware Symfony route, asset, translation, form, security, fragment, and importmap references. TwigPlus only reads static project files and never executes workspace PHP."
+          "description": "Enable package-aware Symfony route, asset, and translation references from static metadata. TwigPlus never executes workspace PHP."
         },
         "twigPlus.diagnostics.unresolvedNames": {
           "type": "boolean",

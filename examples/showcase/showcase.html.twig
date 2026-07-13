@@ -1,0 +1,51 @@
+{% extends 'layout.html.twig' %}
+{% import 'macros/ui.html.twig' as ui %}
+{% from 'macros/ui.html.twig' import badge as status_badge %}
+{% types {user: 'App\\Model\\User', items: 'iterable<App\\Model\\Item>', title?: 'string'} %}
+
+{% block title title|default('TwigPlus showcase') %}
+
+{% block body %}
+    {% set classes = ['showcase', user is defined ? 'signed-in' : 'guest'] %}
+    {% set attributes = {class: classes|join(' '), 'data-count': items|length} %}
+
+    <main{% for name, value in attributes %} {{ name }}="{{ value }}"{% endfor %}>
+        {% if user is defined and user.active %}
+            <h1>{{ title|default("Welcome #{user.name}") }}</h1>
+            {{ status_badge(user.status, tone: 'positive') }}
+        {% elseif user is defined %}
+            <h1>{{ user.name }}</h1>
+        {% else %}
+            <h1>{{ 'account.login'|trans }}</h1>
+        {% endif %}
+
+        {% for item in items|filter(item => item.visible) %}
+            {% include 'partials/card.html.twig' with {item, position: loop.index} only %}
+        {% else %}
+            <p>{{ 'showcase.empty'|trans }}</p>
+        {% endfor %}
+
+        <a href="{{ path('home') }}">
+            <img src="{{ asset('images/logo.svg') }}" alt="TwigPlus">
+        </a>
+        {{ ui.button('Save', type: 'submit', disabled: user?.readOnly ?? true) }}
+    </main>
+{% endblock %}
+
+{% block styles %}
+    <style>
+        .showcase {
+            display: grid;
+            gap: 1rem;
+        }
+    </style>
+{% endblock %}
+
+{% block scripts %}
+    <script type="module">
+        const userName = {{ user?.name|default(null)|json_encode|raw }};
+        document.querySelector(".showcase")?.addEventListener("click", (event) => {
+            console.debug(userName, event.target);
+        });
+    </script>
+{% endblock %}

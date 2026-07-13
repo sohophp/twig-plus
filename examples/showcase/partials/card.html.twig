@@ -1,0 +1,4 @@
+<article class="card" data-position="{{ position }}">
+    <h2>{{ item.title }}</h2>
+    <p>{{ item.summary|striptags|u.truncate(120, '…') }}</p>
+</article>

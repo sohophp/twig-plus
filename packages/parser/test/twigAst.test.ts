@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { selectTwigSpec } from "@twig-plus/language-spec";
 import { lexTwig, parseTwigExpression, parseTwigStatement, tokenizeTwig, visitTwigExpression } from "../src";
 
 describe("Twig lexer and expression AST", () => {
@@ -84,4 +85,34 @@ describe("Twig lexer and expression AST", () => {
     expect(parseTwigExpression("value # explanation\n|upper").complete).toBe(true);
     expect(tokenizeTwig("{{ value # closing delimiter is commented }}")).toMatchObject([{ raw: "{{ value # closing delimiter is commented }}" }]);
   });
+
+  it.each(selectTwigSpec().operators.map((operator) => operator.name))(
+    "builds a complete AST for the registered %s operator",
+    (operator) => {
+      const expression = parseTwigExpression(operatorFixture(operator));
+      expect(expression.complete, operator).toBe(true);
+      const nodes: Array<{ kind: string; operator?: string; optional?: boolean; negated?: boolean }> = [];
+      visitTwigExpression(expression, (node) => nodes.push(node));
+      if (operator === ".") expect(nodes).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "MemberExpression", optional: false })]));
+      else if (operator === "|") expect(nodes).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "FilterExpression" })]));
+      else if (operator === "is" || operator === "is not") expect(nodes).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "TestExpression", negated: operator === "is not" })]));
+      else if (operator === "=>") expect(nodes).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "ArrowFunctionExpression" })]));
+      else if (operator === "...") expect(nodes).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "SpreadExpression" })]));
+      else if (operator === "?") expect(nodes).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "ConditionalExpression" })]));
+      else expect(nodes).toEqual(expect.arrayContaining([expect.objectContaining({ operator })]));
+    }
+  );
 });
+
+function operatorFixture(operator: string): string {
+  if (operator === ".") return "left.right";
+  if (operator === "|") return "left|upper";
+  if (operator === "is") return "left is defined";
+  if (operator === "is not") return "left is not defined";
+  if (operator === "=>") return "item => item.name";
+  if (operator === "...") return "[...items]";
+  if (operator === "?") return "condition ? yes : no";
+  if (operator === "not") return "not condition";
+  if (operator === "=") return "[left] = right";
+  return `left ${operator} right`;
+}
