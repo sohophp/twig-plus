@@ -162,6 +162,46 @@ describe("bundled TwigPlus language server", () => {
     expect(missing.result).toBeNull();
   });
 
+  it("provides package-aware Symfony metadata v3 references without executing project code", async () => {
+    temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "twig-plus-symfony-"));
+    const metadataDirectory = path.join(temporaryDirectory, ".twig-plus");
+    await mkdir(metadataDirectory, { recursive: true });
+    await writeFile(path.join(metadataDirectory, "symfony-metadata.json"), JSON.stringify({
+      schemaVersion: 3,
+      providerId: "integration",
+      generatedAt: 0,
+      environment: { packages: ["symfony/twig-bundle"] },
+      completions: [], templates: [], blocks: [], macros: [], contexts: [],
+      references: {
+        routes: [{ name: "admin_users", detail: "GET /admin/users" }, "home"],
+        assets: ["images/logo.svg"],
+        translations: ["account.login"]
+      }
+    }), "utf8");
+    const rootUri = pathToFileURL(temporaryDirectory).toString();
+    const client = startClient();
+    await client.request("initialize", { processId: process.pid, rootUri, capabilities: {}, workspaceFolders: [{ uri: rootUri, name: "fixture" }] });
+    client.notify("initialized", {});
+    const uri = pathToFileURL(path.join(temporaryDirectory, "page.html.twig")).toString();
+    const source = `{{ path('admin_') }} {{ asset('images/') }} {{ 'account.'|trans }}`;
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+
+    for (const [needle, label] of [["admin_", "admin_users"], ["images/", "images/logo.svg"], ["account.", "account.login"]]) {
+      const offset = source.indexOf(needle) + needle.length;
+      const completion = await client.request("textDocument/completion", { textDocument: { uri }, position: positionAt(source, offset) });
+      expect(completion.result).toEqual(expect.arrayContaining([expect.objectContaining({ label })]));
+    }
+
+    client.notify("workspace/didChangeConfiguration", { settings: { twigPlus: { symfony: { reference: "off" } } } });
+    const disabledUri = pathToFileURL(path.join(temporaryDirectory, "disabled.html.twig")).toString();
+    const disabledSource = `{{ path('admin_') }}`;
+    client.notify("textDocument/didOpen", { textDocument: { uri: disabledUri, languageId: "twig", version: 1, text: disabledSource } });
+    const disabled = await client.request("textDocument/completion", {
+      textDocument: { uri: disabledUri }, position: positionAt(disabledSource, disabledSource.indexOf("admin_") + 6)
+    });
+    expect(disabled.result).not.toEqual(expect.arrayContaining([expect.objectContaining({ label: "admin_users" })]));
+  });
+
   it("degrades safely with a visible diagnostic for oversized documents", async () => {
     const client = startClient();
     await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });

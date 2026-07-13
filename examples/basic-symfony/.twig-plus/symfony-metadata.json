@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "providerId": "example-fixture",
   "generatedAt": 0,
   "environment": {
@@ -11,5 +11,14 @@
   "templates": [],
   "blocks": [],
   "macros": [],
-  "contexts": []
+  "contexts": [],
+  "references": {
+    "routes": [
+      { "name": "home", "detail": "Symfony route GET /" },
+      { "name": "admin_users", "detail": "Symfony route GET /admin/users" }
+    ],
+    "assets": ["images/logo.svg", "styles/app.css", "app.js"],
+    "translations": ["navigation.home", "account.login", "account.logout"],
+    "forms": []
+  }
 }
