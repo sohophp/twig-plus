@@ -7,3 +7,5 @@ packages/*/.vscode-test
 packages/*/.vscode-test-results
 tools/upstream-oracle/vendor
 tools/upstream-oracle/core/vendor
+tools/upstream-oracle/versions/*/vendor
+tools/upstream-oracle/symfony/*/vendor

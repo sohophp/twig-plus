@@ -1,0 +1,33 @@
+{
+  "languageOnly": {
+    "tag": {
+      "sandbox": "Built-in optional SandboxExtension tag; not registered in the default oracle Environment.",
+      "verbatim": "Lexer-level core tag; it has no token parser registration in the default Environment."
+    },
+    "function": {
+      "attribute": "Core expression helper available before it was represented by a normal callable registration.",
+      "block": "Core expression helper available before it was represented by a normal callable registration.",
+      "dump": "Official DebugExtension function; not registered in the default production Environment.",
+      "parent": "Core expression helper available before it was represented by a normal callable registration."
+    },
+    "test": {
+      "true": "Documented literal alias whose historical registration differs from its language availability."
+    },
+    "operator": {
+      "?": "Conditional-expression syntax rather than a standalone registered expression parser.",
+      "?:": "Elvis conditional-expression syntax rather than a standalone registered expression parser.",
+      "xor": "Historical runtime registries omit this documented logical operator.",
+      "=>": "Arrow/mapping syntax token rather than a standalone registered expression parser.",
+      "...": "Spread syntax predates its exposure through the expression-parser registry.",
+      ".": "Member-access syntax token rather than a standalone registered expression parser.",
+      "|": "Filter syntax token rather than a standalone registered expression parser."
+    }
+  },
+  "oracleOnly": {
+    "operator": {
+      "(": "Internal grouping parser, not a user-facing completion operator.",
+      "[": "Internal subscript parser, not a user-facing completion operator.",
+      "literal": "Internal literal parser, not a user-facing completion operator."
+    }
+  }
+}

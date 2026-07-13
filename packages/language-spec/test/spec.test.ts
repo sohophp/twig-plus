@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getTwigCallable, getTwigTag, selectTwigSpec, TWIG_3_SPEC } from "../src";
+import { getSymfonyTwigCallables, getTwigCallable, getTwigTag, selectTwigSpec, TWIG_3_SPEC } from "../src";
 
 describe("Twig 3 language specification", () => {
   it("is pinned to the audited Twig 3.28 and Symfony 8.1 sources", () => {
@@ -40,5 +40,13 @@ describe("Twig 3 language specification", () => {
   it("models undefined-safe Twig constructs", () => {
     expect(getTwigCallable("test", "defined")?.allowsUndefinedInput).toBe(true);
     expect(getTwigCallable("filter", "default")?.allowsUndefinedInput).toBe(true);
+  });
+
+  it("selects package-aware Symfony callables from the installed Bridge minor", () => {
+    const names = (version: string) => getSymfonyTwigCallables(version).map((entry) => entry.name);
+    expect(names("6.4.42")).not.toContain("access_decision");
+    expect(names("7.4.14")).toContain("access_decision");
+    expect(names("7.4.14")).not.toContain("form_flow_steps");
+    expect(names("8.1.1")).toContain("form_flow_steps");
   });
 });

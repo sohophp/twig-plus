@@ -1,0 +1,809 @@
+{
+    "schemaVersion": 1,
+    "twig": {
+        "version": "3.0.0",
+        "tag": "v3.0.0",
+        "commit": "9b58bb8ac7a41d72fbb5a7dc643e07923e5ccc26"
+    },
+    "tags": [
+        {
+            "name": "apply",
+            "class": "Twig\\TokenParser\\ApplyTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "autoescape",
+            "class": "Twig\\TokenParser\\AutoEscapeTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "block",
+            "class": "Twig\\TokenParser\\BlockTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "deprecated",
+            "class": "Twig\\TokenParser\\DeprecatedTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "do",
+            "class": "Twig\\TokenParser\\DoTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "embed",
+            "class": "Twig\\TokenParser\\EmbedTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "extends",
+            "class": "Twig\\TokenParser\\ExtendsTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "flush",
+            "class": "Twig\\TokenParser\\FlushTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "for",
+            "class": "Twig\\TokenParser\\ForTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "from",
+            "class": "Twig\\TokenParser\\FromTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "if",
+            "class": "Twig\\TokenParser\\IfTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "import",
+            "class": "Twig\\TokenParser\\ImportTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "include",
+            "class": "Twig\\TokenParser\\IncludeTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "macro",
+            "class": "Twig\\TokenParser\\MacroTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "set",
+            "class": "Twig\\TokenParser\\SetTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "use",
+            "class": "Twig\\TokenParser\\UseTokenParser",
+            "alwaysAllowedInSandbox": null
+        },
+        {
+            "name": "with",
+            "class": "Twig\\TokenParser\\WithTokenParser",
+            "alwaysAllowedInSandbox": null
+        }
+    ],
+    "callables": {
+        "filter": [
+            {
+                "name": "abs",
+                "class": "Twig\\TwigFilter",
+                "signature": "($number)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "batch",
+                "class": "Twig\\TwigFilter",
+                "signature": "($items, $size, $fill = NULL, $preserveKeys = true)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "capitalize",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $string)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "column",
+                "class": "Twig\\TwigFilter",
+                "signature": "($array, $name, $index = NULL)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "convert_encoding",
+                "class": "Twig\\TwigFilter",
+                "signature": "($string, $to, $from)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "date",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $date, $format = NULL, $timezone = NULL)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "date_modify",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $date, $modifier)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "default",
+                "class": "Twig\\TwigFilter",
+                "signature": "($value, $default = '')",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "e",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $string, $strategy = 'html', $charset = NULL, $autoescape = false)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "escape",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $string, $strategy = 'html', $charset = NULL, $autoescape = false)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "filter",
+                "class": "Twig\\TwigFilter",
+                "signature": "($array, $arrow)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "first",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $item)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "format",
+                "class": "Twig\\TwigFilter",
+                "signature": "($format, ...$args)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "join",
+                "class": "Twig\\TwigFilter",
+                "signature": "($value, $glue = '', $and = NULL)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "json_encode",
+                "class": "Twig\\TwigFilter",
+                "signature": "($value, $options, $depth)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "keys",
+                "class": "Twig\\TwigFilter",
+                "signature": "($array)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "last",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $item)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "length",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $thing)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "lower",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $string)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "map",
+                "class": "Twig\\TwigFilter",
+                "signature": "($array, $arrow)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "merge",
+                "class": "Twig\\TwigFilter",
+                "signature": "($arr1, $arr2)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "nl2br",
+                "class": "Twig\\TwigFilter",
+                "signature": "($str, $is_xhtml)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "number_format",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $number, $decimal = NULL, $decimalPoint = NULL, $thousandSep = NULL)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "raw",
+                "class": "Twig\\TwigFilter",
+                "signature": "($string)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "reduce",
+                "class": "Twig\\TwigFilter",
+                "signature": "($array, $arrow, $initial = NULL)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "replace",
+                "class": "Twig\\TwigFilter",
+                "signature": "($str, $from)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "reverse",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $item, $preserveKeys = false)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "round",
+                "class": "Twig\\TwigFilter",
+                "signature": "($value, $precision = 0, $method = 'common')",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "slice",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $item, $start, $length = NULL, $preserveKeys = false)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "sort",
+                "class": "Twig\\TwigFilter",
+                "signature": "($array, $arrow = NULL)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "spaceless",
+                "class": "Twig\\TwigFilter",
+                "signature": "($content)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "split",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $value, $delimiter, $limit = NULL)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "striptags",
+                "class": "Twig\\TwigFilter",
+                "signature": "($str, $allowable_tags)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "title",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $string)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "trim",
+                "class": "Twig\\TwigFilter",
+                "signature": "($string, $characterMask = NULL, $side = 'both')",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "upper",
+                "class": "Twig\\TwigFilter",
+                "signature": "($env, $string)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "url_encode",
+                "class": "Twig\\TwigFilter",
+                "signature": "($url)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            }
+        ],
+        "function": [
+            {
+                "name": "constant",
+                "class": "Twig\\TwigFunction",
+                "signature": "($constant, $object = NULL)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "cycle",
+                "class": "Twig\\TwigFunction",
+                "signature": "($values, $position)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "date",
+                "class": "Twig\\TwigFunction",
+                "signature": "($env, $date = NULL, $timezone = NULL)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "include",
+                "class": "Twig\\TwigFunction",
+                "signature": "($env, $context, $template, $variables = array (\n), $withContext = true, $ignoreMissing = false, $sandboxed = false)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "max",
+                "class": "Twig\\TwigFunction",
+                "signature": "(...$args)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "min",
+                "class": "Twig\\TwigFunction",
+                "signature": "(...$args)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "random",
+                "class": "Twig\\TwigFunction",
+                "signature": "($env, $values = NULL, $max = NULL)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "range",
+                "class": "Twig\\TwigFunction",
+                "signature": "($low, $high, $step)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "source",
+                "class": "Twig\\TwigFunction",
+                "signature": "($env, $name, $ignoreMissing = false)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            }
+        ],
+        "test": [
+            {
+                "name": "constant",
+                "class": "Twig\\TwigTest",
+                "signature": null,
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "defined",
+                "class": "Twig\\TwigTest",
+                "signature": null,
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "divisible by",
+                "class": "Twig\\TwigTest",
+                "signature": null,
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "empty",
+                "class": "Twig\\TwigTest",
+                "signature": "($value)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "even",
+                "class": "Twig\\TwigTest",
+                "signature": null,
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "iterable",
+                "class": "Twig\\TwigTest",
+                "signature": "($value)",
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "none",
+                "class": "Twig\\TwigTest",
+                "signature": null,
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "null",
+                "class": "Twig\\TwigTest",
+                "signature": null,
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "odd",
+                "class": "Twig\\TwigTest",
+                "signature": null,
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            },
+            {
+                "name": "same as",
+                "class": "Twig\\TwigTest",
+                "signature": null,
+                "deprecated": false,
+                "aliases": [],
+                "alwaysAllowedInSandbox": null
+            }
+        ]
+    },
+    "operators": [
+        {
+            "name": "!=",
+            "class": "Twig\\Node\\Expression\\Binary\\NotEqualBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "%",
+            "class": "Twig\\Node\\Expression\\Binary\\ModBinary",
+            "precedence": 60,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "*",
+            "class": "Twig\\Node\\Expression\\Binary\\MulBinary",
+            "precedence": 60,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "**",
+            "class": "Twig\\Node\\Expression\\Binary\\PowerBinary",
+            "precedence": 200,
+            "associativity": "right",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "+",
+            "class": "Twig\\Node\\Expression\\Unary\\PosUnary",
+            "precedence": 500,
+            "associativity": "left",
+            "fixity": "prefix",
+            "aliases": []
+        },
+        {
+            "name": "+",
+            "class": "Twig\\Node\\Expression\\Binary\\AddBinary",
+            "precedence": 30,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "-",
+            "class": "Twig\\Node\\Expression\\Binary\\SubBinary",
+            "precedence": 30,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "-",
+            "class": "Twig\\Node\\Expression\\Unary\\NegUnary",
+            "precedence": 500,
+            "associativity": "left",
+            "fixity": "prefix",
+            "aliases": []
+        },
+        {
+            "name": "..",
+            "class": "Twig\\Node\\Expression\\Binary\\RangeBinary",
+            "precedence": 25,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "/",
+            "class": "Twig\\Node\\Expression\\Binary\\DivBinary",
+            "precedence": 60,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "//",
+            "class": "Twig\\Node\\Expression\\Binary\\FloorDivBinary",
+            "precedence": 60,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "<",
+            "class": "Twig\\Node\\Expression\\Binary\\LessBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "<=",
+            "class": "Twig\\Node\\Expression\\Binary\\LessEqualBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "<=>",
+            "class": "Twig\\Node\\Expression\\Binary\\SpaceshipBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "==",
+            "class": "Twig\\Node\\Expression\\Binary\\EqualBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": ">",
+            "class": "Twig\\Node\\Expression\\Binary\\GreaterBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": ">=",
+            "class": "Twig\\Node\\Expression\\Binary\\GreaterEqualBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "??",
+            "class": "Twig\\Node\\Expression\\NullCoalesceExpression",
+            "precedence": 300,
+            "associativity": "right",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "and",
+            "class": "Twig\\Node\\Expression\\Binary\\AndBinary",
+            "precedence": 15,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "b-and",
+            "class": "Twig\\Node\\Expression\\Binary\\BitwiseAndBinary",
+            "precedence": 18,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "b-or",
+            "class": "Twig\\Node\\Expression\\Binary\\BitwiseOrBinary",
+            "precedence": 16,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "b-xor",
+            "class": "Twig\\Node\\Expression\\Binary\\BitwiseXorBinary",
+            "precedence": 17,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "ends with",
+            "class": "Twig\\Node\\Expression\\Binary\\EndsWithBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "in",
+            "class": "Twig\\Node\\Expression\\Binary\\InBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "is",
+            "class": null,
+            "precedence": 100,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "is not",
+            "class": null,
+            "precedence": 100,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "matches",
+            "class": "Twig\\Node\\Expression\\Binary\\MatchesBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "not",
+            "class": "Twig\\Node\\Expression\\Unary\\NotUnary",
+            "precedence": 50,
+            "associativity": "left",
+            "fixity": "prefix",
+            "aliases": []
+        },
+        {
+            "name": "not in",
+            "class": "Twig\\Node\\Expression\\Binary\\NotInBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "or",
+            "class": "Twig\\Node\\Expression\\Binary\\OrBinary",
+            "precedence": 10,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "starts with",
+            "class": "Twig\\Node\\Expression\\Binary\\StartsWithBinary",
+            "precedence": 20,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "~",
+            "class": "Twig\\Node\\Expression\\Binary\\ConcatBinary",
+            "precedence": 40,
+            "associativity": "left",
+            "fixity": "infix",
+            "aliases": []
+        }
+    ]
+}

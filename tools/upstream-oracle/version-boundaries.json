@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    { "id": "has-some", "minVersion": "3.5.0", "source": "{{ values has some required }}" },
+    { "id": "spread", "minVersion": "3.7.0", "source": "{{ [first, ...rest] }}" },
+    { "id": "find-filter", "minVersion": "3.11.0", "source": "{{ values|find(value => value.active) }}" },
+    { "id": "mapping-test", "minVersion": "3.11.0", "source": "{{ value is mapping }}" },
+    { "id": "types-tag", "minVersion": "3.13.0", "source": "{% types {user: 'App\\Model\\User'} %}" },
+    { "id": "guard-tag", "minVersion": "3.15.0", "source": "{% guard function range %}{{ range(1, 2) }}{% else %}fallback{% endguard %}" },
+    { "id": "inline-comment", "minVersion": "3.15.0", "source": "{{ value # note\n}}" },
+    { "id": "invoke-filter", "minVersion": "3.19.0", "source": "{{ callback|invoke('value') }}" },
+    { "id": "assignment", "minVersion": "3.23.0", "source": "{{ (answer = 42) }}" },
+    { "id": "destructuring", "minVersion": "3.23.0", "source": "{{ [first, second] = values }}" },
+    { "id": "null-safe", "minVersion": "3.23.0", "source": "{{ user?.profile?.name }}" },
+    { "id": "strict-comparison", "minVersion": "3.23.0", "source": "{{ left === right }}" }
+  ]
+}

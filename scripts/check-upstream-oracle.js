@@ -18,7 +18,7 @@ compare("tags", oracle.tags.map((tag) => tag.name), primaryTags, { specOnlyAllow
 
 for (const kind of ["filter", "function", "test"]) {
   const upstream = oracle.callables[kind].map((entry) => entry.name).filter((name) => name !== "format_*_number");
-  const spec = TWIG_3_SPEC.callables.filter((entry) => entry.kind === kind).map((entry) => entry.name);
+  const spec = TWIG_3_SPEC.callables.filter((entry) => entry.kind === kind && entry.source !== "symfony-bridge").map((entry) => entry.name);
   compare(`${kind}s`, upstream, spec);
 }
 
@@ -27,7 +27,7 @@ compare("documented tags", docs.twig.tags, activeSpec.tags
   .filter((entry) => entry.documented !== false).map((entry) => entry.name));
 for (const [plural, kind] of [["filters", "filter"], ["functions", "function"], ["tests", "test"]]) {
   compare(`documented ${plural}`, docs.twig[plural], activeSpec.callables
-    .filter((entry) => entry.kind === kind && entry.documented !== false).map((entry) => entry.name));
+    .filter((entry) => entry.kind === kind && entry.source !== "symfony-bridge" && entry.documented !== false).map((entry) => entry.name));
 }
 const documentedOperators = new Set(activeSpec.operators.flatMap((entry) => [entry.name, ...(entry.aliases ?? [])]));
 const missingDocumentedOperators = docs.twig.operators.filter((name) => !documentedOperators.has(name));

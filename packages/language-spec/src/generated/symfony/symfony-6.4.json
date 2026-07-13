@@ -1,0 +1,851 @@
+{
+    "schemaVersion": 1,
+    "symfony": {
+        "version": "6.4.42",
+        "commit": "bc8a4cad8d95722666ce4a572cdbc96f7a50bdbb"
+    },
+    "packages": {
+        "composer/semver": {
+            "version": "3.4.4",
+            "commit": "198166618906cb2de69b95d7d47e5fa8aa1b2b95"
+        },
+        "psr/container": {
+            "version": "2.0.2",
+            "commit": "c71ecc56dfe541dbd90c5360474fbc405f8d5963"
+        },
+        "psr/event-dispatcher": {
+            "version": "1.0.0",
+            "commit": "dbefd12671e8a14ec7f180cab83036ed26714bb0"
+        },
+        "psr/log": {
+            "version": "3.0.2",
+            "commit": "f16e1d5863e37f8d8c2a01719f5b34baa2b714d3"
+        },
+        "symfony/asset": {
+            "version": "6.4.34",
+            "commit": "1bd59aa278691b6310ca56b996cf6e2619a6a347"
+        },
+        "symfony/asset-mapper": {
+            "version": "6.4.42",
+            "commit": "f91223c4e9df9d6a55948a7ac729c8df17f67a42"
+        },
+        "symfony/deprecation-contracts": {
+            "version": "3.7.1",
+            "commit": "f3202fa1b5097b0af062dc978b32ecf63404e31d"
+        },
+        "symfony/error-handler": {
+            "version": "6.4.36",
+            "commit": "2ea68f0e1835ad6a126f93bbc14cd236c10ab361"
+        },
+        "symfony/event-dispatcher": {
+            "version": "6.4.37",
+            "commit": "2e3bf817ba9347341ab15926700fb6320367c0e1"
+        },
+        "symfony/event-dispatcher-contracts": {
+            "version": "3.7.1",
+            "commit": "c7de7a00ffb67842132da02ea92988a39ccd9f4e"
+        },
+        "symfony/filesystem": {
+            "version": "6.4.39",
+            "commit": "c507b077756b4e3e09adbbe7975fac81cd3722ca"
+        },
+        "symfony/form": {
+            "version": "6.4.42",
+            "commit": "80fe97d3be20e180d23c1e54babb2ec4e6adea4f"
+        },
+        "symfony/http-client": {
+            "version": "6.4.42",
+            "commit": "b71b312ca0f211fbb19a20a51bde50fbefb66a99"
+        },
+        "symfony/http-client-contracts": {
+            "version": "3.7.1",
+            "commit": "41fc42d276aeff21192465331ebbab7d83a743c0"
+        },
+        "symfony/http-foundation": {
+            "version": "6.4.42",
+            "commit": "23dcf8e0f59cbbfa9d2894f58fd8be6833794372"
+        },
+        "symfony/http-kernel": {
+            "version": "6.4.42",
+            "commit": "51fd5bb7d4f221ceeac927e14ade63962e27a47c"
+        },
+        "symfony/options-resolver": {
+            "version": "6.4.30",
+            "commit": "eeaa8cabe54c7b3516938c72a4a161c0cc80a34f"
+        },
+        "symfony/password-hasher": {
+            "version": "6.4.32",
+            "commit": "fbdfa5a2ca218ec8bb9029517426df2d780bdba9"
+        },
+        "symfony/polyfill-ctype": {
+            "version": "1.37.0",
+            "commit": "141046a8f9477948ff284fa65be2095baafb94f2"
+        },
+        "symfony/polyfill-intl-grapheme": {
+            "version": "1.38.1",
+            "commit": "e9247d281d694a5120554d9afaf54e070e88a603"
+        },
+        "symfony/polyfill-intl-icu": {
+            "version": "1.38.0",
+            "commit": "445c90e341fccda10311019cf82ff73bb7343945"
+        },
+        "symfony/polyfill-intl-normalizer": {
+            "version": "1.38.0",
+            "commit": "2d446c214bdbe5b71bde5011b060a05fece3ae6b"
+        },
+        "symfony/polyfill-mbstring": {
+            "version": "1.38.2",
+            "commit": "d3d318bad5e7a1bfbd026009c8bfb8d8f99ae6b6"
+        },
+        "symfony/polyfill-php83": {
+            "version": "1.38.2",
+            "commit": "796a26abb75ce49f3a84433cd81bf1009d73d5f8"
+        },
+        "symfony/property-access": {
+            "version": "6.4.32",
+            "commit": "6dfa655ac9e9860c05cabb287f34da86b18c237e"
+        },
+        "symfony/property-info": {
+            "version": "6.4.34",
+            "commit": "916455e4c9dcddbebfd101f29d7983841c3564e0"
+        },
+        "symfony/routing": {
+            "version": "6.4.41",
+            "commit": "af04c79671fd8df0805a44c83fa2b0ba56c8329e"
+        },
+        "symfony/security-core": {
+            "version": "6.4.42",
+            "commit": "7ce2c661de04368e8c000ed7b6e96e613ed1ad55"
+        },
+        "symfony/service-contracts": {
+            "version": "3.7.1",
+            "commit": "c0a284bab1ed8aa0417e3d69250ab437739563a0"
+        },
+        "symfony/string": {
+            "version": "6.4.39",
+            "commit": "62e3c927de664edadb5bef260987eb047a17a113"
+        },
+        "symfony/translation": {
+            "version": "6.4.42",
+            "commit": "fef99cef37890b350976f5f492854faefadd4e15"
+        },
+        "symfony/translation-contracts": {
+            "version": "3.7.1",
+            "commit": "ccb206b98faccc511ebae8e5fad50f2dc0b30621"
+        },
+        "symfony/twig-bridge": {
+            "version": "6.4.42",
+            "commit": "bc8a4cad8d95722666ce4a572cdbc96f7a50bdbb"
+        },
+        "symfony/var-dumper": {
+            "version": "6.4.42",
+            "commit": "29adc5e34255f42ca9b8ae61c22b4d9e3f611317"
+        },
+        "twig/twig": {
+            "version": "3.28.0",
+            "commit": "597c12ed286fb9d1701a36684ce6e0cbe28ebc8b"
+        }
+    },
+    "extensions": [
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\AssetExtension",
+            "package": "symfony/asset"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\CodeExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\CsrfExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\DumpExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\ExpressionExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\HtmlSanitizerExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\HttpFoundationExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\HttpKernelExtension",
+            "package": "symfony/http-kernel"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\ImportMapExtension",
+            "package": "symfony/asset-mapper"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\LogoutUrlExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\ProfilerExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\RoutingExtension",
+            "package": "symfony/routing"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\SecurityExtension",
+            "package": "symfony/security-core"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\SerializerExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\StopwatchExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\TranslationExtension",
+            "package": "symfony/translation"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\WebLinkExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\WorkflowExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "class": "Symfony\\Bridge\\Twig\\Extension\\YamlExtension",
+            "package": "symfony/twig-bridge"
+        }
+    ],
+    "callables": [
+        {
+            "kind": "filter",
+            "name": "abbr_class",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\CodeExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($class)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "abbr_method",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\CodeExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($method)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "file_excerpt",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\CodeExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($file, $line, $srcContext = 3)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "file_link",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\CodeExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($file, $line)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "file_relative",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\CodeExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($file)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "form_encode_currency",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($environment, $text, $widget = '')",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "format_args",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\CodeExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($args)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "format_args_as_text",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\CodeExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($args)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "format_file",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\CodeExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($file, $line, $text = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "format_file_from_text",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\CodeExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($text)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "format_log_message",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\CodeExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($message, $context)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "humanize",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($text)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "sanitize_html",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\HtmlSanitizerExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($html, $sanitizer = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "serialize",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\SerializerExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($data, $format = 'json', $context = array (\n))",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "trans",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\TranslationExtension",
+            "package": "symfony/translation",
+            "signature": "($message, $arguments = array (\n), $domain = NULL, $locale = NULL, $count = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "yaml_dump",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\YamlExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($value, $inline = 0, $dumpObjects = 0)",
+            "deprecated": false
+        },
+        {
+            "kind": "filter",
+            "name": "yaml_encode",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\YamlExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($input, $inline = 0, $dumpObjects = 0)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "absolute_url",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\HttpFoundationExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($path)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "asset",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\AssetExtension",
+            "package": "symfony/asset",
+            "signature": "($path, $packageName = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "asset_version",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\AssetExtension",
+            "package": "symfony/asset",
+            "signature": "($path, $packageName = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "controller",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\HttpKernelExtension",
+            "package": "symfony/http-kernel",
+            "signature": "($controller, $attributes = array (\n), $query = array (\n))",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "csrf_token",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\CsrfExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($tokenId)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "csrf_token",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($tokenId)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "dns_prefetch",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WebLinkExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($uri, $attributes = array (\n))",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "dump",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\DumpExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($env, $context)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "expression",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\ExpressionExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($expression)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "field_choices",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($view)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "field_errors",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($view)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "field_help",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($view)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "field_label",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($view)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "field_name",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($view)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "field_value",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($view)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "form",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": null,
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "form_end",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": null,
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "form_errors",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": null,
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "form_help",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": null,
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "form_label",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": null,
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "form_parent",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($formView)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "form_rest",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": null,
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "form_row",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": null,
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "form_start",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": null,
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "form_widget",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": null,
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "fragment_uri",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\HttpKernelExtension",
+            "package": "symfony/http-kernel",
+            "signature": "($controller, $absolute = false, $strict = true, $sign = true)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "impersonation_exit_path",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\SecurityExtension",
+            "package": "symfony/security-core",
+            "signature": "($exitTo = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "impersonation_exit_url",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\SecurityExtension",
+            "package": "symfony/security-core",
+            "signature": "($exitTo = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "impersonation_path",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\SecurityExtension",
+            "package": "symfony/security-core",
+            "signature": "($identifier)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "impersonation_url",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\SecurityExtension",
+            "package": "symfony/security-core",
+            "signature": "($identifier)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "importmap",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\ImportMapExtension",
+            "package": "symfony/asset-mapper",
+            "signature": "($entryPoint = 'app', $attributes = array (\n))",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "is_granted",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\SecurityExtension",
+            "package": "symfony/security-core",
+            "signature": "($role, $object = NULL, $field = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "link",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WebLinkExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($uri, $rel, $attributes = array (\n))",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "logout_path",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\LogoutUrlExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($key = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "logout_url",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\LogoutUrlExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($key = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "path",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\RoutingExtension",
+            "package": "symfony/routing",
+            "signature": "($name, $parameters = array (\n), $relative = false)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "preconnect",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WebLinkExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($uri, $attributes = array (\n))",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "prefetch",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WebLinkExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($uri, $attributes = array (\n))",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "preload",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WebLinkExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($uri, $attributes = array (\n))",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "prerender",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WebLinkExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($uri, $attributes = array (\n))",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "relative_path",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\HttpFoundationExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($path)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "render",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\HttpKernelExtension",
+            "package": "symfony/http-kernel",
+            "signature": "($uri, $options = array (\n))",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "render_*",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\HttpKernelExtension",
+            "package": "symfony/http-kernel",
+            "signature": "($strategy, $uri, $options = array (\n))",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "t",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\TranslationExtension",
+            "package": "symfony/translation",
+            "signature": "($message, $parameters = array (\n), $domain = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "url",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\RoutingExtension",
+            "package": "symfony/routing",
+            "signature": "($name, $parameters = array (\n), $schemeRelative = false)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "workflow_can",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WorkflowExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($subject, $transitionName, $name = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "workflow_has_marked_place",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WorkflowExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($subject, $placeName, $name = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "workflow_marked_places",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WorkflowExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($subject, $placesNameOnly = true, $name = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "workflow_metadata",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WorkflowExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($subject, $key, $metadataSubject = NULL, $name = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "workflow_transition",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WorkflowExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($subject, $transition, $name = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "workflow_transition_blockers",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WorkflowExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($subject, $transitionName, $name = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "function",
+            "name": "workflow_transitions",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\WorkflowExtension",
+            "package": "symfony/twig-bridge",
+            "signature": "($subject, $name = NULL)",
+            "deprecated": false
+        },
+        {
+            "kind": "test",
+            "name": "rootform",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($formView)",
+            "deprecated": false
+        },
+        {
+            "kind": "test",
+            "name": "selectedchoice",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form",
+            "signature": "($choice, $selectedValue)",
+            "deprecated": false
+        }
+    ],
+    "tags": [
+        {
+            "name": "dump",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\DumpExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "name": "form_theme",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\FormExtension",
+            "package": "symfony/form"
+        },
+        {
+            "name": "stopwatch",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\StopwatchExtension",
+            "package": "symfony/twig-bridge"
+        },
+        {
+            "name": "trans",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\TranslationExtension",
+            "package": "symfony/translation"
+        },
+        {
+            "name": "trans_default_domain",
+            "extension": "Symfony\\Bridge\\Twig\\Extension\\TranslationExtension",
+            "package": "symfony/translation"
+        }
+    ],
+    "references": {
+        "route": [
+            "symfony/routing"
+        ],
+        "asset": [
+            "symfony/asset"
+        ],
+        "translation": [
+            "symfony/translation"
+        ],
+        "form": [
+            "symfony/form"
+        ],
+        "security": [
+            "symfony/security-core"
+        ],
+        "fragment": [
+            "symfony/http-kernel"
+        ],
+        "importmap": [
+            "symfony/asset-mapper"
+        ]
+    }
+}
