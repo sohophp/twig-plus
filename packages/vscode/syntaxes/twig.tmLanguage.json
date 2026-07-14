@@ -9,9 +9,6 @@
       "include": "#twig-output"
     },
     {
-      "include": "#embedded-javascript-block"
-    },
-    {
       "include": "#twig-tag"
     },
     {
@@ -22,35 +19,6 @@
     }
   ],
   "repository": {
-    "embedded-javascript-block": {
-      "begin": "(?i)(\\{%[-~]?\\s*block\\s+(?:(?:scripts?|javascripts?)(?:[_-]?[A-Za-z0-9]+)*|[A-Za-z][A-Za-z0-9]*_(?:scripts?|javascripts?))\\s*[-~]?%\\})",
-      "beginCaptures": {
-        "1": {
-          "name": "meta.tag.twig"
-        }
-      },
-      "end": "(?i)(\\{%[-~]?\\s*endblock\\s*[-~]?%\\})",
-      "endCaptures": {
-        "1": {
-          "name": "meta.tag.twig"
-        }
-      },
-      "contentName": "meta.embedded.block.javascript",
-      "patterns": [
-        {
-          "include": "#twig-comment"
-        },
-        {
-          "include": "#twig-output"
-        },
-        {
-          "include": "#twig-tag"
-        },
-        {
-          "include": "source.js"
-        }
-      ]
-    },
     "embedded-javascript": {
       "begin": "(?i)(<script\\b(?:(?!</?script\\b)[\\s\\S])*?>)",
       "beginCaptures": {

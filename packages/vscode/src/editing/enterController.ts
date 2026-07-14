@@ -53,9 +53,9 @@ async function insertJavaScriptBracePair(): Promise<void> {
     await vscode.commands.executeCommand("type", { text: "{" });
     return;
   }
-  const offset = editor.document.offsetAt(editor.selection.active);
   const enabled = vscode.workspace.getConfiguration("twigPlus.editing", editor.document.uri)
     .get("autoCloseJavaScriptBraces", true);
+  const offset = editor.document.offsetAt(editor.selection.active);
   if (!enabled || !shouldInsertJavaScriptBracePair(editor.document.getText(), offset)) {
     await vscode.commands.executeCommand("type", { text: "{" });
     return;

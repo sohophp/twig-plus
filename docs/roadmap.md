@@ -3,7 +3,7 @@
 ## 当前整改
 
 1. 文档和所有权基线。
-2. 已删除异步输入追改、自定义 Backspace、全局 brace/`>` 接管和重复 completion；仅保留 Hybrid/词法上下文可证明安全的 HTML closing 与 JavaScript-only block brace 原子编辑。
+2. 已删除异步输入追改、自定义 Backspace、全局 brace/`>` 接管和重复 completion；只保留真实 `<script>` 与安全 HTML opening 的窄范围原子编辑。
 3. Formatter 结构化结果、Range Formatting、进度、取消、预热和性能预算。
 4. 完整交互矩阵与真实 VSIX 验收。
 

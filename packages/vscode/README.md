@@ -42,7 +42,7 @@ TwigPlus: Show Status
 
 - Formats Twig files that mix Twig tags, HTML markup, embedded `<script>`, and embedded `<style>`
 - Preserves Twig placeholders while formatting embedded JavaScript and CSS
-- Highlights JavaScript inside `<script>` and conventionally named JavaScript blocks such as `scriptForLayout`, while preserving Twig delimiter scopes
+- Highlights JavaScript inside `<script>` while preserving Twig delimiter scopes
 - Provides TypeScript-powered JavaScript completion in regular and `type="module"` scripts; JSON, import maps, and custom script types are excluded
 - Inserts callable JavaScript completions with paired parentheses and keeps the cursor inside the call
 - Completes Twig tags such as `if`, `block`, `for`, `else`, `elseif`, `extends`, `include`, `embed`, `import`, `from`, `macro`, `set`, `apply`, and `with`
@@ -58,7 +58,7 @@ TwigPlus: Show Status
 - Shows Twig and embedded JavaScript hover information and signature help
 - Formats a selected range by expanding it to the smallest complete safe Twig/HTML structure
 - Uses a bundled Language Server Protocol implementation for editor-neutral semantic features
-- Uses VS Code native delimiter, quote, parenthesis, deletion, undo, and redo behavior; a single-cursor `{` is handled atomically only in a provable JavaScript-only Twig block context
+- Uses VS Code native delimiter, quote, parenthesis, deletion, undo, and redo behavior; `{}` is inserted atomically only in a safe JavaScript code position inside a real `<script>` element
 
 Embedded JavaScript uses the active VS Code theme for keyword, class, method, property, string, number, operator, and delimiter colors. Syntax errors are reported in the Twig document and cause formatting to preserve the original document. Twig and embedded JavaScript Hover and Signature Help are provided by the bundled language server; richer Symfony/PHP-derived variable types depend on optional project metadata.
 
@@ -83,7 +83,7 @@ Completion and formatting follow the PHPStorm-style spaced delimiter baseline, i
 | `twigPlus.editing.autoCloseHtmlTags` | boolean | `true` | Deprecated compatibility switch; explicit `false` maps to `off`. |
 | `twigPlus.editing.autoCloseTwigTags` | boolean | `true` | Atomically inserts the matching `end*` tag when Enter is pressed after a complete Twig control tag. |
 | `twigPlus.editing.autoCloseCssBraces` | boolean | `true` | Atomically inserts an indented `}` when Enter is pressed after `{` inside a style element. |
-| `twigPlus.editing.autoCloseJavaScriptBraces` | boolean | `true` | Atomically pairs safe JavaScript braces in script-named Twig blocks and expands the pair on Enter. Strings, comments, regexes, selections, multiple cursors and uncertain contexts delegate to VS Code. |
+| `twigPlus.editing.autoCloseJavaScriptBraces` | boolean | `true` | Atomically pairs safe JavaScript braces and expands an existing pair on Enter inside `<script>`. Strings, comments, regexes and uncertain contexts delegate to VS Code. |
 | `twigPlus.editing.linkedHtmlTags` | boolean | `true` | Uses VS Code native linked editing to synchronize matching HTML opening and closing tag names. Twig documents enable `editor.linkedEditing` by default. |
 | `twigPlus.diagnostics.unresolvedNameMode` | `safe` / `strict` / `off` | `safe` | Safe mode avoids reporting application variables unless authoritative template context metadata is available. |
 | `twigPlus.diagnostics.unresolvedNames` | boolean | `false` | Deprecated compatibility switch; `true` maps to strict and `false` to off. |
