@@ -23,6 +23,7 @@ export interface EmbeddedJavaScriptDiagnostic {
 }
 export interface EmbeddedHover { range: SourceRange; contents: string; }
 export interface EmbeddedSignatureHelp { label: string; parameters: string[]; activeParameter: number; documentation?: string; }
+export interface EmbeddedDefinition { range: SourceRange; }
 
 interface CachedDocument {
   version: number;
@@ -112,6 +113,24 @@ export class EmbeddedJavaScriptService {
     const parameters = item.parameters.map((parameter) => displayParts(parameter.displayParts));
     const label = displayParts(item.prefixDisplayParts) + parameters.join(displayParts(item.separatorDisplayParts)) + displayParts(item.suffixDisplayParts);
     return { label, parameters, activeParameter: Math.min(help.argumentIndex, Math.max(0, parameters.length - 1)), documentation: displayParts(item.documentation) || undefined };
+  }
+
+  async getDefinition(uri: string, version: number, document: HybridDocument, originalOffset: number): Promise<EmbeddedDefinition | null> {
+    const script = (await this.getDocument(uri, version, document)).scripts.find((item) =>
+      originalOffset >= item.document.sourceRange.start && originalOffset <= item.document.sourceRange.end);
+    if (!script) return null;
+    const generatedOffset = script.document.toGeneratedOffset(originalOffset);
+    if (generatedOffset === null) return null;
+    const definitions = script.service.getDefinitionAtPosition(script.fileName, generatedOffset) ?? [];
+    for (const definition of definitions) {
+      if (definition.fileName !== script.fileName) continue;
+      const range = script.document.toOriginalRange(
+        definition.textSpan.start,
+        definition.textSpan.start + definition.textSpan.length
+      );
+      if (range) return { range };
+    }
+    return null;
   }
 
   async getDiagnostics(uri: string, version: number, document: HybridDocument): Promise<EmbeddedJavaScriptDiagnostic[]> {

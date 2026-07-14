@@ -433,8 +433,12 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   });
   connection.onDefinition(async (params): Promise<Location | null> => {
     const document = documents.get(params.textDocument.uri); if (!document) return null;
+    const model = modelFor(document); if (!model) return null;
+    const offset = document.offsetAt(params.position);
+    const script = await embeddedJavaScript.getDefinition(document.uri, document.version, model.document, offset);
+    if (script) return { uri: document.uri, range: toRange(document, script.range) };
     await workspaceReady;
-    const symfonyReference = getSymfonyReferenceAtOffset(document.getText(), document.offsetAt(params.position));
+    const symfonyReference = getSymfonyReferenceAtOffset(document.getText(), offset);
     if (symfonyReference) {
       const mode = settingsFor(document.uri).symfony?.reference ?? "auto";
       const entry = permitsSymfonyReference(symfonyReference.kind, mode)
@@ -444,13 +448,12 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
         range: { start: { line: entry.source.line, character: entry.source.character }, end: { line: entry.source.line, character: entry.source.character + entry.name.length } }
       };
     }
-    const workspaceLocation = workspaceFor().getDefinition(document.uri, document.offsetAt(params.position));
+    const workspaceLocation = workspaceFor().getDefinition(document.uri, offset);
     if (workspaceLocation) {
       const target = documentForUri(workspaceLocation.uri, documents, indexedDocuments);
       if (target) return { uri: workspaceLocation.uri, range: toRange(target, workspaceLocation) };
     }
-    const model = modelFor(document); if (!model) return null;
-    const target = symbolAt(model, document.offsetAt(params.position));
+    const target = symbolAt(model, offset);
     return target ? { uri: document.uri, range: toRange(document, target.nameRange) } : null;
   });
   connection.onReferences(async (params, cancellation): Promise<Location[]> => {

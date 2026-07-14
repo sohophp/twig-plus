@@ -9,7 +9,7 @@
 
 ## 1.2.x 实用性推进
 
-- 更完整的 embedded definition、rename 与 semantic tokens。
+- Embedded JavaScript Definition 已覆盖当前 script 内的局部声明与 import alias，并通过 source map 返回 Twig 位置；后续补齐安全 Rename 与 Semantic Tokens。
 - 扩展当前 route、translation、asset、form、security、fragment、importmap 索引，增加 controller variable 类型上下文。
 - 在已完成 Range Formatting 和跨模板 rename 冲突检查的基础上扩展安全 Quick Fix。
 
