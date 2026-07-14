@@ -85,6 +85,44 @@ describe("bundled TwigPlus language server", () => {
     expect(missing.result).toBeNull();
   });
 
+  it("prepares and applies safe embedded JavaScript renames through the bundled server", async () => {
+    const client = startClient();
+    await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
+    client.notify("initialized", {});
+    const uri = "untitled:embedded-rename.html.twig";
+    const source = `<script>const total = 1; console.log(total);</script>`;
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const usage = source.lastIndexOf("total") + 2;
+    const prepared = await client.request("textDocument/prepareRename", {
+      textDocument: { uri }, position: positionAt(source, usage)
+    });
+    expect(prepared.result).toEqual({
+      start: positionAt(source, source.lastIndexOf("total")),
+      end: positionAt(source, source.lastIndexOf("total") + "total".length)
+    });
+    const renamed = await client.request("textDocument/rename", {
+      textDocument: { uri }, position: positionAt(source, usage), newName: "sum"
+    });
+    expect(renamed.result?.changes?.[uri]).toHaveLength(2);
+    expect(renamed.result?.changes?.[uri]).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        newText: "sum", range: expect.objectContaining({ start: positionAt(source, source.indexOf("total")) })
+      }),
+      expect.objectContaining({
+        newText: "sum", range: expect.objectContaining({ start: positionAt(source, source.lastIndexOf("total")) })
+      })
+    ]));
+
+    const collision = `<script>const first = 1; const second = 2; console.log(first);</script>`;
+    client.notify("textDocument/didChange", {
+      textDocument: { uri, version: 2 }, contentChanges: [{ text: collision }]
+    });
+    const rejected = await client.request("textDocument/rename", {
+      textDocument: { uri }, position: positionAt(collision, collision.lastIndexOf("first") + 2), newName: "second"
+    });
+    expect(rejected.result).toBeNull();
+  });
+
   it("owns Twig catalog completion and reports structured format progress", async () => {
     const client = startClient();
     await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });

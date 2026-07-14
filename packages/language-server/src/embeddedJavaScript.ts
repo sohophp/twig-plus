@@ -33,7 +33,15 @@ interface CachedDocument {
 interface ScriptService {
   document: EmbeddedScriptDocument;
   fileName: string;
+  runtime: TypeScriptRuntime;
   service: ts.LanguageService;
+}
+
+interface RenameTarget {
+  script: ScriptService;
+  triggerRange: SourceRange;
+  locations: readonly ts.RenameLocation[];
+  ranges: SourceRange[];
 }
 
 type TypeScriptRuntime = typeof import("typescript");
@@ -133,6 +141,23 @@ export class EmbeddedJavaScriptService {
     return null;
   }
 
+  async prepareRename(uri: string, version: number, document: HybridDocument, originalOffset: number): Promise<SourceRange | null> {
+    return (await this.getRenameTarget(uri, version, document, originalOffset))?.triggerRange ?? null;
+  }
+
+  async getRenameEdits(
+    uri: string,
+    version: number,
+    document: HybridDocument,
+    originalOffset: number,
+    newName: string
+  ): Promise<SourceRange[] | null> {
+    const target = await this.getRenameTarget(uri, version, document, originalOffset);
+    if (!target || !isJavaScriptIdentifier(target.script.runtime, newName)) return null;
+    if (hasRenameCollision(target, newName)) return null;
+    return target.ranges;
+  }
+
   async getDiagnostics(uri: string, version: number, document: HybridDocument): Promise<EmbeddedJavaScriptDiagnostic[]> {
     return (await this.getDocument(uri, version, document)).scripts.flatMap((script) =>
       script.service.getSyntacticDiagnostics(script.fileName).flatMap((diagnostic) => {
@@ -162,6 +187,36 @@ export class EmbeddedJavaScriptService {
     const next = { version, scripts };
     this.cache.set(uri, next);
     return next;
+  }
+
+  private async getRenameTarget(
+    uri: string,
+    version: number,
+    document: HybridDocument,
+    originalOffset: number
+  ): Promise<RenameTarget | null> {
+    const script = (await this.getDocument(uri, version, document)).scripts.find((item) =>
+      originalOffset >= item.document.sourceRange.start && originalOffset <= item.document.sourceRange.end);
+    if (!script) return null;
+    const generatedOffset = script.document.toGeneratedOffset(originalOffset);
+    if (generatedOffset === null) return null;
+    const definitions = script.service.getDefinitionAtPosition(script.fileName, generatedOffset) ?? [];
+    if (!definitions.some((definition) => definition.fileName === script.fileName &&
+      script.document.toOriginalRange(definition.textSpan.start, definition.textSpan.start + definition.textSpan.length))) return null;
+    const info = script.service.getRenameInfo(script.fileName, generatedOffset, { allowRenameOfImportPath: false });
+    if (!info.canRename || info.fileToRename) return null;
+    const triggerRange = script.document.toOriginalRange(info.triggerSpan.start, info.triggerSpan.start + info.triggerSpan.length);
+    if (!triggerRange) return null;
+    const locations = script.service.findRenameLocations(script.fileName, generatedOffset, false, false, false) ?? [];
+    if (locations.length === 0 || locations.some((location) =>
+      location.fileName !== script.fileName || location.prefixText !== undefined || location.suffixText !== undefined)) return null;
+    const ranges: SourceRange[] = [];
+    for (const location of locations) {
+      const range = script.document.toOriginalRange(location.textSpan.start, location.textSpan.start + location.textSpan.length);
+      if (!range) return null;
+      if (!ranges.some((item) => item.start === range.start && item.end === range.end)) ranges.push(range);
+    }
+    return { script, triggerRange, locations, ranges };
   }
 }
 
@@ -220,7 +275,7 @@ function createScriptService(runtime: TypeScriptRuntime, uri: string, version: n
     getDirectories: runtime.sys.getDirectories
   };
   sharedDocumentRegistry ??= runtime.createDocumentRegistry();
-  return { document, fileName, service: runtime.createLanguageService(host, sharedDocumentRegistry) };
+  return { document, fileName, runtime, service: runtime.createLanguageService(host, sharedDocumentRegistry) };
 }
 
 async function loadTypeScript(): Promise<TypeScriptRuntime> {
@@ -239,3 +294,41 @@ function flattenDiagnosticMessage(message: string | ts.DiagnosticMessageChain): 
 }
 
 function displayParts(parts: readonly ts.SymbolDisplayPart[] | undefined): string { return parts?.map((part) => part.text).join("") ?? ""; }
+
+function isJavaScriptIdentifier(runtime: TypeScriptRuntime, value: string): boolean {
+  if (!value) return false;
+  const scanner = runtime.createScanner(runtime.ScriptTarget.ES2022, false, runtime.LanguageVariant.Standard, value);
+  return scanner.scan() === runtime.SyntaxKind.Identifier && scanner.getTokenText() === value &&
+    scanner.scan() === runtime.SyntaxKind.EndOfFileToken;
+}
+
+// Binder/checker diagnostics for duplicate declarations and conflicting imports/exports.
+const RENAME_COLLISION_CODES = new Set([2300, 2395, 2440, 2451, 2484, 6200]);
+
+function hasRenameCollision(target: RenameTarget, newName: string): boolean {
+  const beforeCounts = collisionCounts(target.script.service.getSemanticDiagnostics(target.script.fileName));
+  const generatedSource = applyRenameLocations(target.script.document.generatedSource, target.locations, newName);
+  const validationDocument = { ...target.script.document, generatedSource };
+  const validation = createScriptService(target.script.runtime, "rename-validation", 0, validationDocument, 0);
+  try {
+    const afterCounts = collisionCounts(validation.service.getSemanticDiagnostics(validation.fileName));
+    return [...afterCounts].some(([code, count]) => count > (beforeCounts.get(code) ?? 0));
+  } finally {
+    validation.service.dispose();
+  }
+}
+
+function collisionCounts(diagnostics: readonly ts.Diagnostic[]): Map<number, number> {
+  const counts = new Map<number, number>();
+  for (const diagnostic of diagnostics) {
+    if (RENAME_COLLISION_CODES.has(diagnostic.code)) counts.set(diagnostic.code, (counts.get(diagnostic.code) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function applyRenameLocations(source: string, locations: readonly ts.RenameLocation[], newName: string): string {
+  return [...locations]
+    .sort((left, right) => right.textSpan.start - left.textSpan.start)
+    .reduce((result, location) => result.slice(0, location.textSpan.start) + newName +
+      result.slice(location.textSpan.start + location.textSpan.length), source);
+}

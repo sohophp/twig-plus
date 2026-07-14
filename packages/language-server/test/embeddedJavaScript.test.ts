@@ -21,6 +21,29 @@ async function definition(sourceWithCursor: string) {
   return { source, result };
 }
 
+async function prepareRename(sourceWithCursor: string) {
+  const offset = sourceWithCursor.lastIndexOf("|");
+  const source = sourceWithCursor.slice(0, offset) + sourceWithCursor.slice(offset + 1);
+  const result = await new EmbeddedJavaScriptService().prepareRename(
+    "file:///template.html.twig", 1, parseHybridDocument(source), offset
+  );
+  return { source, result };
+}
+
+async function rename(sourceWithCursor: string, newName: string) {
+  const offset = sourceWithCursor.lastIndexOf("|");
+  const source = sourceWithCursor.slice(0, offset) + sourceWithCursor.slice(offset + 1);
+  const result = await new EmbeddedJavaScriptService().getRenameEdits(
+    "file:///template.html.twig", 1, parseHybridDocument(source), offset, newName
+  );
+  return { source, result };
+}
+
+function applyRename(source: string, ranges: Array<{ start: number; end: number }>, newName: string): string {
+  return [...ranges].sort((left, right) => right.start - left.start)
+    .reduce((result, range) => result.slice(0, range.start) + newName + result.slice(range.end), source);
+}
+
 describe("EmbeddedJavaScriptService", () => {
   it("does not load TypeScript for documents without supported scripts", async () => {
     expect(isTypeScriptRuntimeLoaded()).toBe(false);
@@ -131,5 +154,44 @@ describe("EmbeddedJavaScriptService", () => {
     expect((await definition(`<script>docu|ment.body</script>`)).result).toBeNull();
     expect((await definition(`<script type="application/json">{"value":"loc|al"}</script>`)).result).toBeNull();
     expect((await definition(`<script>{{ loc|al }}</script>`)).result).toBeNull();
+  });
+
+  it("prepares and maps all local JavaScript rename edits", async () => {
+    const prepared = await prepareRename(`<script>const total = 1; console.log(tot|al);</script>`);
+    expect(prepared.result).toEqual({
+      start: prepared.source.lastIndexOf("total"),
+      end: prepared.source.lastIndexOf("total") + "total".length
+    });
+    const renamed = await rename(`<script>const total = 1; console.log(tot|al);</script>`, "sum");
+    expect(renamed.result).toHaveLength(2);
+    expect(applyRename(renamed.source, renamed.result ?? [], "sum"))
+      .toBe(`<script>const sum = 1; console.log(sum);</script>`);
+
+    const alias = await rename(
+      `<script type="module">import { helper as localHelper } from "./helper.js"; localHel|per();</script>`,
+      "$helper"
+    );
+    expect(applyRename(alias.source, alias.result ?? [], "$helper"))
+      .toBe(`<script type="module">import { helper as $helper } from "./helper.js"; $helper();</script>`);
+  });
+
+  it("rejects invalid, colliding, external, generated, and cross-script renames", async () => {
+    const collision = `<script>const first = 1; const second = 2; console.log(fir|st);</script>`;
+    expect((await rename(collision, "second")).result).toBeNull();
+    expect((await rename(collision, "class")).result).toBeNull();
+    expect((await rename(collision, "two words")).result).toBeNull();
+    expect((await rename(`<script>docu|ment.body</script>`, "pageDocument")).result).toBeNull();
+    expect((await rename(`<script>{{ loc|al }}</script>`, "renamed")).result).toBeNull();
+    expect((await rename(`<script>const local = 1;</script><script>console.log(loc|al);</script>`, "renamed")).result).toBeNull();
+  });
+
+  it("allows the same new name in a separate JavaScript scope", async () => {
+    const scoped = await rename(
+      `<script>function one() { const value = 1; return value; } function two() { const target = 2; return tar|get; }</script>`,
+      "value"
+    );
+    expect(scoped.result).toHaveLength(2);
+    expect(applyRename(scoped.source, scoped.result ?? [], "value"))
+      .toContain(`function two() { const value = 2; return value; }`);
   });
 });
