@@ -84,7 +84,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -126,7 +126,7 @@ jobs:
         run: xvfb-run -a npm run vscode:test:packaged --workspace packages/vscode
       - name: Verify persisted UI reports
         run: npm run reports:check
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: twig-plus-vsix-and-test-results
           path: |
