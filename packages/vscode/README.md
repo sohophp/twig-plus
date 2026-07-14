@@ -44,6 +44,7 @@ TwigPlus: Show Status
 - Preserves Twig placeholders while formatting embedded JavaScript and CSS
 - Highlights JavaScript inside `<script>` while preserving Twig delimiter scopes
 - Provides TypeScript-powered JavaScript completion in regular and `type="module"` scripts; JSON, import maps, and custom script types are excluded
+- Provides source-mapped Definition, safe Rename, and full/range Semantic Tokens for local identifiers inside each supported script
 - Inserts callable JavaScript completions with paired parentheses and keeps the cursor inside the call
 - Completes Twig tags such as `if`, `block`, `for`, `else`, `elseif`, `extends`, `include`, `embed`, `import`, `from`, `macro`, `set`, `apply`, and `with`
 - Completes common Twig filters and functions
@@ -60,7 +61,7 @@ TwigPlus: Show Status
 - Uses a bundled Language Server Protocol implementation for editor-neutral semantic features
 - Uses VS Code native delimiter, quote, parenthesis, deletion, undo, and redo behavior; `{}` is inserted atomically only in a safe JavaScript code position inside a real `<script>` element
 
-Embedded JavaScript uses the active VS Code theme for keyword, class, method, property, string, number, operator, and delimiter colors. Syntax errors are reported in the Twig document and cause formatting to preserve the original document. Twig and embedded JavaScript Hover and Signature Help are provided by the bundled language server; richer Symfony/PHP-derived variable types depend on optional project metadata.
+Embedded JavaScript uses the active VS Code theme for syntax and TypeScript-classified identifier colors. Syntax errors are reported in the Twig document and cause formatting to preserve the original document. Twig and embedded JavaScript Hover and Signature Help are provided by the bundled language server; richer Symfony/PHP-derived variable types depend on optional project metadata.
 
 TwigPlus can optionally merge project-provided Symfony metadata v3 from `.twig-plus/symfony-metadata.json`. In `auto` mode each reference feature requires Twig Bridge/Bundle and its owning component. Routes, assets, translations, form themes, security attributes, fragment controllers and importmap entrypoints receive package-aware completion; metadata entries with safe workspace-relative source locations also support Hover and navigation. Bounded conventional YAML/XML/XLIFF/JSON, literal-only `importmap.php`, and `public/` assets are indexed statically. Missing or incomplete metadata never blocks generic Twig features, and TwigPlus never loads an autoloader or executes workspace PHP.
 
@@ -155,6 +156,7 @@ TwigPlus 是一个面向 VSCode 的 Twig 扩展，目标是尽量接近 PHPStorm
 - Twig / HTML / CSS / JavaScript 混合格式化
 - Twig tag、filter、function、模板路径补全
 - `extends`、`include`、`embed`、`import`、`from`、block、macro 的跳转定位
+- 当前 `<script>` 内局部 JavaScript 标识符的 Definition、安全 Rename 与 Semantic Tokens
 
 推荐配置：
 

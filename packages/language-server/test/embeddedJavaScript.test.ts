@@ -194,4 +194,41 @@ describe("EmbeddedJavaScriptService", () => {
     expect(applyRename(scoped.source, scoped.result ?? [], "value"))
       .toContain(`function two() { const value = 2; return value; }`);
   });
+
+  it("maps TypeScript semantic classifications back to JavaScript identifiers", async () => {
+    const source = `<script>class Page { readonly title = ""; render(value) { const local = value; return local; } } const page = new Page(); page.render("x");</script>`;
+    const tokens = await new EmbeddedJavaScriptService().getSemanticTokens(
+      "file:///semantic.html.twig", 1, parseHybridDocument(source)
+    );
+    const classified = tokens.map((token) => ({
+      text: source.slice(token.range.start, token.range.end),
+      type: token.tokenType,
+      modifiers: token.tokenModifiers
+    }));
+    expect(classified).toEqual(expect.arrayContaining([
+      { text: "Page", type: 0, modifiers: 1 },
+      expect.objectContaining({ text: "title", type: 9 }),
+      expect.objectContaining({ text: "render", type: 11 }),
+      expect.objectContaining({ text: "value", type: 6 }),
+      expect.objectContaining({ text: "local", type: 7 }),
+      expect.objectContaining({ text: "page", type: 7 })
+    ]));
+    expect(tokens.every((token) => token.range.start >= source.indexOf("<script>") + 8 &&
+      token.range.end <= source.indexOf("</script>"))).toBe(true);
+  });
+
+  it("filters semantic tokens by source range and skips unsupported or generated content", async () => {
+    const source = `<script>const first = {{ value }};\nconst second = first;</script>\n` +
+      `<script type="application/json">{"third": true}</script>`;
+    const lineStart = source.indexOf("const second");
+    const lineEnd = source.indexOf("</script>");
+    const tokens = await new EmbeddedJavaScriptService().getSemanticTokens(
+      "file:///semantic-range.html.twig", 1, parseHybridDocument(source), { start: lineStart, end: lineEnd }
+    );
+    expect(tokens.map((token) => source.slice(token.range.start, token.range.end)))
+      .toEqual(expect.arrayContaining(["second", "first"]));
+    expect(tokens.every((token) => token.range.start >= lineStart && token.range.end <= lineEnd)).toBe(true);
+    expect(tokens.some((token) => source.slice(token.range.start, token.range.end) === "value")).toBe(false);
+    expect(tokens.some((token) => source.slice(token.range.start, token.range.end) === "third")).toBe(false);
+  });
 });

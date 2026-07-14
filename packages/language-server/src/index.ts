@@ -1,7 +1,8 @@
 import {
   createConnection, ProposedFeatures, TextDocuments, TextDocumentSyncKind,
   CompletionItemKind, DiagnosticSeverity, DocumentSymbol, LSPErrorCodes, MarkupKind, ResponseError, SymbolKind,
-  type Hover, type InitializeResult, InsertTextFormat, type Location, type Range, type SelectionRange, type SignatureHelp, TextEdit
+  type Hover, type InitializeResult, InsertTextFormat, type Location, type Range, type SelectionRange, SemanticTokensBuilder,
+  type SignatureHelp, TextEdit
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { readdir, readFile, stat } from "node:fs/promises";
@@ -9,7 +10,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { analyzeHybridDiagnostics, collectHybridSelectionRanges, collectTemplateCompletionCandidates, createDocumentModel, createWorkspaceModel, DEFAULT_TEMPLATE_ROOTS, getHybridTokenContextAtOffset, getTemplateReferenceMatch, getTwigCallable, getTwigDiagnosticCode, getTwigOperator, getTwigTag, parseDocument, resolveTemplateWorkspacePath, type DocumentModel, type SemanticSymbol, type TemplateUriResolver } from "@twig-plus/parser";
 import { formatTwigRangeWithResult, formatTwigWithResult, type FormatterOptions, type FormatterStage } from "@twig-plus/formatter";
-import { EmbeddedJavaScriptService } from "./embeddedJavaScript";
+import { EmbeddedJavaScriptService, embeddedSemanticTokenLegend } from "./embeddedJavaScript";
 import { getTwigCatalogEntry, getTwigCompletions, TwigCompletionRegistry, type ProjectCompletionEntry } from "./twigCompletion";
 import { collectSymfonyReferences, getSymfonyReferenceAtOffset, getSymfonyReferenceMatch, requiredSymfonyPackages, type SymfonyReferenceKind } from "./symfonyReference";
 import { readStaticSymfonyReferences } from "./staticSymfonyIndex";
@@ -49,7 +50,8 @@ export function getServerCapabilities(): InitializeResult["capabilities"] {
     completionProvider: { triggerCharacters: ["%", "{", " ", ".", "|", "\"", "'", "/"] },
     definitionProvider: true, referencesProvider: true, renameProvider: { prepareProvider: true },
     documentSymbolProvider: true, selectionRangeProvider: true, documentFormattingProvider: true,
-    hoverProvider: true, signatureHelpProvider: { triggerCharacters: ["(", ","] }, documentRangeFormattingProvider: true
+    hoverProvider: true, signatureHelpProvider: { triggerCharacters: ["(", ","] }, documentRangeFormattingProvider: true,
+    semanticTokensProvider: { legend: embeddedSemanticTokenLegend, full: true, range: true }
   };
 }
 
@@ -514,6 +516,26 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const edits = [target.nameRange, ...model.findReferences(target)].map((range) => TextEdit.replace(toRange(document, range), params.newName));
     return { changes: { [document.uri]: edits } };
   });
+  const buildEmbeddedSemanticTokens = async (uri: string, requestedRange?: Range) => {
+    const document = documents.get(uri);
+    if (!document) return new SemanticTokensBuilder().build();
+    const model = modelFor(document);
+    if (!model) return new SemanticTokensBuilder().build();
+    const originalRange = requestedRange ? {
+      start: document.offsetAt(requestedRange.start), end: document.offsetAt(requestedRange.end)
+    } : undefined;
+    const tokens = await embeddedJavaScript.getSemanticTokens(document.uri, document.version, model.document, originalRange);
+    const builder = new SemanticTokensBuilder();
+    for (const token of tokens) {
+      const start = document.positionAt(token.range.start);
+      const end = document.positionAt(token.range.end);
+      if (start.line !== end.line || end.character <= start.character) continue;
+      builder.push(start.line, start.character, end.character - start.character, token.tokenType, token.tokenModifiers);
+    }
+    return builder.build();
+  };
+  connection.languages.semanticTokens.on((params) => buildEmbeddedSemanticTokens(params.textDocument.uri));
+  connection.languages.semanticTokens.onRange((params) => buildEmbeddedSemanticTokens(params.textDocument.uri, params.range));
   connection.onDocumentSymbol((params): DocumentSymbol[] => {
     const document = documents.get(params.textDocument.uri); if (!document) return [];
     const model = modelFor(document); if (!model) return [];

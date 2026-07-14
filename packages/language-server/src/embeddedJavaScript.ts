@@ -24,6 +24,15 @@ export interface EmbeddedJavaScriptDiagnostic {
 export interface EmbeddedHover { range: SourceRange; contents: string; }
 export interface EmbeddedSignatureHelp { label: string; parameters: string[]; activeParameter: number; documentation?: string; }
 export interface EmbeddedDefinition { range: SourceRange; }
+export interface EmbeddedSemanticToken { range: SourceRange; tokenType: number; tokenModifiers: number; }
+
+export const embeddedSemanticTokenLegend: { tokenTypes: string[]; tokenModifiers: string[] } = {
+  tokenTypes: [
+    "class", "enum", "interface", "namespace", "typeParameter", "type", "parameter", "variable",
+    "enumMember", "property", "function", "method"
+  ],
+  tokenModifiers: ["declaration", "static", "async", "readonly", "defaultLibrary"]
+};
 
 interface CachedDocument {
   version: number;
@@ -171,6 +180,36 @@ export class EmbeddedJavaScriptService {
         }];
       })
     );
+  }
+
+  async getSemanticTokens(
+    uri: string,
+    version: number,
+    document: HybridDocument,
+    originalRange?: SourceRange
+  ): Promise<EmbeddedSemanticToken[]> {
+    const cached = await this.getDocument(uri, version, document);
+    return cached.scripts.flatMap((script) => {
+      if (originalRange && (script.document.sourceRange.end <= originalRange.start ||
+        script.document.sourceRange.start >= originalRange.end)) return [];
+      const encoded = script.service.getEncodedSemanticClassifications(
+        script.fileName,
+        { start: 0, length: script.document.generatedSource.length },
+        script.runtime.SemanticClassificationFormat.TwentyTwenty
+      ).spans;
+      const tokens: EmbeddedSemanticToken[] = [];
+      for (let index = 0; index < encoded.length; index += 3) {
+        const start = encoded[index];
+        const length = encoded[index + 1];
+        const classification = encoded[index + 2];
+        const tokenType = (classification >> 8) - 1;
+        if (length <= 0 || tokenType < 0 || tokenType >= embeddedSemanticTokenLegend.tokenTypes.length) continue;
+        const range = script.document.toOriginalRange(start, start + length);
+        if (!range || (originalRange && (range.start < originalRange.start || range.end > originalRange.end))) continue;
+        tokens.push({ range, tokenType, tokenModifiers: classification & 0x1f });
+      }
+      return tokens;
+    }).sort((left, right) => left.range.start - right.range.start || left.range.end - right.range.end);
   }
 
   private async getDocument(uri: string, version: number, document: HybridDocument): Promise<CachedDocument> {

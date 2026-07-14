@@ -4,6 +4,7 @@
 
 - Added TypeScript-powered Go to Definition for local declarations and import aliases inside supported embedded JavaScript, with source-map-safe Twig ranges and isolated script scopes.
 - Added safe embedded JavaScript Rename with prepare ranges, complete Twig-mapped edits, JavaScript identifier validation, and same-scope collision rejection.
+- Added full and range Semantic Tokens for TypeScript-classified identifiers inside supported embedded JavaScript, with source-map-safe filtering for Twig placeholders and unsupported script MIME types.
 
 ## 1.2.0 - 2026-07-14
 

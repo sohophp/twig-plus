@@ -27,6 +27,7 @@ async function run() {
     testHoverSignatureAndRangeFormatting,
     testEmbeddedJavaScriptDefinition,
     testEmbeddedJavaScriptRename,
+    testEmbeddedJavaScriptSemanticTokens,
     testInvalidEmbeddedJavaScriptFormattingFailsFast,
     testTwigTagCompletion,
     testHtmlCompletion,
@@ -393,6 +394,38 @@ async function testEmbeddedJavaScriptRename() {
   await waitFor(() => document.getText() === source);
   await vscode.commands.executeCommand("redo");
   await waitFor(() => document.getText() === renamed);
+}
+
+async function testEmbeddedJavaScriptSemanticTokens() {
+  const source = `<script>\nclass Page { render(value) { return value; } }\nconst page = new Page(); page.render("x");\n</script>`;
+  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
+  await vscode.window.showTextDocument(document);
+  const legend = await vscode.commands.executeCommand("vscode.provideDocumentSemanticTokensLegend", document.uri);
+  const tokens = await vscode.commands.executeCommand("vscode.provideDocumentSemanticTokens", document.uri);
+  assert.ok(legend && Array.isArray(legend.tokenTypes), "semantic token legend should be registered");
+  assert.ok(tokens && tokens.data && tokens.data.length > 0, "embedded JavaScript should produce semantic tokens");
+  const decoded = decodeSemanticTokens(source, tokens.data, legend);
+  assert.ok(decoded.some((token) => token.text === "Page" && token.type === "class"));
+  assert.ok(decoded.some((token) => token.text === "render" && token.type === "method"));
+  assert.ok(decoded.every((token) => token.line === 1 || token.line === 2), "tokens must remain inside the script body");
+}
+
+function decodeSemanticTokens(source, data, legend) {
+  let line = 0;
+  let character = 0;
+  const lines = source.split("\n");
+  const result = [];
+  for (let index = 0; index < data.length; index += 5) {
+    line += data[index];
+    character = data[index] === 0 ? character + data[index + 1] : data[index + 1];
+    result.push({
+      text: lines[line].slice(character, character + data[index + 2]),
+      type: legend.tokenTypes[data[index + 3]],
+      line,
+      character
+    });
+  }
+  return result;
 }
 
 async function testMultiCursorNativePairUndoRedo() {

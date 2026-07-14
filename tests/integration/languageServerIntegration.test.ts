@@ -19,7 +19,8 @@ describe("bundled TwigPlus language server", () => {
     const message = await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
     expect(message.result.capabilities).toMatchObject({
       definitionProvider: true, referencesProvider: true,
-      renameProvider: { prepareProvider: true }, documentFormattingProvider: true
+      renameProvider: { prepareProvider: true }, documentFormattingProvider: true,
+      semanticTokensProvider: { full: true, range: true }
     });
   });
 
@@ -121,6 +122,35 @@ describe("bundled TwigPlus language server", () => {
       textDocument: { uri }, position: positionAt(collision, collision.lastIndexOf("first") + 2), newName: "second"
     });
     expect(rejected.result).toBeNull();
+  });
+
+  it("serves mapped full and range semantic tokens for embedded JavaScript", async () => {
+    const client = startClient();
+    const initialized = await client.request("initialize", {
+      processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: []
+    });
+    client.notify("initialized", {});
+    const uri = "untitled:embedded-semantic-tokens.html.twig";
+    const source = `<script>\nclass Page { render(value) { return value; } }\nconst page = new Page(); page.render("x");\n</script>`;
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const legend = initialized.result.capabilities.semanticTokensProvider.legend;
+    const full = await client.request("textDocument/semanticTokens/full", { textDocument: { uri } });
+    const decoded = decodeSemanticTokens(source, full.result.data, legend);
+    expect(decoded).toEqual(expect.arrayContaining([
+      expect.objectContaining({ text: "Page", type: "class" }),
+      expect.objectContaining({ text: "render", type: "method" }),
+      expect.objectContaining({ text: "value", type: "parameter" }),
+      expect.objectContaining({ text: "page", type: "variable" })
+    ]));
+    expect(decoded.every((token) => token.line === 1 || token.line === 2)).toBe(true);
+
+    const range = await client.request("textDocument/semanticTokens/range", {
+      textDocument: { uri }, range: { start: { line: 2, character: 0 }, end: { line: 3, character: 0 } }
+    });
+    const rangeDecoded = decodeSemanticTokens(source, range.result.data, legend);
+    expect(rangeDecoded.length).toBeGreaterThan(0);
+    expect(rangeDecoded.every((token) => token.line === 2)).toBe(true);
+    expect(rangeDecoded.some((token) => token.text === "Page" && token.type === "class")).toBe(true);
   });
 
   it("owns Twig catalog completion and reports structured format progress", async () => {
@@ -328,6 +358,30 @@ function startClient(): ProtocolClient {
 function positionAt(source: string, offset: number): { line: number; character: number } {
   const before = source.slice(0, offset).split("\n");
   return { line: before.length - 1, character: before[before.length - 1].length };
+}
+
+function decodeSemanticTokens(
+  source: string,
+  data: number[],
+  legend: { tokenTypes: string[]; tokenModifiers: string[] }
+): Array<{ text: string; type: string; modifiers: string[]; line: number; character: number }> {
+  let line = 0;
+  let character = 0;
+  const lines = source.split("\n");
+  const result = [];
+  for (let index = 0; index < data.length; index += 5) {
+    line += data[index];
+    character = data[index] === 0 ? character + data[index + 1] : data[index + 1];
+    const modifierBits = data[index + 4];
+    result.push({
+      text: lines[line].slice(character, character + data[index + 2]),
+      type: legend.tokenTypes[data[index + 3]],
+      modifiers: legend.tokenModifiers.filter((_, modifier) => (modifierBits & (1 << modifier)) !== 0),
+      line,
+      character
+    });
+  }
+  return result;
 }
 
 class ProtocolClient {
