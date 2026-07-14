@@ -201,7 +201,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   connection.onInitialized(() => {
     setTimeout(() => {
       void formatTwigWithResult("", {
-        profile: "phpstorm", indentSize: 4, printWidth: 100, useTabs: false,
+        profile: "phpstorm", indentSize: 2, printWidth: 100, useTabs: false,
         twigTagSpacing: true, htmlAttributeWrap: "auto", preserveSingleLineBlocks: true,
         lineBreakAfterTwigControlTag: true
       }).catch((error) => connection.console.warn(`Formatter prewarm failed: ${formatError(error)}`));

@@ -21,7 +21,7 @@ export function registerFallbackProviders(context: vscode.ExtensionContext): voi
       if (!config.get<boolean>("format.enable", true)) return [];
       const options: FormatterOptions = {
         profile: config.get<"phpstorm" | "compact">("format.profile", "phpstorm"),
-        indentSize: config.get<number>("format.indentSize", 4),
+        indentSize: config.get<number>("format.indentSize", 2),
         printWidth: config.get<number>("format.printWidth", 100),
         useTabs: config.get<boolean>("format.useTabs", false),
         twigTagSpacing: config.get<boolean>("format.twigTagSpacing", true),

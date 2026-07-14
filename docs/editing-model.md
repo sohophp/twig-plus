@@ -20,7 +20,7 @@
 - `<style>` 内 CSS 规则的 Enter closing 由同一 Enter 控制器单次生成缩进和 `}`；开关为 `twigPlus.editing.autoCloseCssBraces`，默认开启。它不注册全局 `{}` 字符对，以免干扰 Twig `{{ }}`。
 - CSS Enter 在生成 `}` 前会扫描当前 `<style>` 剩余内容（忽略字符串和注释中的花括号）；已经存在与 opening brace 匹配的 `}` 时完全委托原生 Enter，不得重复闭合。
 - 匹配 HTML opening/closing tag 的同步修改由 VS Code 原生 Linked Editing 持有，TwigPlus 仅通过 Hybrid HTML 结构提供两个精确 tag-name range。`twigPlus.editing.linkedHtmlTags` 与 Twig 语言默认的 `editor.linkedEditing` 均为开启；关闭任意一项即可停用。
-- `<script>` 内普通 brace 输入和 Backspace 由 VS Code 持有；光标位于已有 brace pair 中时，Enter 控制器可原子生成缩进并保留外层调用已有的 `)`。开关为 `twigPlus.editing.autoCloseJavaScriptBraces`，默认开启。
+- `<script>` 内普通 brace 输入和 Backspace 由 VS Code 持有；`scriptForLayout`、`scripts`、`javascript*` 等明确脚本命名的 Twig block 没有原生 embedded-language 配对能力，因此只在单光标、无选区且词法状态为 JavaScript code 的可证明上下文中原子插入 `{}`。字符串、注释、正则、多光标和不确定上下文立即委托原生输入。光标位于已有 brace pair 中时，Enter 控制器原子生成缩进并保留外层调用已有的 `)`。开关为 `twigPlus.editing.autoCloseJavaScriptBraces`，默认开启。
 - 用户可以逐字符删除 delimiter 内容；一次 Undo 恢复一次用户操作，Redo 对称。
 - JavaScript/CSS/attribute/string/IME 输入不会被 Twig delimiter 修正器二次编辑。
 

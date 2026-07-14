@@ -16,6 +16,7 @@ async function run() {
     testAtomicTwigEnterClosing,
     testAtomicCssBraceClosing,
     testAtomicJavaScriptBraceClosing,
+    testJavaScriptTwigBlockBraceClosing,
     testRapidTypingIsStable,
     testMultiCursorNativePairUndoRedo,
     testImeTextTypingIsUntouched,
@@ -233,6 +234,35 @@ async function testAtomicTwigEnterClosing() {
   await waitFor(() => embeddedEditor.document.getText() === `<script>\n    {% if user is defined %}\n        \n    {% endif %}\n</script>`);
 }
 
+async function testJavaScriptTwigBlockBraceClosing() {
+  const source = `{% block scriptForLayout %}\n  document.addEventListener('DOMContentLoaded',()=>)\n{% endblock %}`;
+  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
+  const editor = await vscode.window.showTextDocument(document);
+  const offset = source.indexOf("=>") + 2;
+  const position = document.positionAt(offset);
+  editor.selection = new vscode.Selection(position, position);
+
+  // Let TextMate establish the embedded JavaScript language before simulating input.
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  await vscode.commands.executeCommand("twigPlus.insertJavaScriptBracePair");
+  const paired = source.slice(0, offset) + "{}" + source.slice(offset);
+  await waitFor(() => editor.document.getText() === paired);
+
+  await vscode.commands.executeCommand("twigPlus.insertLineBreak");
+  const expanded = source.slice(0, offset) + "{\n    \n  }" + source.slice(offset);
+  await waitFor(() => editor.document.getText() === expanded);
+  assert.strictEqual(editor.document.offsetAt(editor.selection.active), offset + "{\n    ".length);
+
+  await vscode.commands.executeCommand("undo");
+  await waitFor(() => editor.document.getText() === paired);
+  await vscode.commands.executeCommand("undo");
+  await waitFor(() => editor.document.getText() === source);
+  await vscode.commands.executeCommand("redo");
+  await waitFor(() => editor.document.getText() === paired);
+  await vscode.commands.executeCommand("redo");
+  await waitFor(() => editor.document.getText() === expanded);
+}
+
 async function testAtomicHtmlTagClosing() {
   const document = await vscode.workspace.openTextDocument({ language: "twig", content: "" });
   const editor = await vscode.window.showTextDocument(document);
@@ -384,7 +414,7 @@ async function testDocumentFormatting() {
   assert.ok(edits.length > 0, "formatter should return edits");
   assert.strictEqual(
     applyTextEdits(document, edits),
-    "{% if user %}\n    <div>{{ name }}</div>\n{% endif %}"
+    "{% if user %}\n  <div>{{ name }}</div>\n{% endif %}"
   );
   const warmStarted = Date.now();
   await vscode.commands.executeCommand("vscode.executeFormatDocumentProvider", document.uri, { insertSpaces: true, tabSize: 4 });
