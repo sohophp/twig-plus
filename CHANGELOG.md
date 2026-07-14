@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 - 2026-07-14
 
 - Removed the public parser-engine setting/command, compatibility facade, shadow comparison, old parser queries, and fatal fallback; Hybrid is now the only parser and formatter path.
 - Hybrid failures now preserve the original document, return a structured failure, and write query/URI/reason details to the TwigPlus output.
@@ -8,6 +8,8 @@
 - Added LSP Hover, Signature Help, safe Range Formatting, debounced diagnostics, and template-root-scoped indexing.
 - Restored native VS Code ownership of ordinary typing and deletion while retaining safe atomic Enter enhancements.
 - Fixed embedded formatting so Twig nodes do not acquire JavaScript semicolons, and completed `is defined` suggestions and `endif` Enter pairing inside scripts.
+- Added pinned Twig 3.0-3.28 and Symfony 6.4-8.1 oracles, version-gated language facts, and package-aware Symfony references.
+- Fixed the minimum-version Extension Host assertion to accept VS Code's equivalent normalized quick-suggestion representation.
 
 ## 1.1.2 - 2026-07-13
 

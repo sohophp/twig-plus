@@ -132,4 +132,5 @@ jobs:
           path: |
             artifacts/vsix/*.vsix
             packages/vscode/.vscode-test-results/**
+          include-hidden-files: true
           if-no-files-found: error

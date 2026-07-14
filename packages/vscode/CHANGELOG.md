@@ -1,19 +1,20 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 - 2026-07-14
 
-- Added pinned Twig 3.0-3.28 source oracles, version-gated language facts, recoverable Hybrid incomplete-document handling, and fatal-fallback accounting.
+- Added pinned Twig 3.0-3.28 source oracles, version-gated language facts, recoverable Hybrid incomplete-document handling, and structured fatal-failure accounting.
 - Expanded optional Symfony references to forms, security, fragments, and importmaps with package-aware completion, Hover, navigation, safe diagnostics, and bounded static indexes.
 
 - Added a version-aware shared Twig 3.28 language specification, role-aware semantic diagnostics, `defined` branch narrowing, safe unresolved-name mode, and generated language assets.
 - Added atomic, Hybrid-guarded HTML closing with `twigPlus.editing.htmlTagClosing`; unsafe contexts delegate immediately to native typing, while Enter expansion and the deprecated boolean compatibility setting remain available.
 
-- Made Hybrid the only user runtime parser path while retaining legacy solely as an instrumented fatal-error fallback.
+- Made Hybrid the only user runtime parser and formatter path and removed the legacy parser runtime, compatibility facade, and shadow comparison.
 - Returned ordinary braces, `>`, Backspace, Undo, and Redo to VS Code while preserving atomic Twig/HTML/CSS/JavaScript Enter behavior.
 - Added Twig and embedded JavaScript Hover, Signature Help, and safe structure-aware Range Formatting.
 - Reduced activation and large-workspace cost with language-only activation, debounced diagnostics, root-scoped template indexing, and reference prefiltering.
 - Hardened embedded formatter placeholders and bounded optional Symfony metadata loading.
 - Prevented JavaScript formatting from appending semicolons to Twig nodes and enabled test completion plus safe Twig control-tag Enter pairing inside scripts.
+- Fixed the VS Code 1.90.2 Extension Host assertion to accept the editor's equivalent normalized quick-suggestion representation.
 
 ## 1.1.2 - 2026-07-13
 

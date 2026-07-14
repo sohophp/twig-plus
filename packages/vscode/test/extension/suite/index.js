@@ -188,7 +188,7 @@ async function testManualTwigCompletionWhenAutomaticSuggestionsAreDisabled() {
     editor.selection = new vscode.Selection(document.positionAt(offset), document.positionAt(offset));
     await vscode.commands.executeCommand("type", { text: "o" });
     await new Promise((resolve) => setTimeout(resolve, 300));
-    assert.strictEqual(vscode.workspace.getConfiguration("editor", document.uri).get("quickSuggestions"), false);
+    assertQuickSuggestionsDisabled(vscode.workspace.getConfiguration("editor", document.uri).get("quickSuggestions"));
     assert.strictEqual(vscode.workspace.getConfiguration("editor", document.uri).get("suggestOnTriggerCharacters"), false);
     assert.strictEqual(editor.document.getText(), "{% blo%}");
     await vscode.commands.executeCommand("editor.action.triggerSuggest");
@@ -199,6 +199,11 @@ async function testManualTwigCompletionWhenAutomaticSuggestionsAreDisabled() {
     await config.update("quickSuggestions", previousQuick, vscode.ConfigurationTarget.Global);
     await config.update("suggestOnTriggerCharacters", previousTriggers, vscode.ConfigurationTarget.Global);
   }
+}
+
+function assertQuickSuggestionsDisabled(value) {
+  if (value === false) return;
+  assert.deepStrictEqual(value, { other: "off", comments: "off", strings: "off" });
 }
 
 async function testAtomicTwigEnterClosing() {
