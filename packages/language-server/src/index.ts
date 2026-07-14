@@ -473,6 +473,8 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const document = documents.get(params.textDocument.uri); if (!document) return null;
     const model = modelFor(document); if (!model) return null;
     const offset = document.offsetAt(params.position);
+    const script = await embeddedJavaScript.prepareRename(document.uri, document.version, model.document, offset);
+    if (script) return toRange(document, script);
     const target = symbolAt(model, offset);
     if (target) return toRange(document, target.nameRange);
     await workspaceReady;
@@ -480,15 +482,23 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     return reference?.role === "function-call" && workspaceFor().getDefinition(document.uri, offset) ? toRange(document, reference) : null;
   });
   connection.onRenameRequest(async (params, cancellation) => {
-    const document = documents.get(params.textDocument.uri); if (!document || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(params.newName)) return null;
+    const document = documents.get(params.textDocument.uri); if (!document) return null;
     const model = modelFor(document); if (!model) return null;
-    const target = symbolAt(model, document.offsetAt(params.position));
+    const offset = document.offsetAt(params.position);
+    const scriptEdits = await embeddedJavaScript.getRenameEdits(
+      document.uri, document.version, model.document, offset, params.newName
+    );
+    if (scriptEdits) return {
+      changes: { [document.uri]: scriptEdits.map((range) => TextEdit.replace(toRange(document, range), params.newName)) }
+    };
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(params.newName)) return null;
+    const target = symbolAt(model, offset);
     await workspaceReady;
     const workspace = workspaceFor();
-    const locations = await workspace.findReferencesAsync(document.uri, document.offsetAt(params.position), true, () => cancellation.isCancellationRequested);
+    const locations = await workspace.findReferencesAsync(document.uri, offset, true, () => cancellation.isCancellationRequested);
     if (cancellation.isCancellationRequested) return null;
     if (locations.length > 1) {
-      const definition = workspace.getDefinition(document.uri, document.offsetAt(params.position));
+      const definition = workspace.getDefinition(document.uri, offset);
       const definitionModel = definition ? workspace.getDocument(definition.uri) ?? undefined : undefined;
       const definitionSymbol = definitionModel && definition ? definitionModel.getSymbolAt(definition.start) : null;
       if (definitionModel && definitionSymbol && definitionModel.getVisibleSymbolsAt(definitionSymbol.start).some((symbol) => symbol.name === params.newName && symbol.id !== definitionSymbol.id)) return null;

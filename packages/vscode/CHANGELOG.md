@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Added TypeScript-powered Go to Definition for local declarations and import aliases inside supported embedded JavaScript, while rejecting external, generated, unsupported MIME, and cross-script targets that cannot be mapped safely to Twig.
+- Added embedded JavaScript Rename for local declarations and import aliases, including complete source-map validation, identifier checks, collision prevention, and native WorkspaceEdit Undo/Redo.
 
 ## 1.2.0 - 2026-07-14
 

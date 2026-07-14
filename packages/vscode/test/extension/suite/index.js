@@ -26,6 +26,7 @@ async function run() {
     testDocumentFormatting,
     testHoverSignatureAndRangeFormatting,
     testEmbeddedJavaScriptDefinition,
+    testEmbeddedJavaScriptRename,
     testInvalidEmbeddedJavaScriptFormattingFailsFast,
     testTwigTagCompletion,
     testHtmlCompletion,
@@ -371,6 +372,27 @@ async function testEmbeddedJavaScriptDefinition() {
   assert.strictEqual(location.range.start.line, 1);
   assert.strictEqual(location.range.start.character, source.split("\n")[1].indexOf("formatTitle"));
   assert.strictEqual(document.getText(location.range), "formatTitle");
+}
+
+async function testEmbeddedJavaScriptRename() {
+  const source = `<script>const total = 1; console.log(total);</script>`;
+  const renamed = `<script>const sum = 1; console.log(sum);</script>`;
+  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
+  await vscode.window.showTextDocument(document);
+  const edit = await vscode.commands.executeCommand(
+    "vscode.executeDocumentRenameProvider",
+    document.uri,
+    document.positionAt(source.lastIndexOf("total") + 2),
+    "sum"
+  );
+  assert.ok(edit instanceof vscode.WorkspaceEdit, "embedded rename should return a workspace edit");
+  assert.strictEqual(edit.get(document.uri).length, 2, "declaration and usage should both be renamed");
+  assert.strictEqual(await vscode.workspace.applyEdit(edit), true);
+  await waitFor(() => document.getText() === renamed);
+  await vscode.commands.executeCommand("undo");
+  await waitFor(() => document.getText() === source);
+  await vscode.commands.executeCommand("redo");
+  await waitFor(() => document.getText() === renamed);
 }
 
 async function testMultiCursorNativePairUndoRedo() {
