@@ -21,6 +21,7 @@ async function main() {
   const resultsDirectory = path.join(extensionDevelopmentPath, ".vscode-test-results");
   fs.mkdirSync(resultsDirectory, { recursive: true });
   const reportPath = path.join(resultsDirectory, `ui-${requestedVersion ?? "default"}.json`);
+  fs.rmSync(reportPath, { force: true });
 
   await runTests({
     ...(vscodeExecutablePath ? { vscodeExecutablePath } : { version: requestedVersion ?? "stable" }),

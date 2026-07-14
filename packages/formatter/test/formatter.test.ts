@@ -230,6 +230,26 @@ describe("pure Hybrid formatter", () => {
     }
     expect(failures).toEqual([]);
   });
+
+  it("adds exactly one indentation level for Twig, HTML, and JavaScript nesting", async () => {
+    const source = `{% block name %}\n<script>document.addEventListener("DOMContentLoaded", () => { console.log("ready"); });</script>\n{% endblock %}`;
+    const expected = [
+      "{% block name %}",
+      "    <script>",
+      '        document.addEventListener("DOMContentLoaded", () => {',
+      '            console.log("ready");',
+      "        });",
+      "    </script>",
+      "{% endblock %}"
+    ].join("\n");
+    const options = { ...getDefaultOptions(), indentSize: 4 };
+    const once = await formatTwig(source, options);
+    const twice = await formatTwig(once, options);
+    const threeTimes = await formatTwig(twice, options);
+    expect(once).toBe(expected);
+    expect(twice).toBe(expected);
+    expect(threeTimes).toBe(expected);
+  });
 });
 
 describe("formatTwigDocument options", () => {

@@ -12,6 +12,7 @@ describe("TwigPlus language server", () => {
     expect(getServerCapabilities().completionProvider).toMatchObject({
       triggerCharacters: expect.arrayContaining(["%", "{", " "])
     });
+    expect(getServerCapabilities().completionProvider?.triggerCharacters).not.toContain("(");
   });
 
   it("defines bounded production resource budgets", () => {

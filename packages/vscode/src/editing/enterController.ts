@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { computeTwigEnterEdit } from "./twigEnter";
 import { computeStyleEnterEdit } from "./styleEnter";
 import { computeHtmlEnterEdit } from "./htmlTagClose";
-import { computeScriptEnterEdit } from "./scriptEnter";
+import { computeScriptEnterEdit, shouldInsertJavaScriptBracePair } from "./scriptEnter";
 import { getHtmlTagClosingMode } from "./htmlOnType";
 
 export function registerTwigEnterController(context: vscode.ExtensionContext): void {
@@ -47,7 +47,25 @@ export function registerTwigEnterController(context: vscode.ExtensionContext): v
 
 async function deleteJavaScriptBracePair(): Promise<void> { await vscode.commands.executeCommand("deleteLeft"); }
 
-async function insertJavaScriptBracePair(): Promise<void> { await vscode.commands.executeCommand("type", { text: "{" }); }
+async function insertJavaScriptBracePair(): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || editor.document.languageId !== "twig" || editor.selections.length !== 1 || !editor.selection.isEmpty) {
+    await vscode.commands.executeCommand("type", { text: "{" });
+    return;
+  }
+  const enabled = vscode.workspace.getConfiguration("twigPlus.editing", editor.document.uri)
+    .get("autoCloseJavaScriptBraces", true);
+  const offset = editor.document.offsetAt(editor.selection.active);
+  if (!enabled || !shouldInsertJavaScriptBracePair(editor.document.getText(), offset)) {
+    await vscode.commands.executeCommand("type", { text: "{" });
+    return;
+  }
+  const applied = await editor.edit((builder) => builder.insert(editor.selection.active, "{}"));
+  if (applied) {
+    const position = editor.document.positionAt(offset + 1);
+    editor.selection = new vscode.Selection(position, position);
+  }
+}
 
 async function insertHtmlCloseTag(): Promise<void> { await vscode.commands.executeCommand("type", { text: ">" }); }
 

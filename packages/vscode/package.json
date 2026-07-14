@@ -108,6 +108,12 @@
         "when": "editorTextFocus && editorLangId == twig && !editorHasMultipleSelections && !editorHasSelection && !suggestWidgetVisible && !inlineSuggestionVisible && !inSnippetMode && !renameInputVisible"
       },
       {
+        "command": "twigPlus.insertJavaScriptBracePair",
+        "key": "shift+[",
+        "mac": "shift+[",
+        "when": "editorTextFocus && editorLangId == twig && !editorHasMultipleSelections && !editorHasSelection && !suggestWidgetVisible && !inlineSuggestionVisible && !inSnippetMode && !renameInputVisible"
+      },
+      {
         "command": "twigPlus.insertLineBreak",
         "key": "enter",
         "mac": "enter",
@@ -136,7 +142,7 @@
         "twigPlus.format.indentSize": {
           "type": "integer",
           "scope": "resource",
-          "default": 4,
+          "default": 2,
           "minimum": 0,
           "description": "Number of spaces used for indentation when tabs are disabled."
         },

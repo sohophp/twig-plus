@@ -63,6 +63,7 @@ describe("language configuration", () => {
       };
     };
     const properties = manifest.contributes.configuration.properties;
+    expect((properties["twigPlus.format.indentSize"] as unknown as { default: number }).default).toBe(2);
     expect(properties["twigPlus.editing.autoCloseHtmlTags"].default).toBe(true);
     expect((properties["twigPlus.editing.htmlTagClosing"] as unknown as { default: string }).default).toBe("onType");
     expect((properties["twigPlus.diagnostics.unresolvedNameMode"] as unknown as { default: string }).default).toBe("safe");
@@ -72,8 +73,11 @@ describe("language configuration", () => {
     expect(properties["twigPlus.editing.autoCloseJavaScriptBraces"].default).toBe(true);
     expect(properties["twigPlus.editing.linkedHtmlTags"].default).toBe(true);
     expect(manifest.contributes.keybindings.some((item) => [
-      "twigPlus.insertHtmlCloseTag", "twigPlus.insertJavaScriptBracePair", "twigPlus.deleteJavaScriptBracePair"
+      "twigPlus.insertHtmlCloseTag", "twigPlus.deleteJavaScriptBracePair"
     ].includes(item.command))).toBe(false);
+    expect(manifest.contributes.keybindings).toContainEqual(expect.objectContaining({
+      command: "twigPlus.insertJavaScriptBracePair", key: "shift+[", when: expect.stringContaining("!editorHasMultipleSelections")
+    }));
     expect(manifest.contributes.configurationDefaults?.["[twig]"]?.["editor.linkedEditing"]).toBe(true);
     expect(manifest.contributes.keybindings).toContainEqual(expect.objectContaining({
       command: "twigPlus.typeHtmlTagEnd", key: "shift+.", when: expect.stringContaining("!editorHasMultipleSelections")

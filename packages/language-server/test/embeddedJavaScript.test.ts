@@ -33,6 +33,23 @@ describe("EmbeddedJavaScriptService", () => {
     expect(await completions(`<script>document.addEventListener('DOMContentLoaded',()=>{|)</script>`)).toEqual([]);
   });
 
+  it("does not return automatic global suggestions for JavaScript punctuation", async () => {
+    const sourceWithCursor = `<script>document.addEventListener('DOMContentLoaded', (|))</script>`;
+    const offset = sourceWithCursor.indexOf("|");
+    const source = sourceWithCursor.replace("|", "");
+    const service = new EmbeddedJavaScriptService();
+    const document = parseHybridDocument(source);
+    expect(await service.getCompletions("file:///template.html.twig", 1, document, offset, { triggerCharacter: "(" })).toEqual([]);
+
+    const blockSource = `<script>const listener = () => {|}</script>`;
+    const blockOffset = blockSource.indexOf("|");
+    const withoutCursor = blockSource.replace("|", "");
+    expect(await service.getCompletions("file:///block.html.twig", 1, parseHybridDocument(withoutCursor), blockOffset, { triggerCharacter: "{" })).toEqual([]);
+
+    // Manual Ctrl+Space has no trigger character and remains available.
+    expect((await service.getCompletions("file:///template.html.twig", 1, document, offset))?.length).toBeGreaterThan(0);
+  });
+
   it("uses local object and function parameter types", async () => {
     expect(await labels(`<script>const user = { name: "Ada", active: true }; user.na|</script>`)).toContain("name");
     expect(await labels(`<script>function render(options = { compact: true }) { options.co| }</script>`)).toContain("compact");

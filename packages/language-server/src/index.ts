@@ -46,7 +46,7 @@ interface ComposerEnvironment { twigVersion?: string; symfonyVersion?: string; p
 export function getServerCapabilities(): InitializeResult["capabilities"] {
   return {
     textDocumentSync: TextDocumentSyncKind.Incremental,
-    completionProvider: { triggerCharacters: ["%", "{", " ", ".", "|", "(", "\"", "'", "/"] },
+    completionProvider: { triggerCharacters: ["%", "{", " ", ".", "|", "\"", "'", "/"] },
     definitionProvider: true, referencesProvider: true, renameProvider: { prepareProvider: true },
     documentSymbolProvider: true, selectionRangeProvider: true, documentFormattingProvider: true,
     hoverProvider: true, signatureHelpProvider: { triggerCharacters: ["(", ","] }, documentRangeFormattingProvider: true
@@ -201,7 +201,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   connection.onInitialized(() => {
     setTimeout(() => {
       void formatTwigWithResult("", {
-        profile: "phpstorm", indentSize: 4, printWidth: 100, useTabs: false,
+        profile: "phpstorm", indentSize: 2, printWidth: 100, useTabs: false,
         twigTagSpacing: true, htmlAttributeWrap: "auto", preserveSingleLineBlocks: true,
         lineBreakAfterTwigControlTag: true
       }).catch((error) => connection.console.warn(`Formatter prewarm failed: ${formatError(error)}`));
@@ -358,7 +358,9 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       connection.console.info(`[completion] template ${result.length} items ${(performance.now() - completionStarted).toFixed(1)}ms`);
       return result;
     }
-    const scriptCompletions = await embeddedJavaScript.getCompletions(document.uri, document.version, model.document, offset);
+    const scriptCompletions = await embeddedJavaScript.getCompletions(document.uri, document.version, model.document, offset, {
+      triggerCharacter: params.context?.triggerCharacter
+    });
     if (scriptCompletions !== null) return scriptCompletions.map((item) => ({
       label: item.label,
       detail: item.detail,
