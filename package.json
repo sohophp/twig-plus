@@ -28,7 +28,9 @@
     "upstream-oracle:generate": "php84 tools/upstream-oracle/export.php packages/language-spec/src/generated/upstream-runtime.json",
     "upstream-oracle:check": "npm run build --workspace packages/language-spec && node scripts/check-upstream-oracle.js",
     "upstream-oracle:conformance": "php84 tools/upstream-oracle/verify-conformance.php && node scripts/check-conformance-coverage.js",
-    "upstream-oracle:core": "php81 tools/upstream-oracle/verify-core.php && php82 tools/upstream-oracle/verify-core.php && php84 tools/upstream-oracle/verify-core.php && php85 tools/upstream-oracle/verify-core.php"
+    "upstream-oracle:core": "php81 tools/upstream-oracle/verify-core.php && php82 tools/upstream-oracle/verify-core.php && php84 tools/upstream-oracle/verify-core.php && php85 tools/upstream-oracle/verify-core.php",
+    "upstream-oracle:versions": "npm run build --workspace packages/language-spec && node scripts/check-version-oracles.js",
+    "upstream-oracle:symfony": "node scripts/check-symfony-oracles.js"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

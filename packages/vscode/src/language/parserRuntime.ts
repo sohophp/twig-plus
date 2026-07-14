@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { createDocumentModel, parseHybridDocument, validateHybridDocument, type DocumentModel, type HybridDifference, type HybridDocument, type HybridQueryOptions, type ParserEngine } from "@twig-plus/parser";
+import { createDocumentModel, parseHybridDocument, type DocumentModel, type HybridDifference, type HybridDocument, type HybridQueryOptions, type ParserEngine } from "@twig-plus/parser";
 import { getTwigPlusOutput } from "../output";
 
 const documentCache = new Map<string, { version: number; document: HybridDocument; model?: DocumentModel }>();
@@ -41,7 +41,7 @@ export function getCachedHybridDocument(document: vscode.TextDocument): HybridDo
   const started = Date.now();
   try {
     const hybridDocument = parseHybridDocument(source);
-    if (Date.now() - started > 100 || validateHybridDocument(hybridDocument).length > 0) return null;
+    if (Date.now() - started > 100) return null;
     documentCache.set(key, { version: document.version, document: hybridDocument });
     return hybridDocument;
   } catch {
@@ -67,7 +67,8 @@ export function reportHybridDifference(difference: HybridDifference, document?: 
   const summaries = difference.legacySummary || difference.hybridSummary
     ? `; legacy=${difference.legacySummary ?? "missing"}; hybrid=${difference.hybridSummary ?? "missing"}`
     : "";
-  getTwigPlusOutput().appendLine(`[hybrid] ${difference.query}: ${difference.reason}; ${file}; ${location}; offsets ${difference.range.start}-${difference.range.end}${summaries}`);
+  const category = difference.fallbackUsed ? "hybrid-fallback" : "hybrid-recovery";
+  getTwigPlusOutput().appendLine(`[${category}] ${difference.query}: ${difference.reason}; ${file}; ${location}; offsets ${difference.range.start}-${difference.range.end}${summaries}`);
 }
 
 export function reportRuntimeError(message: string, error: unknown): void {

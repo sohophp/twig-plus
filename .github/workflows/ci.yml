@@ -13,6 +13,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  symfony-version-oracle:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - symfony: "6.4"
+            php: "8.1"
+          - symfony: "6.4"
+            php: "8.2"
+          - symfony: "6.4"
+            php: "8.4"
+          - symfony: "6.4"
+            php: "8.5"
+          - symfony: "7.4"
+            php: "8.2"
+          - symfony: "7.4"
+            php: "8.4"
+          - symfony: "7.4"
+            php: "8.5"
+          - symfony: "8.1"
+            php: "8.4"
+          - symfony: "8.1"
+            php: "8.5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - run: composer install --working-dir tools/upstream-oracle/symfony/${{ matrix.symfony }} --no-interaction --prefer-dist
+      - run: php tools/upstream-oracle/export-symfony.php tools/upstream-oracle/symfony/${{ matrix.symfony }} /tmp/symfony-${{ matrix.symfony }}.json
+      - run: diff -u packages/language-spec/src/generated/symfony/symfony-${{ matrix.symfony }}.json /tmp/symfony-${{ matrix.symfony }}.json
+
+  twig-version-oracle:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        twig: ["3.0", "3.8", "3.12", "3.15", "3.21", "3.23", "3.26", "3.28"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.1"
+          coverage: none
+      - run: composer install --working-dir tools/upstream-oracle/versions/${{ matrix.twig }} --no-interaction --prefer-dist
+      - run: php tools/upstream-oracle/export-version.php tools/upstream-oracle/versions/${{ matrix.twig }} /tmp/twig-${{ matrix.twig }}.json
+      - run: diff -u packages/language-spec/src/generated/versions/twig-${{ matrix.twig }}.json /tmp/twig-${{ matrix.twig }}.json
+      - run: php tools/upstream-oracle/verify-version-boundaries.php tools/upstream-oracle/versions/${{ matrix.twig }}
+
   twig-core-oracle:
     runs-on: ubuntu-latest
     strategy:
@@ -53,6 +104,8 @@ jobs:
         run: |
           php tools/upstream-oracle/verify-conformance.php
           node scripts/check-conformance-coverage.js
+      - run: npm run upstream-oracle:versions
+      - run: npm run upstream-oracle:symfony
       - run: npm run docs:check
       - run: npm run dead-entries:check
       - run: npm audit --omit=dev --audit-level=high --registry=https://registry.npmjs.org

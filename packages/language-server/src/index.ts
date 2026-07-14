@@ -7,11 +7,12 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { analyzeHybridDiagnostics, analyzeTwigDiagnostics, collectHybridSelectionRanges, collectTemplateCompletionCandidates, createDocumentModel, createWorkspaceModel, DEFAULT_TEMPLATE_ROOTS, getHybridTokenContextAtOffset, getTemplateReferenceMatch, getTwigDiagnosticCode, parseDocument, resolveTemplateWorkspacePath, type DocumentModel, type ParserEngine, type SemanticSymbol, type TemplateUriResolver } from "@twig-plus/parser";
+import { analyzeHybridDiagnostics, analyzeTwigDiagnostics, collectHybridSelectionRanges, collectTemplateCompletionCandidates, createDocumentModel, createWorkspaceModel, DEFAULT_TEMPLATE_ROOTS, getHybridTokenContextAtOffset, getTemplateReferenceMatch, getTwigCallable, getTwigDiagnosticCode, getTwigOperator, getTwigTag, parseDocument, resolveTemplateWorkspacePath, type DocumentModel, type ParserEngine, type SemanticSymbol, type TemplateUriResolver } from "@twig-plus/parser";
 import { formatTwigRangeWithResult, formatTwigWithResult, type FormatterOptions, type FormatterStage } from "@twig-plus/formatter";
 import { EmbeddedJavaScriptService } from "./embeddedJavaScript";
 import { getTwigCatalogEntry, getTwigCompletions, TwigCompletionRegistry, type ProjectCompletionEntry } from "./twigCompletion";
-import { getSymfonyReferenceMatch, type SymfonyReferenceKind } from "./symfonyReference";
+import { collectSymfonyReferences, getSymfonyReferenceAtOffset, getSymfonyReferenceMatch, requiredSymfonyPackages, type SymfonyReferenceKind } from "./symfonyReference";
+import { readStaticSymfonyReferences } from "./staticSymfonyIndex";
 
 export interface TwigPlusServerOptions {
   diagnoseUnresolvedNames?: boolean;
@@ -28,17 +29,20 @@ interface TwigPlusSettings {
   symfony?: { reference?: "auto" | "on" | "off" };
 }
 
-interface LoadedSymfonyReference { name: string; detail?: string; }
+interface LoadedSymfonyReference { name: string; detail?: string; documentation?: string; source?: { uri: string; line: number; character: number }; }
 interface LoadedProjectMetadata {
   completions: ProjectCompletionEntry[];
   globals: string[];
   catalogComplete: boolean;
   twigVersion?: string;
+  symfonyVersion?: string;
   contexts: Array<{ template: string; complete: boolean; variables: string[] }>;
   packages: string[];
+  packageVersions: Record<string, string>;
   references: Record<SymfonyReferenceKind, LoadedSymfonyReference[]>;
+  referenceCatalogsComplete: Set<SymfonyReferenceKind>;
 }
-interface ComposerEnvironment { twigVersion?: string; packages: string[]; }
+interface ComposerEnvironment { twigVersion?: string; symfonyVersion?: string; packages: string[]; packageVersions: Record<string, string>; }
 
 export function getServerCapabilities(): InitializeResult["capabilities"] {
   return {
@@ -73,8 +77,9 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   const embeddedJavaScript = new EmbeddedJavaScriptService();
   const completionRegistry = new TwigCompletionRegistry();
   let projectMetadata: LoadedProjectMetadata = {
-    completions: [], globals: [], catalogComplete: false, contexts: [], packages: [],
-    references: { route: [], asset: [], translation: [] }
+    completions: [], globals: [], catalogComplete: false, contexts: [], packages: [], packageVersions: {},
+    references: { route: [], asset: [], translation: [], form: [], security: [], fragment: [], importmap: [] },
+    referenceCatalogsComplete: new Set()
   };
   const indexedDocuments = new Map<string, string>();
   let workspaceFolders: string[] = [];
@@ -83,6 +88,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   let fullIndexTimer: NodeJS.Timeout | null = null;
   let fullIndexGate: { promise: Promise<void>; resolve: () => void } | null = null;
   let settings: TwigPlusSettings = {};
+  let composerTwigVersion: string | undefined;
   const resourceSettings = new Map<string, TwigPlusSettings>();
   const folderSettings = new Map<string, TwigPlusSettings>();
   let supportsConfiguration = false;
@@ -96,6 +102,9 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   let republishDiagnostics: (() => void) | null = null;
   const settingsFor = (uri: string): TwigPlusSettings => resourceSettings.get(uri) ??
     [...folderSettings.entries()].filter(([folder]) => uri === folder || uri.startsWith(folder + "/")).sort((a, b) => b[0].length - a[0].length)[0]?.[1] ?? settings;
+  const permitsSymfonyReference = (kind: SymfonyReferenceKind, mode: "auto" | "on" | "off") =>
+    mode === "on" || (mode === "auto" && completionRegistry.permits("symfony-bridge") && completionRegistry.hasAnyPackage(requiredSymfonyPackages(kind)));
+  const twigVersionFor = (uri: string) => settingsFor(uri).twig?.version ?? projectMetadata.twigVersion ?? composerTwigVersion;
 
   const modelFor = (document: TextDocument): DocumentModel | null => {
     if (document.getText().length > MAX_DOCUMENT_LENGTH) return null;
@@ -130,7 +139,9 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     projectMetadata = await readProjectCompletionMetadata(workspaceFolders);
     completionRegistry.replaceProject(projectMetadata.completions);
     const composer = await readComposerEnvironment(workspaceFolders);
+    composerTwigVersion = composer.twigVersion;
     completionRegistry.setPackages([...projectMetadata.packages, ...composer.packages]);
+    completionRegistry.setPackageVersions({ ...composer.packageVersions, ...projectMetadata.packageVersions });
     const configuredVersion = workspaceFolders.map((folder) => settingsFor(folder).twig?.version).find(Boolean);
     connection.console.info(`Twig language specification: ${configuredVersion ?? projectMetadata.twigVersion ?? composer.twigVersion ?? "3.x latest (version unknown)"}.`);
     const message = `Indexed ${indexedDocuments.size.toLocaleString()} Twig files.`;
@@ -240,6 +251,26 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const legacy = documentSettings.parser?.engine === "legacy"
       ? analyzeTwigDiagnostics(document.getText(), workspaceContext.paths, workspaceContext.current, roots)
       : analyzeHybridDiagnostics(model.document, workspaceContext.paths, workspaceContext.current, roots);
+    const symfonyMode = documentSettings.symfony?.reference ?? "auto";
+    const symfonyDiagnostics = collectSymfonyReferences(document.getText()).filter((reference) =>
+      projectMetadata.referenceCatalogsComplete.has(reference.kind)
+      && permitsSymfonyReference(reference.kind, symfonyMode)
+      && !projectMetadata.references[reference.kind].some((entry) => entry.name === reference.prefix));
+    const configuredTwigVersion = twigVersionFor(document.uri);
+    const versionDiagnostics = configuredTwigVersion ? [
+      ...model.references.flatMap((reference) => {
+        const kind = reference.role === "function-call" ? "function" : reference.role === "filter" ? "filter" : reference.role === "test" ? "test" : null;
+        const latest = kind ? getTwigCallable(kind, reference.name) : reference.role === "operator" ? getTwigOperator(reference.name) : undefined;
+        const selected = kind ? getTwigCallable(kind, reference.name, configuredTwigVersion) : reference.role === "operator" ? getTwigOperator(reference.name, configuredTwigVersion) : undefined;
+        return latest && !selected ? [{ ...reference, name: reference.name }] : [];
+      }),
+      ...model.document.children.flatMap((node) => {
+        if (node.kind !== "TwigTag" || !node.tagName || !getTwigTag(node.tagName) || getTwigTag(node.tagName, configuredTwigVersion)) return [];
+        const relative = node.raw.indexOf(node.tagName);
+        const start = node.start + Math.max(0, relative);
+        return [{ start, end: start + node.tagName.length, name: node.tagName }];
+      })
+    ] : [];
     if (documents.get(document.uri)?.version !== version || diagnosticGenerations.get(document.uri) !== generation) return;
     connection.sendDiagnostics({ uri: document.uri, diagnostics: [
       ...legacy.map((diagnostic) => ({
@@ -249,6 +280,14 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       ...model.diagnostics.map((diagnostic) => ({
       range: toRange(document, diagnostic), message: diagnostic.message, code: diagnostic.code,
       source: "TwigPlus Semantic", severity: diagnostic.severity === "error" ? DiagnosticSeverity.Error : diagnostic.severity === "warning" ? DiagnosticSeverity.Warning : DiagnosticSeverity.Information
+      })),
+      ...symfonyDiagnostics.map((reference) => ({
+        range: toRange(document, reference), message: `Unknown Symfony ${reference.kind} '${reference.prefix}'.`,
+        code: `unknown-symfony-${reference.kind}`, source: "TwigPlus Symfony", severity: DiagnosticSeverity.Warning
+      })),
+      ...versionDiagnostics.map((diagnostic) => ({
+        range: toRange(document, diagnostic), message: `Twig ${configuredTwigVersion} does not support '${diagnostic.name}'.`,
+        code: "twig-version-mismatch", source: "TwigPlus Version", severity: DiagnosticSeverity.Warning
       })),
       ...javascriptDiagnostics.map((diagnostic) => ({
         range: toRange(document, diagnostic.range), message: diagnostic.message, code: diagnostic.code,
@@ -304,7 +343,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const symfonyMode = settingsFor(document.uri).symfony?.reference ?? "auto";
     if (symfonyMatch && symfonyMode !== "off") {
       await workspaceReady;
-      if (symfonyMode !== "on" && !completionRegistry.permits("symfony-bridge")) return [];
+      if (!permitsSymfonyReference(symfonyMatch.kind, symfonyMode)) return [];
       const range = { start: document.positionAt(symfonyMatch.start), end: document.positionAt(symfonyMatch.end) };
       return projectMetadata.references[symfonyMatch.kind]
         .filter((entry) => entry.name.toLowerCase().includes(symfonyMatch.prefix.toLowerCase()))
@@ -339,7 +378,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     }));
     const context = getHybridTokenContextAtOffset(model.document, offset);
     if (context.kind === "html" || context.kind === "comment" || context.stringLike || context.hashKeyLike) return [];
-    const catalog = getTwigCompletions(document, model.document, offset, completionRegistry);
+    const catalog = getTwigCompletions(document, model.document, offset, completionRegistry, twigVersionFor(document.uri));
     const symbols = model.getVisibleSymbolsAt(offset).map((symbol) => ({
       label: symbol.name, detail: `Twig ${symbol.kind}`,
       kind: symbol.kind === "macro" ? CompletionItemKind.Function : symbol.kind === "import" ? CompletionItemKind.Module : CompletionItemKind.Variable
@@ -352,6 +391,17 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const document = documents.get(params.textDocument.uri); if (!document) return null;
     const model = modelFor(document); if (!model) return null;
     const offset = document.offsetAt(params.position);
+    const symfonyReference = getSymfonyReferenceAtOffset(document.getText(), offset);
+    if (symfonyReference) {
+      await workspaceReady;
+      const mode = settingsFor(document.uri).symfony?.reference ?? "auto";
+      const entry = permitsSymfonyReference(symfonyReference.kind, mode)
+        ? projectMetadata.references[symfonyReference.kind].find((item) => item.name === symfonyReference.prefix) : undefined;
+      if (entry) return {
+        contents: { kind: MarkupKind.Markdown, value: [`**Symfony ${symfonyReference.kind}**`, `\`${entry.name}\``, entry.detail, entry.documentation].filter(Boolean).join("\n\n") },
+        range: toRange(document, symfonyReference)
+      };
+    }
     const script = await embeddedJavaScript.getHover(document.uri, document.version, model.document, offset);
     if (script) return { contents: { kind: MarkupKind.Markdown, value: script.contents }, range: toRange(document, script.range) };
     const context = getHybridTokenContextAtOffset(model.document, offset);
@@ -362,7 +412,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       const signature = signatureForSymbol(symbol);
       return { contents: { kind: MarkupKind.Markdown, value: `\`\`\`twig\n${signature}\n\`\`\`\nTwig ${symbol.kind}` }, range: toRange(document, word) };
     }
-    const entry = getTwigCatalogEntry(word.value, completionRegistry); if (!entry) return null;
+    const entry = getTwigCatalogEntry(word.value, completionRegistry, undefined, twigVersionFor(document.uri)); if (!entry) return null;
     const heading = entry.signature ?? entry.name;
     return { contents: { kind: MarkupKind.Markdown, value: [`\`\`\`twig\n${heading}\n\`\`\``, entry.detail, entry.documentation].filter(Boolean).join("\n\n") }, range: toRange(document, word) };
   });
@@ -374,7 +424,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     if (script) return { signatures: [{ label: script.label, documentation: script.documentation, parameters: script.parameters.map((label) => ({ label })) }], activeSignature: 0, activeParameter: script.activeParameter };
     const call = callAt(document.getText(), offset); if (!call) return null;
     const visible = model.getVisibleSymbolsAt(offset).find((item) => item.name === call.name && item.kind === "macro");
-    const entry = getTwigCatalogEntry(call.name, completionRegistry, ["function", "filter", "test"]);
+    const entry = getTwigCatalogEntry(call.name, completionRegistry, ["function", "filter", "test"], twigVersionFor(document.uri));
     let label = visible ? signatureForSymbol(visible) : entry?.signature;
     if (!label) {
       await workspaceReady;
@@ -390,6 +440,16 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   connection.onDefinition(async (params): Promise<Location | null> => {
     const document = documents.get(params.textDocument.uri); if (!document) return null;
     await workspaceReady;
+    const symfonyReference = getSymfonyReferenceAtOffset(document.getText(), document.offsetAt(params.position));
+    if (symfonyReference) {
+      const mode = settingsFor(document.uri).symfony?.reference ?? "auto";
+      const entry = permitsSymfonyReference(symfonyReference.kind, mode)
+        ? projectMetadata.references[symfonyReference.kind].find((item) => item.name === symfonyReference.prefix) : undefined;
+      if (entry?.source) return {
+        uri: entry.source.uri,
+        range: { start: { line: entry.source.line, character: entry.source.character }, end: { line: entry.source.line, character: entry.source.character + entry.name.length } }
+      };
+    }
     const workspaceLocation = workspaceFor().getDefinition(document.uri, document.offsetAt(params.position));
     if (workspaceLocation) {
       const target = documentForUri(workspaceLocation.uri, documents, indexedDocuments);
@@ -513,8 +573,10 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       parserEngine: documentSettings.parser?.engine ?? "hybrid", ...options.formatter,
       isCancellationRequested: () => cancellation.isCancellationRequested || formatController.signal.aborted,
       onHybridDifference: (difference) => {
-        hybridFallbackCount += 1;
-        connection.console.warn(`[hybrid-fallback #${hybridFallbackCount}] ${difference.query} ${difference.reason} ${document.uri}`);
+        if (difference.fallbackUsed) {
+          hybridFallbackCount += 1;
+          connection.console.warn(`[hybrid-fallback #${hybridFallbackCount}] ${difference.query} ${difference.reason} ${document.uri}`);
+        } else connection.console.info(`[hybrid-recovery] ${difference.query} ${difference.reason} ${document.uri}`);
       },
       onStage: (stage, elapsedMs) => progress(stage, "completed", elapsedMs)
     };
@@ -544,8 +606,10 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       lineBreakAfterTwigControlTag: config.lineBreakAfterTwigControlTag ?? true,
       parserEngine: "hybrid", isCancellationRequested: () => cancellation.isCancellationRequested,
       onHybridDifference: (difference) => {
-        hybridFallbackCount += 1;
-        connection.console.warn(`[hybrid-fallback #${hybridFallbackCount}] ${difference.query} ${difference.reason} ${document.uri}`);
+        if (difference.fallbackUsed) {
+          hybridFallbackCount += 1;
+          connection.console.warn(`[hybrid-fallback #${hybridFallbackCount}] ${difference.query} ${difference.reason} ${document.uri}`);
+        } else connection.console.info(`[hybrid-recovery] ${difference.query} ${difference.reason} ${document.uri}`);
       }
     });
     if (!result.ok) { connection.console.warn(`[range-format] ${result.error.code}: ${result.error.message}`); return []; }
@@ -631,8 +695,11 @@ async function readProjectCompletionMetadata(folders: string[]): Promise<LoadedP
   const contexts: LoadedProjectMetadata["contexts"] = [];
   let catalogComplete = false;
   let twigVersion: string | undefined;
+  let symfonyVersion: string | undefined;
   const packages: string[] = [];
-  const references: LoadedProjectMetadata["references"] = { route: [], asset: [], translation: [] };
+  const packageVersions: Record<string, string> = {};
+  const references: LoadedProjectMetadata["references"] = { route: [], asset: [], translation: [], form: [], security: [], fragment: [], importmap: [] };
+  const referenceCatalogsComplete = new Set<SymfonyReferenceKind>();
   const maxMetadataBytes = 5_000_000;
   const maxEntries = 10_000;
   for (const uri of folders.filter((item) => item.startsWith("file:"))) {
@@ -663,33 +730,65 @@ async function readProjectCompletionMetadata(folders: string[]): Promise<LoadedP
         contexts.push({ template: entry.template, complete: entry.complete, variables });
       }
       if (isRecord(value?.references)) {
-        for (const [metadataKey, kind] of [["routes", "route"], ["assets", "asset"], ["translations", "translation"]] as const) {
+        for (const [metadataKey, kind] of [
+          ["routes", "route"], ["assets", "asset"], ["translations", "translation"], ["forms", "form"],
+          ["security", "security"], ["fragments", "fragment"], ["importmaps", "importmap"]
+        ] as const) {
           const entries = value.references[metadataKey];
           if (!Array.isArray(entries)) continue;
           for (const entry of entries.slice(0, maxEntries)) {
             if (typeof entry === "string") references[kind].push({ name: entry });
-            else if (isRecord(entry) && typeof entry.name === "string") references[kind].push({
-              name: entry.name,
-              detail: typeof entry.detail === "string" ? entry.detail : undefined
-            });
+            else if (isRecord(entry) && typeof entry.name === "string") {
+              let source: LoadedSymfonyReference["source"];
+              if (isRecord(entry.source) && typeof entry.source.path === "string") {
+                const sourcePath = path.resolve(workspaceRoot, entry.source.path);
+                const relative = path.relative(workspaceRoot, sourcePath);
+                if (!relative.startsWith("..") && !path.isAbsolute(relative)) source = {
+                  uri: pathToFileURL(sourcePath).toString(),
+                  line: typeof entry.source.line === "number" && entry.source.line >= 0 ? Math.floor(entry.source.line) : 0,
+                  character: typeof entry.source.character === "number" && entry.source.character >= 0 ? Math.floor(entry.source.character) : 0
+                };
+              }
+              references[kind].push({
+                name: entry.name,
+                detail: typeof entry.detail === "string" ? entry.detail : undefined,
+                documentation: typeof entry.documentation === "string" ? entry.documentation : undefined,
+                source
+              });
+            }
           }
         }
       }
       if (isRecord(value?.environment)) {
         if (typeof value.environment.twigVersion === "string" && /^3\.\d+(?:\.\d+)?/.test(value.environment.twigVersion)) twigVersion ??= value.environment.twigVersion;
+        if (typeof value.environment.symfonyVersion === "string" && /^\d+\.\d+(?:\.\d+)?/.test(value.environment.symfonyVersion)) symfonyVersion ??= value.environment.symfonyVersion;
         if (value.environment.catalogComplete === true) catalogComplete = true;
         if (Array.isArray(value.environment.packages)) packages.push(...value.environment.packages.filter((item: unknown): item is string => typeof item === "string").slice(0, maxEntries));
+        if (isRecord(value.environment.packageVersions)) for (const [name, version] of Object.entries(value.environment.packageVersions).slice(0, maxEntries)) {
+          if (/^[a-z0-9_.-]+\/[a-z0-9_.-]+$/i.test(name) && typeof version === "string" && /^v?\d+\.\d+/.test(version)) packageVersions[name] = version.replace(/^v/, "");
+        }
+        if (Array.isArray(value.environment.referenceCatalogsComplete)) for (const kind of value.environment.referenceCatalogsComplete) {
+          if (["route", "asset", "translation", "form", "security", "fragment", "importmap"].includes(String(kind))) referenceCatalogsComplete.add(kind as SymfonyReferenceKind);
+        }
       }
     } catch { /* optional metadata never blocks generic Twig features */ }
+    try {
+      const workspaceRoot = fileURLToPath(uri);
+      for (const entry of await readStaticSymfonyReferences(workspaceRoot)) references[entry.kind].push({
+        name: entry.name, detail: entry.detail,
+        source: { uri: pathToFileURL(path.resolve(workspaceRoot, entry.source.path)).toString(), line: entry.source.line, character: entry.source.character }
+      });
+    } catch { /* bounded static indexes are optional */ }
   }
   for (const kind of Object.keys(references) as SymfonyReferenceKind[]) {
     references[kind] = references[kind].filter((entry, index, all) => all.findIndex((item) => item.name === entry.name) === index);
   }
-  return { completions, globals, contexts, catalogComplete, twigVersion, packages: [...new Set(packages)], references };
+  if (symfonyVersion && !packageVersions["symfony/twig-bridge"]) packageVersions["symfony/twig-bridge"] = symfonyVersion;
+  return { completions, globals, contexts, catalogComplete, twigVersion, symfonyVersion, packages: [...new Set(packages)], packageVersions, references, referenceCatalogsComplete };
 }
 
 async function readComposerEnvironment(folders: string[]): Promise<ComposerEnvironment> {
-  const result: ComposerEnvironment = { packages: [] };
+  const result: ComposerEnvironment = { packages: [], packageVersions: {} };
   for (const uri of folders.filter((item) => item.startsWith("file:"))) {
     try {
       const file = path.join(fileURLToPath(uri), "composer.lock");
@@ -697,8 +796,11 @@ async function readComposerEnvironment(folders: string[]): Promise<ComposerEnvir
       const value = JSON.parse(await readFile(file, "utf8"));
       const packages = [...(Array.isArray(value?.packages) ? value.packages : []), ...(Array.isArray(value?.["packages-dev"]) ? value["packages-dev"] : [])];
       result.packages.push(...packages.filter(isRecord).map((entry) => entry.name).filter((name): name is string => typeof name === "string"));
+      for (const entry of packages.filter(isRecord)) if (typeof entry.name === "string" && typeof entry.version === "string") result.packageVersions[entry.name] = entry.version.replace(/^v/, "");
       const twig = packages.find((entry) => isRecord(entry) && entry.name === "twig/twig");
       if (isRecord(twig) && typeof twig.version === "string") result.twigVersion ??= twig.version.replace(/^v/, "");
+      const bridge = packages.find((entry) => isRecord(entry) && entry.name === "symfony/twig-bridge");
+      if (isRecord(bridge) && typeof bridge.version === "string") result.symfonyVersion ??= bridge.version.replace(/^v/, "");
     } catch { /* composer metadata is optional */ }
   }
   result.packages = [...new Set(result.packages)];
