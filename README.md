@@ -57,4 +57,4 @@ VSIX 统一输出到 `artifacts/vsix/`。F5 调试前必须先构建，Extension
 
 ## 非目标
 
-当前整改阶段不新增 hover、signature help、Symfony/PHP 类型推导或 PHPStorm 即时 delimiter 空格改写。稳定性、撤销正确性、性能可见性和真实 VSIX 验证优先。
+1.2.x 后续优先补齐 embedded definition/rename、semantic tokens、安全 Quick Fix 与可选 Symfony controller variable 类型上下文。PHPStorm 即时 delimiter 空格改写、TypeScript/custom MIME script 和专有配色仍不在当前范围。
