@@ -57,4 +57,4 @@ VSIX 统一输出到 `artifacts/vsix/`。F5 调试前必须先构建，Extension
 
 ## 非目标
 
-1.2.x 后续优先补齐 embedded definition/rename、semantic tokens、安全 Quick Fix 与可选 Symfony controller variable 类型上下文。PHPStorm 即时 delimiter 空格改写、TypeScript/custom MIME script 和专有配色仍不在当前范围。
+1.2.x 已补齐当前 script 内可安全映射的 embedded JavaScript Definition；后续优先完成 embedded Rename、Semantic Tokens、安全 Quick Fix 与可选 Symfony controller variable 类型上下文。PHPStorm 即时 delimiter 空格改写、TypeScript/custom MIME script 和专有配色仍不在当前范围。

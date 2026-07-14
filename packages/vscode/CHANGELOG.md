@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added TypeScript-powered Go to Definition for local declarations and import aliases inside supported embedded JavaScript, while rejecting external, generated, unsupported MIME, and cross-script targets that cannot be mapped safely to Twig.
+
 ## 1.2.0 - 2026-07-14
 
 - Added pinned Twig 3.0-3.28 source oracles, version-gated language facts, recoverable Hybrid incomplete-document handling, and structured fatal-failure accounting.

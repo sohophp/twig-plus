@@ -25,6 +25,7 @@ async function run() {
     testTwigOutputTypingInsideEmbeddedJavaScriptString,
     testDocumentFormatting,
     testHoverSignatureAndRangeFormatting,
+    testEmbeddedJavaScriptDefinition,
     testInvalidEmbeddedJavaScriptFormattingFailsFast,
     testTwigTagCompletion,
     testHtmlCompletion,
@@ -356,6 +357,20 @@ async function testHoverSignatureAndRangeFormatting() {
     `{% block body %}\n    <div>{{ path("home", {}) }}</div>\n{% endblock %}`,
     "VS Code should preserve the expanded-range formatting result when it minimizes the LSP edit"
   );
+}
+
+async function testEmbeddedJavaScriptDefinition() {
+  const source = `<script>\nconst formatTitle = (value) => value.toUpperCase();\nconst title = formatTitle("Home");\n</script>`;
+  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
+  await vscode.window.showTextDocument(document);
+  const location = await getSingleDefinition(
+    document,
+    document.positionAt(source.lastIndexOf("formatTitle") + 2)
+  );
+  assert.strictEqual(location.uri.toString(), document.uri.toString());
+  assert.strictEqual(location.range.start.line, 1);
+  assert.strictEqual(location.range.start.character, source.split("\n")[1].indexOf("formatTitle"));
+  assert.strictEqual(document.getText(location.range), "formatTitle");
 }
 
 async function testMultiCursorNativePairUndoRedo() {

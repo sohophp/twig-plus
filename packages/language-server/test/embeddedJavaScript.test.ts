@@ -12,6 +12,15 @@ async function labels(sourceWithCursor: string): Promise<string[]> {
   return (await completions(sourceWithCursor))?.map((item) => item.label) ?? [];
 }
 
+async function definition(sourceWithCursor: string) {
+  const offset = sourceWithCursor.lastIndexOf("|");
+  const source = sourceWithCursor.slice(0, offset) + sourceWithCursor.slice(offset + 1);
+  const result = await new EmbeddedJavaScriptService().getDefinition(
+    "file:///template.html.twig", 1, parseHybridDocument(source), offset
+  );
+  return { source, result };
+}
+
 describe("EmbeddedJavaScriptService", () => {
   it("does not load TypeScript for documents without supported scripts", async () => {
     expect(isTypeScriptRuntimeLoaded()).toBe(false);
@@ -97,5 +106,30 @@ describe("EmbeddedJavaScriptService", () => {
     const signature = await service.getSignatureHelp("file:///template.html.twig", 1, document, signatureOffset);
     expect(signature?.label).toContain("addEventListener");
     expect(signature?.parameters.length).toBeGreaterThan(0);
+  });
+
+  it("maps local JavaScript definitions back to their Twig source ranges", async () => {
+    const variable = await definition(`<script>const total = 1; console.log(tot|al);</script>`);
+    expect(variable.result?.range).toEqual({
+      start: variable.source.indexOf("total"),
+      end: variable.source.indexOf("total") + "total".length
+    });
+
+    const callable = await definition(`<script>function render(value) { return value; } ren|der(total);</script>`);
+    expect(callable.result?.range).toEqual({
+      start: callable.source.indexOf("render"),
+      end: callable.source.indexOf("render") + "render".length
+    });
+  });
+
+  it("keeps embedded definition mapping inside one supported script", async () => {
+    const moduleAlias = await definition(`<script type="module">import { helper as localHelper } from "./helper.js"; localHel|per();</script>`);
+    const declarationStart = moduleAlias.source.indexOf("localHelper");
+    expect(moduleAlias.result?.range).toEqual({ start: declarationStart, end: declarationStart + "localHelper".length });
+
+    expect((await definition(`<script>const local = 1;</script><script>console.log(loc|al);</script>`)).result).toBeNull();
+    expect((await definition(`<script>docu|ment.body</script>`)).result).toBeNull();
+    expect((await definition(`<script type="application/json">{"value":"loc|al"}</script>`)).result).toBeNull();
+    expect((await definition(`<script>{{ loc|al }}</script>`)).result).toBeNull();
   });
 });

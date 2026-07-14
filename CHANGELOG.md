@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added TypeScript-powered Go to Definition for local declarations and import aliases inside supported embedded JavaScript, with source-map-safe Twig ranges and isolated script scopes.
+
 ## 1.2.0 - 2026-07-14
 
 - Removed the public parser-engine setting/command, compatibility facade, shadow comparison, old parser queries, and fatal fallback; Hybrid is now the only parser and formatter path.

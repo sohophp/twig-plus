@@ -56,6 +56,35 @@ describe("bundled TwigPlus language server", () => {
     expect(explicit.result.length).toBeGreaterThan(0);
   });
 
+  it("maps embedded JavaScript definitions back through the bundled server", async () => {
+    const client = startClient();
+    await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
+    client.notify("initialized", {});
+    const uri = "untitled:embedded-definition.html.twig";
+    const source = `<script>\nconst formatTitle = (value) => value.toUpperCase();\nconst title = formatTitle("Home");\n</script>`;
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const usage = source.lastIndexOf("formatTitle") + 2;
+    const definition = await client.request("textDocument/definition", {
+      textDocument: { uri }, position: positionAt(source, usage)
+    });
+    expect(definition.result).toEqual({
+      uri,
+      range: {
+        start: positionAt(source, source.indexOf("formatTitle")),
+        end: positionAt(source, source.indexOf("formatTitle") + "formatTitle".length)
+      }
+    });
+
+    const isolated = `<script>const local = 1;</script><script>console.log(local);</script>`;
+    client.notify("textDocument/didChange", {
+      textDocument: { uri, version: 2 }, contentChanges: [{ text: isolated }]
+    });
+    const missing = await client.request("textDocument/definition", {
+      textDocument: { uri }, position: positionAt(isolated, isolated.lastIndexOf("local") + 2)
+    });
+    expect(missing.result).toBeNull();
+  });
+
   it("owns Twig catalog completion and reports structured format progress", async () => {
     const client = startClient();
     await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
