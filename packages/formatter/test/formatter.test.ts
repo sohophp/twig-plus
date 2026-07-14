@@ -73,7 +73,7 @@ describe("structured formatter results", () => {
   it("records real embedded and mapping stages once in hybrid mode", async () => {
     const stages: string[] = [];
     const result = await formatTwigWithResult("<script>document.addEventListener('load', () => {});</script>", {
-      ...getDefaultOptions(), parserEngine: "hybrid", onStage: (stage) => stages.push(stage)
+      ...getDefaultOptions(), onStage: (stage) => stages.push(stage)
     });
     expect(result.ok).toBe(true);
     expect(stages.filter((stage) => stage === "javascript")).toHaveLength(1);
@@ -197,23 +197,23 @@ describe("embedded syntax errors", () => {
   });
 });
 
-describe("hybrid formatter compatibility", () => {
-  it("formats the complete fixture corpus without a fatal legacy fallback", async () => {
-    const fallbacks: string[] = [];
+describe("pure Hybrid formatter", () => {
+  it("formats the complete fixture corpus without a Hybrid failure", async () => {
+    const failures: string[] = [];
     for (const fixtureName of fixtureNames) {
       await formatTwig(readFixture("input", fixtureName), {
-        ...getDefaultOptions(), parserEngine: "hybrid",
-        onHybridDifference: (difference) => { if (difference.fallbackUsed) fallbacks.push(`${fixtureName}:${difference.reason}`); }
+        ...getDefaultOptions(),
+        onHybridFailure: (failure) => failures.push(`${fixtureName}:${failure.reason}`)
       });
     }
-    expect(fallbacks).toEqual([]);
+    expect(failures).toEqual([]);
   });
 
-  it.each(["hybrid-shadow", "hybrid"] as const)("keeps all golden fixtures identical in %s mode", async (parserEngine) => {
+  it("keeps all golden fixtures identical and idempotent", async () => {
     for (const fixtureName of fixtureNames) {
       const input = readFixture("input", fixtureName);
       const expected = readFixture("expected", fixtureName);
-      const options = { ...getDefaultOptions(), parserEngine };
+      const options = getDefaultOptions();
       const actual = await formatTwig(input, options);
       expect(actual).toBe(expected);
       expect(await formatTwig(actual, options)).toBe(actual);
@@ -221,15 +221,14 @@ describe("hybrid formatter compatibility", () => {
   });
 
   it("keeps incomplete and CRLF input on the pure Hybrid formatter path", async () => {
-    const fallbacks: string[] = [];
+    const failures: string[] = [];
     for (const source of ["{% bl", "<div class=\"hero\"", "{% if user %}\r\n<div>{{name}}</div>"]) {
-      const legacy = await formatTwig(source, getDefaultOptions());
+      const expected = await formatTwig(source, getDefaultOptions());
       expect(await formatTwig(source, {
-        ...getDefaultOptions(), parserEngine: "hybrid",
-        onHybridDifference: (difference) => { if (difference.fallbackUsed) fallbacks.push(difference.reason); }
-      })).toBe(legacy);
+        ...getDefaultOptions(), onHybridFailure: (failure) => failures.push(failure.reason)
+      })).toBe(expected);
     }
-    expect(fallbacks).toEqual([]);
+    expect(failures).toEqual([]);
   });
 });
 

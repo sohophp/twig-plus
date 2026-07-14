@@ -1,6 +1,6 @@
 import { lexTwig, type TwigLexeme } from "./twigTokenizer";
 import { TWIG_3_SPEC } from "@twig-plus/language-spec";
-import type { SourceRange } from "./selectionRanges";
+import type { SourceRange } from "./queryTypes";
 
 export interface TwigAstNodeBase extends SourceRange { kind: string; complete: boolean; }
 export interface NameExpression extends TwigAstNodeBase { kind: "NameExpression"; name: string; }

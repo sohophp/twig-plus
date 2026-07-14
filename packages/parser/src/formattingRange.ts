@@ -1,5 +1,5 @@
 import { parseHybridDocument, type HybridDocument, type NodePair } from "./hybridAst";
-import type { SourceRange } from "./selectionRanges";
+import type { SourceRange } from "./queryTypes";
 
 /** Expand a requested formatting range to complete lossless Twig/HTML structures. */
 export function expandHybridFormattingRange(source: string, requested: SourceRange): SourceRange | null {

@@ -1,35 +1,15 @@
 import * as vscode from "vscode";
-import { createDocumentModel, parseHybridDocument, type DocumentModel, type HybridDifference, type HybridDocument, type HybridQueryOptions, type ParserEngine } from "@twig-plus/parser";
+import { createDocumentModel, parseHybridDocument, type DocumentModel, type HybridDocument, type HybridQueryFailure } from "@twig-plus/parser";
 import { getTwigPlusOutput } from "../output";
 
 const documentCache = new Map<string, { version: number; document: HybridDocument; model?: DocumentModel }>();
 const MAX_HYBRID_SOURCE_LENGTH = 2_000_000;
-let deprecatedEngineReported = false;
 
 export function registerHybridParserRuntime(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.workspace.onDidCloseTextDocument((document) => documentCache.delete(document.uri.toString())),
     vscode.workspace.onDidChangeTextDocument((event) => documentCache.delete(event.document.uri.toString()))
   );
-}
-
-export function getConfiguredParserEngine(): ParserEngine {
-  const configured = vscode.workspace.getConfiguration("twigPlus.parser").get<ParserEngine>("engine", "hybrid");
-  if (configured !== "hybrid" && !deprecatedEngineReported) {
-    deprecatedEngineReported = true;
-    getTwigPlusOutput().appendLine(`[parser] '${configured}' is deprecated and is treated as hybrid; legacy remains an internal fatal-error fallback only.`);
-    void vscode.window.showWarningMessage(`TwigPlus parser mode '${configured}' is deprecated. Hybrid is now always used.`);
-  }
-  return "hybrid";
-}
-
-export function getParserQueryOptions(document?: vscode.TextDocument): HybridQueryOptions {
-  const engine = getConfiguredParserEngine();
-  return {
-    engine,
-    hybridDocument: engine !== "legacy" && document ? getCachedHybridDocument(document) ?? undefined : undefined,
-    onDifference: (difference) => reportHybridDifference(difference, document)
-  };
 }
 
 export function getCachedHybridDocument(document: vscode.TextDocument): HybridDocument | null {
@@ -60,15 +40,12 @@ export function getCachedDocumentModel(document: vscode.TextDocument): DocumentM
   return model;
 }
 
-export function reportHybridDifference(difference: HybridDifference, document?: vscode.TextDocument): void {
+export function reportHybridFailure(difference: HybridQueryFailure, document?: vscode.TextDocument): void {
   const file = document?.uri.fsPath || document?.uri.toString() || "(unknown document)";
   const position = document?.positionAt(difference.range.start);
   const location = position ? `line ${position.line + 1}, column ${position.character + 1}` : `offset ${difference.range.start}`;
-  const summaries = difference.legacySummary || difference.hybridSummary
-    ? `; legacy=${difference.legacySummary ?? "missing"}; hybrid=${difference.hybridSummary ?? "missing"}`
-    : "";
-  const category = difference.fallbackUsed ? "hybrid-fallback" : "hybrid-recovery";
-  getTwigPlusOutput().appendLine(`[${category}] ${difference.query}: ${difference.reason}; ${file}; ${location}; offsets ${difference.range.start}-${difference.range.end}${summaries}`);
+  const message = difference.message ? `; ${difference.message}` : "";
+  getTwigPlusOutput().appendLine(`[hybrid-failure] ${difference.query}: ${difference.reason}; ${file}; ${location}; offsets ${difference.range.start}-${difference.range.end}${message}`);
 }
 
 export function reportRuntimeError(message: string, error: unknown): void {

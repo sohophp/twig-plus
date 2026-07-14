@@ -1,5 +1,5 @@
 import type { HybridDocument, HtmlTagNode, TwigNode } from "./hybridAst";
-import type { SourceRange } from "./selectionRanges";
+import type { SourceRange } from "./queryTypes";
 
 export type EmbeddedScriptKind = "javascript" | "javascript-module";
 

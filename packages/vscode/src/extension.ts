@@ -5,7 +5,7 @@ import { registerHtmlCompletionProvider } from "./language/htmlCompletionProvide
 import { getTwigLanguageClientStatus, startTwigLanguageClient, stopTwigLanguageClient } from "./language/languageClient";
 import { registerFallbackProviders } from "./language/fallbackProviders";
 import { getConfiguredTemplateRoots } from "./language/templateConfig";
-import { getConfiguredParserEngine, registerHybridParserRuntime, reportRuntimeError } from "./language/parserRuntime";
+import { registerHybridParserRuntime, reportRuntimeError } from "./language/parserRuntime";
 import { registerTwigEnterController } from "./editing/enterController";
 import { registerHtmlLinkedEditingProvider } from "./editing/linkedEditingProvider";
 import { getHtmlTagClosingMode, registerHtmlOnTypeController } from "./editing/htmlOnType";
@@ -41,27 +41,8 @@ function registerCommands(context: vscode.ExtensionContext): void {
       await applyRecommendedSettings();
       void vscode.window.showInformationMessage("TwigPlus recommended workspace settings were applied.");
     }),
-    vscode.commands.registerCommand("twigPlus.showStatus", () => showTwigPlusStatus(context)),
-    vscode.commands.registerCommand("twigPlus.selectParserEngine", selectParserEngine)
+    vscode.commands.registerCommand("twigPlus.showStatus", () => showTwigPlusStatus(context))
   );
-}
-
-async function selectParserEngine(): Promise<void> {
-  const selected = await vscode.window.showQuickPick([{
-    label: "Hybrid", description: "Lossless CST/AST engine with guarded internal fallback", engine: "hybrid" as const, picked: true
-  }], {
-    title: "TwigPlus: Select Parser Engine",
-    placeHolder: `Current: ${getConfiguredParserEngine()}`
-  });
-  if (!selected) return;
-  await vscode.workspace.getConfiguration("twigPlus.parser").update(
-    "engine",
-    selected.engine,
-    vscode.workspace.workspaceFolders?.length
-      ? vscode.ConfigurationTarget.Workspace
-      : vscode.ConfigurationTarget.Global
-  );
-  void vscode.window.showInformationMessage(`TwigPlus parser engine: ${selected.engine}`);
 }
 
 async function applyRecommendedSettings(): Promise<void> {
@@ -97,7 +78,7 @@ async function showTwigPlusStatus(context: vscode.ExtensionContext): Promise<voi
     `Twig quick suggestions: ${JSON.stringify(twigLanguageSettings["editor.quickSuggestions"] ?? "(default)")}`,
     `twigPlus.format.enable: ${String(formatConfig.get("enable", true))}`,
     `twigPlus.format.profile: ${String(formatConfig.get("profile", "phpstorm"))}`,
-    `twigPlus.parser.engine: ${getConfiguredParserEngine()}`,
+    "Twig parser: Hybrid CST/AST",
     `twigPlus.editing.htmlTagClosing: ${document ? getHtmlTagClosingMode(document.uri) : "(no active document)"}`,
     `TwigPlus language server: ${getTwigLanguageClientStatus()}`,
     `twigPlus.templates.roots: ${templateRoots.join(", ")}`

@@ -32,8 +32,7 @@
   "activationEvents": [
     "onLanguage:twig",
     "onCommand:twigPlus.applyRecommendedSettings",
-    "onCommand:twigPlus.showStatus",
-    "onCommand:twigPlus.selectParserEngine"
+    "onCommand:twigPlus.showStatus"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -78,11 +77,6 @@
       {
         "command": "twigPlus.showStatus",
         "title": "Show Status",
-        "category": "TwigPlus"
-      },
-      {
-        "command": "twigPlus.selectParserEngine",
-        "title": "Select Parser Engine",
         "category": "TwigPlus"
       },
       {
@@ -187,22 +181,6 @@
           "scope": "resource",
           "default": true,
           "description": "Break lines after Twig control tags like block, if, else, and endblock when markup or text follows on the same line."
-        },
-        "twigPlus.parser.engine": {
-          "type": "string",
-          "scope": "resource",
-          "enum": [
-            "legacy",
-            "hybrid-shadow",
-            "hybrid"
-          ],
-          "enumDescriptions": [
-            "Deprecated alias; requests run on Hybrid with internal fatal-error fallback.",
-            "Deprecated alias; shadow comparison is now test-only.",
-            "Lossless Hybrid CST/AST engine."
-          ],
-          "default": "hybrid",
-          "description": "Select the parser engine. hybrid-shadow compares Hybrid AST results while returning legacy behavior; hybrid uses verified results with automatic legacy fallback."
         },
         "twigPlus.templates.roots": {
           "type": "array",

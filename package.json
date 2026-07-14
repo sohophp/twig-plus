@@ -21,7 +21,7 @@
     "check": "npm run build && npm run test",
     "docs:check": "node scripts/check-docs.js",
     "reports:check": "node scripts/verify-ui-reports.js",
-    "dead-entries:check": "node scripts/check-dead-entries.js && node scripts/check-language-spec-usage.js",
+    "dead-entries:check": "node scripts/check-dead-entries.js && node scripts/check-language-spec-usage.js && node scripts/check-no-legacy-parser.js",
     "clean": "rm -rf dist packages/*/dist",
     "language-assets:generate": "npm run build --workspace packages/language-spec && node scripts/generate-language-assets.js",
     "language-assets:check": "node scripts/generate-language-assets.js --check",

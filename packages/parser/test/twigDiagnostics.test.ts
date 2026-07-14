@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { analyzeTwigDiagnostics } from "../src/twigDiagnostics";
+import { analyzeHybridDiagnostics } from "../src/twigDiagnostics";
+import { parseHybridDocument } from "../src/hybridAst";
 
-describe("analyzeTwigDiagnostics", () => {
+const analyzeDiagnostics = (source: string, paths: string[] = [], current?: string, roots?: string[]) =>
+  analyzeHybridDiagnostics(parseHybridDocument(source), paths, current, roots);
+
+describe("Hybrid diagnostics", () => {
   it("reports unclosed structures", () => {
-    const diagnostics = analyzeTwigDiagnostics("{% if user %}\n<div>");
+    const diagnostics = analyzeDiagnostics("{% if user %}\n<div>");
 
     expect(diagnostics).toEqual([
       expect.objectContaining({
@@ -15,7 +19,7 @@ describe("analyzeTwigDiagnostics", () => {
   });
 
   it("reports missing template references", () => {
-    const diagnostics = analyzeTwigDiagnostics(
+    const diagnostics = analyzeDiagnostics(
       "{% include 'partials/missing.html.twig' %}",
       ["templates/base.html.twig"]
     );
@@ -33,7 +37,7 @@ describe("analyzeTwigDiagnostics", () => {
 
   it("resolves same-directory template references before reporting missing templates", () => {
     expect(
-      analyzeTwigDiagnostics(
+      analyzeDiagnostics(
         "{% include 'banner.twig' %}",
         [
           "templates/about/index.twig",
@@ -45,7 +49,7 @@ describe("analyzeTwigDiagnostics", () => {
   });
 
   it("reports duplicate block names", () => {
-    const diagnostics = analyzeTwigDiagnostics(
+    const diagnostics = analyzeDiagnostics(
       "{% block content %}{% endblock %}\n{% block content %}{% endblock %}"
     );
 
@@ -58,7 +62,7 @@ describe("analyzeTwigDiagnostics", () => {
   });
 
   it("reports empty output blocks as hints", () => {
-    const diagnostics = analyzeTwigDiagnostics("{{    }}");
+    const diagnostics = analyzeDiagnostics("{{    }}");
 
     expect(diagnostics).toEqual([
       expect.objectContaining({
@@ -69,7 +73,7 @@ describe("analyzeTwigDiagnostics", () => {
   });
 
   it("reports unexpected middle or closing tags", () => {
-    const diagnostics = analyzeTwigDiagnostics("{% else %}\n{% endif %}");
+    const diagnostics = analyzeDiagnostics("{% else %}\n{% endif %}");
 
     expect(diagnostics).toEqual([
       expect.objectContaining({

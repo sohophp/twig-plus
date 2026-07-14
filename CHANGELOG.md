@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Promoted Hybrid to the sole user runtime path and made legacy an internal fatal-error fallback.
+- Removed the public parser-engine setting/command, compatibility facade, shadow comparison, old parser queries, and fatal fallback; Hybrid is now the only parser and formatter path.
+- Hybrid failures now preserve the original document, return a structured failure, and write query/URI/reason details to the TwigPlus output.
+- Existing user settings containing the removed parser-engine key are safely ignored and are not rewritten automatically.
 - Added LSP Hover, Signature Help, safe Range Formatting, debounced diagnostics, and template-root-scoped indexing.
 - Restored native VS Code ownership of ordinary typing and deletion while retaining safe atomic Enter enhancements.
 - Fixed embedded formatting so Twig nodes do not acquire JavaScript semicolons, and completed `is defined` suggestions and `endif` Enter pairing inside scripts.

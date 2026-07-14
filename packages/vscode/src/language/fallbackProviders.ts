@@ -5,7 +5,7 @@ import { registerTwigDefinitionProvider } from "./definitionProvider";
 import { registerTwigDocumentSymbolProvider } from "./documentSymbolProvider";
 import { registerTwigSelectionRangeProvider } from "./selectionRangeProvider";
 import { registerTwigSemanticProviders } from "./semanticProviders";
-import { getConfiguredParserEngine, reportHybridDifference } from "./parserRuntime";
+import { reportHybridFailure } from "./parserRuntime";
 import { TWIG_DOCUMENT_SELECTOR } from "./documentSelector";
 
 /** Keep core editing usable when the bundled language server cannot start. */
@@ -28,8 +28,7 @@ export function registerFallbackProviders(context: vscode.ExtensionContext): voi
         htmlAttributeWrap: config.get<"preserve" | "auto" | "force">("format.htmlAttributeWrap", "auto"),
         preserveSingleLineBlocks: config.get<boolean>("format.preserveSingleLineBlocks", true),
         lineBreakAfterTwigControlTag: config.get<boolean>("format.lineBreakAfterTwigControlTag", true),
-        parserEngine: getConfiguredParserEngine(),
-        onHybridDifference: (difference) => reportHybridDifference(difference, document),
+        onHybridFailure: (failure) => reportHybridFailure(failure, document),
         onEmbeddedSyntaxError: (error) => {
           void vscode.window.showWarningMessage(
             `TwigPlus skipped formatting because the embedded ${error.language} contains syntax errors.`

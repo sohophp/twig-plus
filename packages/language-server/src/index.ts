@@ -7,7 +7,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { analyzeHybridDiagnostics, analyzeTwigDiagnostics, collectHybridSelectionRanges, collectTemplateCompletionCandidates, createDocumentModel, createWorkspaceModel, DEFAULT_TEMPLATE_ROOTS, getHybridTokenContextAtOffset, getTemplateReferenceMatch, getTwigCallable, getTwigDiagnosticCode, getTwigOperator, getTwigTag, parseDocument, resolveTemplateWorkspacePath, type DocumentModel, type ParserEngine, type SemanticSymbol, type TemplateUriResolver } from "@twig-plus/parser";
+import { analyzeHybridDiagnostics, collectHybridSelectionRanges, collectTemplateCompletionCandidates, createDocumentModel, createWorkspaceModel, DEFAULT_TEMPLATE_ROOTS, getHybridTokenContextAtOffset, getTemplateReferenceMatch, getTwigCallable, getTwigDiagnosticCode, getTwigOperator, getTwigTag, parseDocument, resolveTemplateWorkspacePath, type DocumentModel, type SemanticSymbol, type TemplateUriResolver } from "@twig-plus/parser";
 import { formatTwigRangeWithResult, formatTwigWithResult, type FormatterOptions, type FormatterStage } from "@twig-plus/formatter";
 import { EmbeddedJavaScriptService } from "./embeddedJavaScript";
 import { getTwigCatalogEntry, getTwigCompletions, TwigCompletionRegistry, type ProjectCompletionEntry } from "./twigCompletion";
@@ -22,7 +22,6 @@ export interface TwigPlusServerOptions {
 }
 interface TwigPlusSettings {
   format?: Partial<FormatterOptions> & { enable?: boolean };
-  parser?: { engine?: ParserEngine };
   templates?: { roots?: string[] };
   diagnostics?: { unresolvedNames?: boolean; unresolvedNameMode?: "safe" | "strict" | "off"; globals?: string[] };
   twig?: { version?: string };
@@ -95,7 +94,6 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   let workspaceModelCache: ReturnType<typeof createWorkspaceModel> | null = null;
   let indexGeneration = 0;
   let formatRequestSequence = 0;
-  let hybridFallbackCount = 0;
   const activeFormatRequests = new Map<string, AbortController>();
   const diagnosticTimers = new Map<string, NodeJS.Timeout>();
   const diagnosticGenerations = new Map<string, number>();
@@ -205,7 +203,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       void formatTwigWithResult("", {
         profile: "phpstorm", indentSize: 4, printWidth: 100, useTabs: false,
         twigTagSpacing: true, htmlAttributeWrap: "auto", preserveSingleLineBlocks: true,
-        lineBreakAfterTwigControlTag: true, parserEngine: "hybrid"
+        lineBreakAfterTwigControlTag: true
       }).catch((error) => connection.console.warn(`Formatter prewarm failed: ${formatError(error)}`));
     }, 0);
     scheduleFullIndex();
@@ -213,10 +211,6 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   connection.onDidChangeConfiguration((change) => {
     const received = isRecord(change.settings) && "twigPlus" in change.settings ? change.settings.twigPlus : change.settings;
     settings = isRecord(received) ? received as TwigPlusSettings : {};
-    if (settings.parser?.engine && settings.parser.engine !== "hybrid") {
-      connection.console.warn(`Parser mode '${settings.parser.engine}' is deprecated and is treated as hybrid.`);
-      settings = { ...settings, parser: { ...settings.parser, engine: "hybrid" } };
-    }
     cache.clear();
     resourceSettings.clear();
     folderSettings.clear();
@@ -248,9 +242,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       document.version,
       model.document
     );
-    const legacy = documentSettings.parser?.engine === "legacy"
-      ? analyzeTwigDiagnostics(document.getText(), workspaceContext.paths, workspaceContext.current, roots)
-      : analyzeHybridDiagnostics(model.document, workspaceContext.paths, workspaceContext.current, roots);
+    const syntaxDiagnostics = analyzeHybridDiagnostics(model.document, workspaceContext.paths, workspaceContext.current, roots);
     const symfonyMode = documentSettings.symfony?.reference ?? "auto";
     const symfonyDiagnostics = collectSymfonyReferences(document.getText()).filter((reference) =>
       projectMetadata.referenceCatalogsComplete.has(reference.kind)
@@ -273,7 +265,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     ] : [];
     if (documents.get(document.uri)?.version !== version || diagnosticGenerations.get(document.uri) !== generation) return;
     connection.sendDiagnostics({ uri: document.uri, diagnostics: [
-      ...legacy.map((diagnostic) => ({
+      ...syntaxDiagnostics.map((diagnostic) => ({
           range: toRange(document, diagnostic), message: diagnostic.message, source: "TwigPlus", code: diagnostic.code ?? getTwigDiagnosticCode(diagnostic.message),
         severity: diagnostic.severity === "error" ? DiagnosticSeverity.Error : diagnostic.severity === "warning" ? DiagnosticSeverity.Warning : DiagnosticSeverity.Hint
       })),
@@ -570,14 +562,9 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       twigTagSpacing: documentSettings.format?.twigTagSpacing ?? true, htmlAttributeWrap: documentSettings.format?.htmlAttributeWrap ?? "auto",
       preserveSingleLineBlocks: documentSettings.format?.preserveSingleLineBlocks ?? true,
       lineBreakAfterTwigControlTag: documentSettings.format?.lineBreakAfterTwigControlTag ?? true,
-      parserEngine: documentSettings.parser?.engine ?? "hybrid", ...options.formatter,
+      ...options.formatter,
       isCancellationRequested: () => cancellation.isCancellationRequested || formatController.signal.aborted,
-      onHybridDifference: (difference) => {
-        if (difference.fallbackUsed) {
-          hybridFallbackCount += 1;
-          connection.console.warn(`[hybrid-fallback #${hybridFallbackCount}] ${difference.query} ${difference.reason} ${document.uri}`);
-        } else connection.console.info(`[hybrid-recovery] ${difference.query} ${difference.reason} ${document.uri}`);
-      },
+      onHybridFailure: (failure) => connection.console.warn(`[hybrid-failure] ${failure.query} ${failure.reason} ${document.uri}${failure.message ? `: ${failure.message}` : ""}`),
       onStage: (stage, elapsedMs) => progress(stage, "completed", elapsedMs)
     };
     const result = await formatTwigWithResult(document.getText(), formatter);
@@ -604,13 +591,8 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       twigTagSpacing: config.twigTagSpacing ?? true, htmlAttributeWrap: config.htmlAttributeWrap ?? "auto",
       preserveSingleLineBlocks: config.preserveSingleLineBlocks ?? true,
       lineBreakAfterTwigControlTag: config.lineBreakAfterTwigControlTag ?? true,
-      parserEngine: "hybrid", isCancellationRequested: () => cancellation.isCancellationRequested,
-      onHybridDifference: (difference) => {
-        if (difference.fallbackUsed) {
-          hybridFallbackCount += 1;
-          connection.console.warn(`[hybrid-fallback #${hybridFallbackCount}] ${difference.query} ${difference.reason} ${document.uri}`);
-        } else connection.console.info(`[hybrid-recovery] ${difference.query} ${difference.reason} ${document.uri}`);
-      }
+      isCancellationRequested: () => cancellation.isCancellationRequested,
+      onHybridFailure: (failure) => connection.console.warn(`[hybrid-failure] ${failure.query} ${failure.reason} ${document.uri}${failure.message ? `: ${failure.message}` : ""}`)
     });
     if (!result.ok) { connection.console.warn(`[range-format] ${result.error.code}: ${result.error.message}`); return []; }
     return result.text === document.getText().slice(result.range.start, result.range.end) ? [] : [TextEdit.replace(toRange(document, result.range), result.text)];
@@ -864,11 +846,7 @@ function updateOpenDocumentIndex(document: TextDocument, indexed: Map<string, st
 }
 function formatError(error: unknown): string { return error instanceof Error ? error.message : String(error); }
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null; }
-function normalizeSettings(value: TwigPlusSettings): TwigPlusSettings {
-  return value.parser?.engine && value.parser.engine !== "hybrid"
-    ? { ...value, parser: { ...value.parser, engine: "hybrid" } }
-    : value;
-}
+function normalizeSettings(value: TwigPlusSettings): TwigPlusSettings { return value; }
 async function runWithConcurrency<T>(items: T[], limit: number, run: (item: T) => Promise<void>): Promise<void> {
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {

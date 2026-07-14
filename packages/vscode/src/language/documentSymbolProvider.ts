@@ -1,18 +1,16 @@
 import * as vscode from "vscode";
 import { TWIG_DOCUMENT_SELECTOR } from "./documentSelector";
 
-import { collectCompatibleStructureSymbols, collectHybridStructureSymbols } from "@twig-plus/parser";
-import { getCachedDocumentModel, getConfiguredParserEngine, getParserQueryOptions } from "./parserRuntime";
+import { collectHybridStructureSymbols } from "@twig-plus/parser";
+import { getCachedDocumentModel } from "./parserRuntime";
 
 export function registerTwigDocumentSymbolProvider(
   context: vscode.ExtensionContext
 ): void {
   const provider: vscode.DocumentSymbolProvider = {
     provideDocumentSymbols(document) {
-      const semantic = getConfiguredParserEngine() === "legacy" ? null : getCachedDocumentModel(document);
-      const symbols = semantic
-        ? collectHybridStructureSymbols(semantic.document)
-        : collectCompatibleStructureSymbols(document.getText(), getParserQueryOptions(document));
+      const semantic = getCachedDocumentModel(document);
+      const symbols = semantic ? collectHybridStructureSymbols(semantic.document) : [];
 
       return symbols.map((symbol) => {
         const range = new vscode.Range(
