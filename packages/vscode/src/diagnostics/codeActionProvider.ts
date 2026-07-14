@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import { TWIG_DOCUMENT_SELECTOR } from "../language/documentSelector";
-import { getTwigTag } from "@twig-plus/parser";
 
 export function registerTwigCodeActionProvider(
   context: vscode.ExtensionContext
@@ -19,17 +18,6 @@ export function registerTwigCodeActionProvider(
         action.command = { title: action.title, command: "workbench.action.openSettings", arguments: ["twigPlus.templates.roots"] };
         actions.push(action);
       }
-      for (const diagnostic of actionContext.diagnostics) {
-        const match = diagnostic.code === "unclosed-tag" ? diagnostic.message.match(/Unclosed Twig tag "([A-Za-z_][\w]*)"/) : null;
-        const closing = match ? closingTagFor(match[1]) : null;
-        if (!closing) continue;
-        const action = new vscode.CodeAction(`Insert {% ${closing} %}`, vscode.CodeActionKind.QuickFix);
-        action.diagnostics = [diagnostic]; action.isPreferred = true;
-        action.edit = new vscode.WorkspaceEdit();
-        const prefix = document.getText().endsWith("\n") ? "" : "\n";
-        action.edit.insert(document.uri, document.positionAt(document.getText().length), `${prefix}{% ${closing} %}`);
-        actions.push(action);
-      }
       const selected = document.getText(range);
       const normalized = normalizeDelimiterSpacing(selected);
       if (normalized !== selected) {
@@ -45,10 +33,6 @@ export function registerTwigCodeActionProvider(
       providedCodeActionKinds: [vscode.CodeActionKind.QuickFix]
     })
   );
-}
-
-function closingTagFor(opening: string): string | null {
-  return getTwigTag(opening)?.closing ?? null;
 }
 
 function normalizeDelimiterSpacing(source: string): string {

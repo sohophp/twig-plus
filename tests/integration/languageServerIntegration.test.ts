@@ -20,7 +20,8 @@ describe("bundled TwigPlus language server", () => {
     expect(message.result.capabilities).toMatchObject({
       definitionProvider: true, referencesProvider: true,
       renameProvider: { prepareProvider: true }, documentFormattingProvider: true,
-      semanticTokensProvider: { full: true, range: true }
+      semanticTokensProvider: { full: true, range: true },
+      codeActionProvider: { codeActionKinds: ["quickfix"] }
     });
   });
 
@@ -151,6 +152,31 @@ describe("bundled TwigPlus language server", () => {
     expect(rangeDecoded.length).toBeGreaterThan(0);
     expect(rangeDecoded.every((token) => token.line === 2)).toBe(true);
     expect(rangeDecoded.some((token) => token.text === "Page" && token.type === "class")).toBe(true);
+  });
+
+  it("provides atomic structural Twig quick fixes through the bundled server", async () => {
+    const client = startClient();
+    await client.request("initialize", { processId: process.pid, rootUri: null, capabilities: {}, workspaceFolders: [] });
+    client.notify("initialized", {});
+    const uri = "untitled:twig-quick-fix.html.twig";
+    const source = `{% if user %}\n  {% for item in items %}\n    {{ item }}`;
+    const published = client.waitForNotification("textDocument/publishDiagnostics");
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const diagnostics = (await published).params.diagnostics;
+    const unclosed = diagnostics.find((diagnostic: { message: string }) => diagnostic.message.includes('"for"'));
+    expect(unclosed).toBeDefined();
+    const actions = await client.request("textDocument/codeAction", {
+      textDocument: { uri }, range: unclosed.range, context: { diagnostics: [unclosed], only: ["quickfix"] }
+    });
+    expect(actions.result).toEqual(expect.arrayContaining([expect.objectContaining({
+      title: "Insert all missing Twig closing tags",
+      kind: "quickfix",
+      isPreferred: true,
+      edit: { changes: { [uri]: [{
+        range: { start: positionAt(source, source.length), end: positionAt(source, source.length) },
+        newText: `\n  {% endfor %}\n{% endif %}`
+      }] } }
+    })]));
   });
 
   it("owns Twig catalog completion and reports structured format progress", async () => {

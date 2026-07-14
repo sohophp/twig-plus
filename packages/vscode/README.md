@@ -58,6 +58,7 @@ TwigPlus: Show Status
 - Finds references and safely renames local variables and macros, including imported macro calls across templates
 - Shows Twig and embedded JavaScript hover information and signature help
 - Formats a selected range by expanding it to the smallest complete safe Twig/HTML structure
+- Offers atomic Quick Fixes for missing nested Twig closing tags and exact removal of unexpected tags or empty outputs
 - Uses a bundled Language Server Protocol implementation for editor-neutral semantic features
 - Uses VS Code native delimiter, quote, parenthesis, deletion, undo, and redo behavior; `{}` is inserted atomically only in a safe JavaScript code position inside a real `<script>` element
 
@@ -157,6 +158,7 @@ TwigPlus 是一个面向 VSCode 的 Twig 扩展，目标是尽量接近 PHPStorm
 - Twig tag、filter、function、模板路径补全
 - `extends`、`include`、`embed`、`import`、`from`、block、macro 的跳转定位
 - 当前 `<script>` 内局部 JavaScript 标识符的 Definition、安全 Rename 与 Semantic Tokens
+- 由 LSP 提供的嵌套 closing 原子补齐及明确无效 Twig 结构 Quick Fix
 
 推荐配置：
 
