@@ -107,7 +107,7 @@
             {
                 "name": "abs",
                 "class": "Twig\\TwigFilter",
-                "signature": "($num)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -235,7 +235,7 @@
             {
                 "name": "json_encode",
                 "class": "Twig\\TwigFilter",
-                "signature": "($value, $flags = 0, $depth = 512)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -493,7 +493,7 @@
             {
                 "name": "max",
                 "class": "Twig\\TwigFunction",
-                "signature": "($value, ...$values)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -501,7 +501,7 @@
             {
                 "name": "min",
                 "class": "Twig\\TwigFunction",
-                "signature": "($value, ...$values)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -525,7 +525,7 @@
             {
                 "name": "range",
                 "class": "Twig\\TwigFunction",
-                "signature": "($start, $end, $step = 1)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -583,7 +583,7 @@
             {
                 "name": "iterable",
                 "class": "Twig\\TwigTest",
-                "signature": "($value)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -665,18 +665,18 @@
         },
         {
             "name": "(",
-            "class": "Twig\\ExpressionParser\\Prefix\\GroupingExpressionParser",
-            "precedence": 0,
-            "associativity": null,
-            "fixity": "prefix",
-            "aliases": []
-        },
-        {
-            "name": "(",
             "class": "Twig\\ExpressionParser\\Infix\\FunctionExpressionParser",
             "precedence": 512,
             "associativity": "left",
             "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "(",
+            "class": "Twig\\ExpressionParser\\Prefix\\GroupingExpressionParser",
+            "precedence": 0,
+            "associativity": null,
+            "fixity": "prefix",
             "aliases": []
         },
         {
@@ -697,22 +697,14 @@
         },
         {
             "name": "+",
-            "class": "Twig\\ExpressionParser\\Prefix\\UnaryOperatorExpressionParser",
-            "precedence": 500,
-            "associativity": null,
-            "fixity": "prefix",
+            "class": "Twig\\ExpressionParser\\Infix\\BinaryOperatorExpressionParser",
+            "precedence": 30,
+            "associativity": "left",
+            "fixity": "infix",
             "aliases": []
         },
         {
             "name": "+",
-            "class": "Twig\\ExpressionParser\\Infix\\BinaryOperatorExpressionParser",
-            "precedence": 30,
-            "associativity": "left",
-            "fixity": "infix",
-            "aliases": []
-        },
-        {
-            "name": "-",
             "class": "Twig\\ExpressionParser\\Prefix\\UnaryOperatorExpressionParser",
             "precedence": 500,
             "associativity": null,
@@ -725,6 +717,14 @@
             "precedence": 30,
             "associativity": "left",
             "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "-",
+            "class": "Twig\\ExpressionParser\\Prefix\\UnaryOperatorExpressionParser",
+            "precedence": 500,
+            "associativity": null,
+            "fixity": "prefix",
             "aliases": []
         },
         {

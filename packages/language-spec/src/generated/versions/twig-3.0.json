@@ -97,7 +97,7 @@
             {
                 "name": "abs",
                 "class": "Twig\\TwigFilter",
-                "signature": "($number)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -193,7 +193,7 @@
             {
                 "name": "format",
                 "class": "Twig\\TwigFilter",
-                "signature": "($format, ...$args)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -209,7 +209,7 @@
             {
                 "name": "json_encode",
                 "class": "Twig\\TwigFilter",
-                "signature": "($value, $options, $depth)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -265,7 +265,7 @@
             {
                 "name": "nl2br",
                 "class": "Twig\\TwigFilter",
-                "signature": "($str, $is_xhtml)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -353,7 +353,7 @@
             {
                 "name": "striptags",
                 "class": "Twig\\TwigFilter",
-                "signature": "($str, $allowable_tags)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -427,7 +427,7 @@
             {
                 "name": "max",
                 "class": "Twig\\TwigFunction",
-                "signature": "(...$args)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -435,7 +435,7 @@
             {
                 "name": "min",
                 "class": "Twig\\TwigFunction",
-                "signature": "(...$args)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -451,7 +451,7 @@
             {
                 "name": "range",
                 "class": "Twig\\TwigFunction",
-                "signature": "($low, $high, $step)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -583,18 +583,18 @@
         },
         {
             "name": "+",
-            "class": "Twig\\Node\\Expression\\Unary\\PosUnary",
-            "precedence": 500,
-            "associativity": "left",
-            "fixity": "prefix",
-            "aliases": []
-        },
-        {
-            "name": "+",
             "class": "Twig\\Node\\Expression\\Binary\\AddBinary",
             "precedence": 30,
             "associativity": "left",
             "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "+",
+            "class": "Twig\\Node\\Expression\\Unary\\PosUnary",
+            "precedence": 500,
+            "associativity": "left",
+            "fixity": "prefix",
             "aliases": []
         },
         {

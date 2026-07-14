@@ -97,7 +97,7 @@
             {
                 "name": "abs",
                 "class": "Twig\\TwigFilter",
-                "signature": "($num)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -209,7 +209,7 @@
             {
                 "name": "json_encode",
                 "class": "Twig\\TwigFilter",
-                "signature": "($value, $flags = 0, $depth = 512)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -427,7 +427,7 @@
             {
                 "name": "max",
                 "class": "Twig\\TwigFunction",
-                "signature": "($value, ...$values)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -435,7 +435,7 @@
             {
                 "name": "min",
                 "class": "Twig\\TwigFunction",
-                "signature": "($value, ...$values)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -451,7 +451,7 @@
             {
                 "name": "range",
                 "class": "Twig\\TwigFunction",
-                "signature": "($start, $end, $step = 1)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -509,7 +509,7 @@
             {
                 "name": "iterable",
                 "class": "Twig\\TwigTest",
-                "signature": "($value)",
+                "signature": null,
                 "deprecated": false,
                 "aliases": [],
                 "alwaysAllowedInSandbox": null
@@ -583,14 +583,6 @@
         },
         {
             "name": "+",
-            "class": "Twig\\Node\\Expression\\Unary\\PosUnary",
-            "precedence": 500,
-            "associativity": "left",
-            "fixity": "prefix",
-            "aliases": []
-        },
-        {
-            "name": "+",
             "class": "Twig\\Node\\Expression\\Binary\\AddBinary",
             "precedence": 30,
             "associativity": "left",
@@ -598,8 +590,8 @@
             "aliases": []
         },
         {
-            "name": "-",
-            "class": "Twig\\Node\\Expression\\Unary\\NegUnary",
+            "name": "+",
+            "class": "Twig\\Node\\Expression\\Unary\\PosUnary",
             "precedence": 500,
             "associativity": "left",
             "fixity": "prefix",
@@ -611,6 +603,14 @@
             "precedence": 30,
             "associativity": "left",
             "fixity": "infix",
+            "aliases": []
+        },
+        {
+            "name": "-",
+            "class": "Twig\\Node\\Expression\\Unary\\NegUnary",
+            "precedence": 500,
+            "associativity": "left",
+            "fixity": "prefix",
             "aliases": []
         },
         {

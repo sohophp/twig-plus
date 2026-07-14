@@ -3,6 +3,7 @@
 ## Reproducible upstream boundaries
 
 - Twig runtime locks and committed snapshots: `3.0`, `3.8`, `3.12`, `3.15`, `3.21`, `3.23`, `3.26`, `3.28`.
+- Every Twig snapshot reproduces byte-for-byte on PHP 8.1 and PHP 8.4; native PHP callable signatures are intentionally excluded because they describe the host runtime rather than Twig.
 - Symfony Twig Bridge/component locks and committed snapshots: `6.4.42`, `7.4.14`, `8.1.1`.
 - The Symfony snapshots reproduce byte-for-byte on every supported local runtime: 6.4 on PHP 8.1/8.2/8.4/8.5, 7.4 on PHP 8.2/8.4/8.5, and 8.1 on PHP 8.4/8.5.
 - CI rejects snapshot drift, duplicate or missing package facts, unexplained Language Spec/runtime differences, and the tracked Twig/Symfony capability boundaries.

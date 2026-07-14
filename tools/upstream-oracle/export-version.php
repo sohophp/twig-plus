@@ -80,6 +80,15 @@ function exportVersionCallables($callables)
     return $result;
 }
 
+function compareVersionOperators($a, $b)
+{
+    foreach (array('name', 'fixity', 'class', 'precedence') as $key) {
+        $comparison = strcmp((string) (isset($a[$key]) ? $a[$key] : ''), (string) (isset($b[$key]) ? $b[$key] : ''));
+        if ($comparison !== 0) return $comparison;
+    }
+    return 0;
+}
+
 function exportVersionOperators($environment)
 {
     if (method_exists($environment, 'getExpressionParsers')) {
@@ -112,7 +121,7 @@ function exportVersionOperators($environment)
             );
         }
     }
-    usort($result, function ($a, $b) { return strcmp($a['name'], $b['name']); });
+    usort($result, 'compareVersionOperators');
     return $result;
 }
 
@@ -131,7 +140,7 @@ function normalizeVersionExpressionParsers($parsers)
             'aliases' => method_exists($parser, 'getAliases') ? array_values($parser->getAliases()) : array(),
         );
     }
-    usort($result, function ($a, $b) { return strcmp($a['name'], $b['name']); });
+    usort($result, 'compareVersionOperators');
     return $result;
 }
 
@@ -145,6 +154,9 @@ function reflectVersionCallable($callable)
         } elseif (is_string($callable) && function_exists($callable)) $reflection = new ReflectionFunction($callable);
         elseif ($callable instanceof Closure) $reflection = new ReflectionFunction($callable);
         else return null;
+        // Native PHP parameter names/defaults change between PHP releases. They
+        // describe the host runtime, not the pinned Twig language version.
+        if ($reflection->isInternal()) return null;
         $parameters = array();
         foreach ($reflection->getParameters() as $parameter) {
             $value = ($parameter->isVariadic() ? '...' : '').'$'.$parameter->getName();
