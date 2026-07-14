@@ -39,6 +39,21 @@ describe("bundled TwigPlus language server", () => {
       insertTextFormat: 2,
       textEdit: expect.objectContaining({ newText: "addEventListener(${1})" })
     })]));
+
+    const punctuation = `<script>document.addEventListener("DOMContentLoaded", ())</script>`;
+    client.notify("textDocument/didChange", {
+      textDocument: { uri, version: 2 }, contentChanges: [{ text: punctuation }]
+    });
+    const argumentOffset = punctuation.indexOf("()") + 1;
+    const automatic = await client.request("textDocument/completion", {
+      textDocument: { uri }, position: positionAt(punctuation, argumentOffset),
+      context: { triggerKind: 2, triggerCharacter: "(" }
+    });
+    expect(automatic.result).toEqual([]);
+    const explicit = await client.request("textDocument/completion", {
+      textDocument: { uri }, position: positionAt(punctuation, argumentOffset), context: { triggerKind: 1 }
+    });
+    expect(explicit.result.length).toBeGreaterThan(0);
   });
 
   it("owns Twig catalog completion and reports structured format progress", async () => {

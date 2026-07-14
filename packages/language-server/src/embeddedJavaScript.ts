@@ -44,13 +44,23 @@ export function isTypeScriptRuntimeLoaded(): boolean { return typescriptPromise 
 export class EmbeddedJavaScriptService {
   private readonly cache = new Map<string, CachedDocument>();
 
-  async getCompletions(uri: string, version: number, document: HybridDocument, originalOffset: number): Promise<EmbeddedCompletion[] | null> {
+  async getCompletions(
+    uri: string,
+    version: number,
+    document: HybridDocument,
+    originalOffset: number,
+    options: { triggerCharacter?: string } = {}
+  ): Promise<EmbeddedCompletion[] | null> {
     const cached = await this.getDocument(uri, version, document);
     const script = cached.scripts.find((item) =>
       originalOffset >= item.document.sourceRange.start && originalOffset <= item.document.sourceRange.end);
     if (!script) return null;
     const generatedOffset = script.document.toGeneratedOffset(originalOffset);
     if (generatedOffset === null) return [];
+    // `(` belongs to signature help and `{` commonly starts an arrow/function
+    // body. Automatic global completion at either position makes Enter accept
+    // an unrelated symbol. Explicit completion remains available.
+    if (options.triggerCharacter === "(" || options.triggerCharacter === "{") return [];
     const completionContext = getCompletionContext(script.document.generatedSource, generatedOffset);
     if (completionContext.suppress) return [];
     const completions = script.service.getCompletionsAtPosition(script.fileName, generatedOffset, {
