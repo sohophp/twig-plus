@@ -4,7 +4,7 @@ import {
   getStandaloneTwigTagContent,
   getTwigTagKind
 } from "@twig-plus/parser";
-import type { HybridDifference, ParserEngine } from "@twig-plus/parser";
+import type { HybridQueryFailure } from "@twig-plus/parser";
 
 export interface FormatterOptions {
   profile: "phpstorm" | "compact";
@@ -15,8 +15,7 @@ export interface FormatterOptions {
   htmlAttributeWrap: "preserve" | "auto" | "force";
   preserveSingleLineBlocks: boolean;
   lineBreakAfterTwigControlTag: boolean;
-  parserEngine?: ParserEngine;
-  onHybridDifference?: (difference: HybridDifference) => void;
+  onHybridFailure?: (failure: HybridQueryFailure) => void;
   onEmbeddedSyntaxError?: (error: { language: string; message: string; range?: { start: number; end: number } }) => void;
   onStage?: (stage: FormatterStage, elapsedMs: number) => void;
   isCancellationRequested?: () => boolean;

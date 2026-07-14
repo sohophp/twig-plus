@@ -9,7 +9,7 @@ describe("embedded formatter runtime loading", () => {
     const options = {
       profile: "phpstorm", indentSize: 4, printWidth: 100, useTabs: false,
       twigTagSpacing: true, htmlAttributeWrap: "auto", preserveSingleLineBlocks: true,
-      lineBreakAfterTwigControlTag: true, parserEngine: "hybrid"
+      lineBreakAfterTwigControlTag: true
     } as const;
     const pureStarted = performance.now();
     await formatter.formatTwig("{% if user %}<div>{{ user }}</div>{% endif %}", options);

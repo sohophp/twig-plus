@@ -2,20 +2,21 @@ import * as vscode from "vscode";
 import { TWIG_DOCUMENT_SELECTOR } from "./documentSelector";
 
 import {
-  collectCompatibleBlockSymbols,
-  collectCompatibleMacroImports,
-  collectCompatibleStructureSymbols,
-  getCompatibleBlockReferenceAtOffset,
-  getCompatibleMacroReferenceAtOffset,
+  collectHybridBlockSymbols,
+  collectHybridMacroImports,
+  collectHybridStructureSymbols,
+  getHybridBlockReferenceAtOffset,
+  getHybridMacroReferenceAtOffset,
   getTemplateReferenceAtOffset,
-  getCompatibleExtendsTemplateReference,
+  getHybridExtendsTemplateReference,
+  parseHybridDocument,
   resolveTemplateWorkspacePath
 } from "@twig-plus/parser";
 import {
   findTwigWorkspacePaths,
   getConfiguredTemplateRoots
 } from "./templateConfig";
-import { getCachedDocumentModel, getParserQueryOptions } from "./parserRuntime";
+import { getCachedDocumentModel, getCachedHybridDocument } from "./parserRuntime";
 
 export function registerTwigDefinitionProvider(
   context: vscode.ExtensionContext
@@ -89,9 +90,10 @@ async function provideBlockDefinition(
   document: vscode.TextDocument,
   position: vscode.Position
 ): Promise<vscode.Location | null> {
-  const source = document.getText();
   const offset = document.offsetAt(position);
-  const blockReference = getCompatibleBlockReferenceAtOffset(source, offset, getParserQueryOptions(document));
+  const syntax = getCachedHybridDocument(document);
+  if (!syntax) return null;
+  const blockReference = getHybridBlockReferenceAtOffset(syntax, offset);
 
   if (!blockReference) {
     return null;
@@ -107,7 +109,7 @@ async function provideBlockDefinition(
     );
   }
 
-  const parentReference = getCompatibleExtendsTemplateReference(source, getParserQueryOptions(document));
+  const parentReference = getHybridExtendsTemplateReference(syntax);
   if (!parentReference) {
     return new vscode.Location(
       document.uri,
@@ -144,7 +146,7 @@ async function provideBlockDefinition(
   const targetSource = Buffer.from(await vscode.workspace.fs.readFile(targetUri)).toString(
     "utf8"
   );
-  const targetBlock = collectCompatibleBlockSymbols(targetSource, getParserQueryOptions()).find(
+  const targetBlock = collectHybridBlockSymbols(parseHybridDocument(targetSource)).find(
     (symbol) => symbol.name === blockReference.name
   );
 
@@ -162,7 +164,9 @@ async function provideMacroDefinition(
 ): Promise<vscode.Location | null> {
   const source = document.getText();
   const offset = document.offsetAt(position);
-  const macroReference = getCompatibleMacroReferenceAtOffset(source, offset, getParserQueryOptions(document));
+  const syntax = getCachedHybridDocument(document);
+  if (!syntax) return null;
+  const macroReference = getHybridMacroReferenceAtOffset(syntax, offset);
 
   if (!macroReference) {
     return null;
@@ -172,7 +176,7 @@ async function provideMacroDefinition(
     return findMacroLocation(document, document.uri, source, macroReference.name);
   }
 
-  const macroImports = collectCompatibleMacroImports(source, getParserQueryOptions(document));
+  const macroImports = collectHybridMacroImports(syntax);
   const matchingImport =
     macroReference.kind === "import"
       ? macroImports.find((entry) => entry.kind === "import" && entry.alias === macroReference.alias)
@@ -241,7 +245,7 @@ async function findMacroLocation(
   source: string,
   macroName: string
 ): Promise<vscode.Location | null> {
-  const targetMacro = collectCompatibleStructureSymbols(source, getParserQueryOptions(currentDocument)).find(
+  const targetMacro = collectHybridStructureSymbols(parseHybridDocument(source)).find(
     (symbol) => symbol.kind === "macro" && symbol.name === macroName
   );
 

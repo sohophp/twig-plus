@@ -67,10 +67,6 @@ async function testTwigPlusCommandsRegistered() {
     commands.includes("twigPlus.showStatus"),
     "status command should be registered"
   );
-  assert.ok(
-    commands.includes("twigPlus.selectParserEngine"),
-    "parser engine command should be registered"
-  );
   assert.ok(commands.includes("twigPlus.insertLineBreak"), "atomic Twig Enter command should be registered");
 }
 

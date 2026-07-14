@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 import {
-  analyzeCompatibleDiagnostics,
+  analyzeHybridDiagnostics,
   getTwigDiagnosticCode,
   type TwigDiagnostic,
   type TwigDiagnosticSeverity
@@ -10,7 +10,7 @@ import {
   findTwigWorkspacePaths,
   getConfiguredTemplateRoots
 } from "../language/templateConfig";
-import { getCachedDocumentModel, getParserQueryOptions } from "../language/parserRuntime";
+import { getCachedDocumentModel } from "../language/parserRuntime";
 
 export function registerTwigDiagnosticProvider(
   context: vscode.ExtensionContext
@@ -31,14 +31,14 @@ export function registerTwigDiagnosticProvider(
       .replace(/\\/g, "/");
     const templateRoots = getConfiguredTemplateRoots();
 
-    const legacyDiagnostics = analyzeCompatibleDiagnostics(
-      document.getText(),
+    const model = getCachedDocumentModel(document);
+    const syntaxDiagnostics = model ? analyzeHybridDiagnostics(
+      model.document,
       workspacePaths,
       currentWorkspacePath,
-      templateRoots,
-      getParserQueryOptions(document)
-    ).map((diagnostic) => toVsCodeDiagnostic(document, diagnostic));
-    const semanticDiagnostics = (getCachedDocumentModel(document)?.diagnostics ?? []).map((diagnostic) => {
+      templateRoots
+    ).map((diagnostic) => toVsCodeDiagnostic(document, diagnostic)) : [];
+    const semanticDiagnostics = (model?.diagnostics ?? []).map((diagnostic) => {
       const result = new vscode.Diagnostic(
         new vscode.Range(document.positionAt(diagnostic.start), document.positionAt(diagnostic.end)),
         diagnostic.message,
@@ -49,7 +49,7 @@ export function registerTwigDiagnosticProvider(
       return result;
     });
 
-    collection.set(document.uri, [...legacyDiagnostics, ...semanticDiagnostics]);
+    collection.set(document.uri, [...syntaxDiagnostics, ...semanticDiagnostics]);
   };
 
   if (vscode.window.activeTextEditor) {
@@ -63,13 +63,6 @@ export function registerTwigDiagnosticProvider(
     }),
     vscode.workspace.onDidChangeTextDocument((event) => {
       void safeRefreshDiagnostics(refreshDiagnostics, event.document);
-    }),
-    vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration("twigPlus.parser.engine")) {
-        for (const document of vscode.workspace.textDocuments) {
-          void safeRefreshDiagnostics(refreshDiagnostics, document);
-        }
-      }
     }),
     vscode.workspace.onDidCloseTextDocument((document) => {
       collection.delete(document.uri);

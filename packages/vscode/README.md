@@ -85,7 +85,6 @@ Completion and formatting follow the PHPStorm-style spaced delimiter baseline, i
 | `twigPlus.editing.autoCloseCssBraces` | boolean | `true` | Atomically inserts an indented `}` when Enter is pressed after `{` inside a style element. |
 | `twigPlus.editing.autoCloseJavaScriptBraces` | boolean | `true` | Atomically indents an existing JavaScript brace pair on Enter. Brace insertion and Backspace remain owned by VS Code. |
 | `twigPlus.editing.linkedHtmlTags` | boolean | `true` | Uses VS Code native linked editing to synchronize matching HTML opening and closing tag names. Twig documents enable `editor.linkedEditing` by default. |
-| `twigPlus.parser.engine` | string | `hybrid` | Uses the lossless CST/AST engine. Old `legacy` and `hybrid-shadow` values are deprecated aliases; legacy is retained only as an internal fatal-error fallback. |
 | `twigPlus.diagnostics.unresolvedNameMode` | `safe` / `strict` / `off` | `safe` | Safe mode avoids reporting application variables unless authoritative template context metadata is available. |
 | `twigPlus.diagnostics.unresolvedNames` | boolean | `false` | Deprecated compatibility switch; `true` maps to strict and `false` to off. |
 | `twigPlus.twig.version` | string | detected | Overrides the Twig 3.x version otherwise read from safe metadata or `composer.lock`. |

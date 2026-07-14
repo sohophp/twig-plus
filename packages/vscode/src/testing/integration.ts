@@ -1,7 +1,8 @@
 import { formatTwig, type FormatterOptions } from "@twig-plus/formatter";
 import {
-  analyzeTwigDiagnostics,
-  collectSelectionRanges,
+  analyzeHybridDiagnostics,
+  collectHybridSelectionRanges,
+  parseHybridDocument,
   collectTemplateCompletionCandidates,
   resolveTemplateWorkspacePath
 } from "@twig-plus/parser";
@@ -33,8 +34,8 @@ export function getTwigDiagnosticsForIntegration(
   currentWorkspacePath?: string,
   templateRoots?: string[]
 ) {
-  return analyzeTwigDiagnostics(
-    source,
+  return analyzeHybridDiagnostics(
+    parseHybridDocument(source),
     workspacePaths,
     currentWorkspacePath,
     templateRoots
@@ -45,7 +46,7 @@ export function getSelectionRangesForIntegration(
   source: string,
   offset: number
 ): string[] {
-  return collectSelectionRanges(source, offset).map((range) =>
+  return collectHybridSelectionRanges(parseHybridDocument(source), offset).map((range) =>
     source.slice(range.start, range.end)
   );
 }

@@ -1,5 +1,4 @@
-import { getTwigTag, selectTwigSpec } from "@twig-plus/language-spec";
-import { tokenizeTwig } from "./twigTokenizer";
+import { getTwigTag } from "@twig-plus/language-spec";
 
 export type TwigTagKind = "opening" | "middle" | "closing" | "inline";
 export type LineTokenKind = "twig" | "html-open" | "html-close";
@@ -97,123 +96,6 @@ export function getLineIndentDeltaAfterLeading(line: string): number {
   return delta;
 }
 
-export function collectUnclosedTwigControlTags(
-  source: string,
-  offset: number
-): string[] {
-  const stack: string[] = [];
-
-  for (const token of tokenizeTwig(source)) {
-    if (token.start >= offset || token.type !== "tag") {
-      continue;
-    }
-
-    const content = token.inner.trim().replace(/^[-~]\s*/, "").replace(/\s*[-~]$/, "");
-    const tagName = getTwigTagName(content);
-
-    if (!tagName) {
-      continue;
-    }
-
-    const tagKind = getTwigTagKind(content);
-    if (tagKind === "opening") {
-      stack.push(tagName);
-      continue;
-    }
-
-    if (tagKind !== "closing") {
-      continue;
-    }
-
-    const openingTag = getTwigTag(tagName)?.opens;
-    if (!openingTag) {
-      continue;
-    }
-
-    const openIndex = stack.lastIndexOf(openingTag);
-    if (openIndex >= 0) {
-      stack.splice(openIndex, 1);
-    }
-  }
-
-  return stack;
-}
-
-export function getTwigCompletionContext(
-  source: string,
-  offset: number
-): {
-  unclosedTags: string[];
-  topLevelTag: string | null;
-  allowedMiddleTags: string[];
-  preferredClosingTags: string[];
-} {
-  const stack: Array<{
-    name: string;
-    middleTags: string[];
-  }> = [];
-
-  for (const token of tokenizeTwig(source)) {
-    if (token.start >= offset || token.type !== "tag") {
-      continue;
-    }
-
-    const content = token.inner.trim().replace(/^[-~]\s*/, "").replace(/\s*[-~]$/, "");
-    const tagName = getTwigTagName(content);
-
-    if (!tagName) {
-      continue;
-    }
-
-    const tagKind = getTwigTagKind(content);
-
-    if (tagKind === "opening") {
-      stack.push({
-        name: tagName,
-        middleTags: []
-      });
-      continue;
-    }
-
-    if (tagKind === "middle") {
-      const stackIndex = findLastIndex(stack, (entry) =>
-        isCompatibleMiddleTag(entry.name, tagName)
-      );
-
-      if (stackIndex >= 0) {
-        stack[stackIndex].middleTags.push(tagName);
-      }
-
-      continue;
-    }
-
-    if (tagKind !== "closing") {
-      continue;
-    }
-
-    const openingTag = getTwigTag(tagName)?.opens;
-    if (!openingTag) {
-      continue;
-    }
-
-    const openIndex = findLastIndex(stack, (entry) => entry.name === openingTag);
-    if (openIndex >= 0) {
-      stack.splice(openIndex, 1);
-    }
-  }
-
-  const unclosedTags = stack.map((entry) => entry.name);
-  const topLevel = stack.at(-1);
-  const topLevelTag = topLevel?.name ?? null;
-
-  return {
-    unclosedTags,
-    topLevelTag,
-    allowedMiddleTags: getAllowedMiddleTags(topLevel?.name ?? null, topLevel?.middleTags ?? []),
-    preferredClosingTags: getPreferredClosingTags(unclosedTags)
-  };
-}
-
 function isSelfClosingTag(tag: string): boolean {
   return /\/>$/.test(tag) || /^<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\b/i.test(tag);
 }
@@ -226,49 +108,6 @@ function isTwigSetCaptureTag(content: string): boolean {
   }
 
   return !normalized.includes("=");
-}
-
-function getAllowedMiddleTags(
-  topLevelTag: string | null,
-  seenMiddleTags: string[]
-): string[] {
-  if (!topLevelTag || seenMiddleTags.includes("else")) return [];
-  const currentNames = new Set(selectTwigSpec().tags.map((tag) => tag.name));
-  return [...(getTwigTag(topLevelTag)?.branches ?? [])].filter((name) => currentNames.has(name));
-}
-
-function getPreferredClosingTags(unclosedTags: string[]): string[] {
-  const seen = new Set<string>();
-  const closingTags: string[] = [];
-
-  for (const tagName of [...unclosedTags].reverse()) {
-    const closingTag = getTwigTag(tagName)?.closing;
-    if (!closingTag || seen.has(closingTag)) {
-      continue;
-    }
-
-    seen.add(closingTag);
-    closingTags.push(closingTag);
-  }
-
-  return closingTags;
-}
-
-function isCompatibleMiddleTag(openingTag: string, middleTag: string): boolean {
-  return getTwigTag(openingTag)?.branches?.includes(middleTag) ?? false;
-}
-
-function findLastIndex<T>(
-  items: T[],
-  predicate: (item: T) => boolean
-): number {
-  for (let index = items.length - 1; index >= 0; index -= 1) {
-    if (predicate(items[index])) {
-      return index;
-    }
-  }
-
-  return -1;
 }
 
 function getLeadingDedentTokenCount(tokens: LineToken[], line: string): number {

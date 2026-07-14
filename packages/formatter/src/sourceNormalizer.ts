@@ -1,9 +1,5 @@
 import type { HybridDocument, TwigNode } from "@twig-plus/parser";
 
-export function normalizeTwigSourceFragments(source: string): string {
-  return normalizeHtmlTagSpacing(normalizeTwigTokenFragments(source));
-}
-
 /** Normalize a parsed lossless document without rescanning Twig delimiters. */
 export function normalizeHybridSource(document: HybridDocument): string {
   const pieces = document.children.map((node) => {
@@ -34,23 +30,6 @@ function normalizeTwigNode(node: TwigNode): string {
   const normalizedInner = node.raw.slice(opening.length, -closingLength);
   const collapsed = normalizedInner.replace(/\r\n/g, "\n").replace(/\s*\n\s*/g, " ").replace(/\s*\|\s*/g, "|").replace(/\s+/g, " ").trim();
   return collapsed ? `${opening} ${collapsed} ${closing}` : opening + closing;
-}
-
-function normalizeTwigTokenFragments(source: string): string {
-  return source.replace(
-    /\{\{[-~]?[\s\S]*?[-~]?\}\}|\{%-?[\s\S]*?-?%\}|\{#-?[\s\S]*?-?#\}/g,
-    (token) => {
-      if (!token.includes("\n") && !/\s{2,}/.test(token)) {
-        return token;
-      }
-
-      return token
-        .replace(/\r\n/g, "\n")
-        .replace(/\s*\n\s*/g, " ")
-        .replace(/\s*\|\s*/g, "|")
-        .replace(/\s+/g, " ");
-    }
-  );
 }
 
 function normalizeHtmlTagSpacing(source: string): string {

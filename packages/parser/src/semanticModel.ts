@@ -1,7 +1,7 @@
 import { parseHybridDocument, type HybridDocument, type TwigNode } from "./hybridAst";
 import { getTwigCallable, TWIG_3_SPEC } from "@twig-plus/language-spec";
 import { visitTwigExpression, type TwigExpression } from "./twigAst";
-import type { SourceRange } from "./selectionRanges";
+import type { SourceRange } from "./queryTypes";
 
 export type SemanticSymbolKind = "variable" | "parameter" | "macro" | "block" | "import";
 export interface SemanticSymbol extends SourceRange {

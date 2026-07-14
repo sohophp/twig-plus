@@ -4,7 +4,7 @@
 
 固定阶段为 `parse -> twig -> html -> javascript/css -> mapping -> complete`。每阶段产生耗时；Output Channel 保留请求、URI、阶段、结果和错误，状态栏只显示当前阶段，不发送外部遥测。
 
-默认 `hybrid` 在 parse/validation 成功后只执行一次 Hybrid formatter；只有致命失败才进入内部 legacy fallback。`hybrid-shadow` 只在测试中比较两条路径。Prettier 和 TypeScript 分别延迟到首次 embedded CSS/JavaScript 与支持的 script 分析。
+Formatter 只执行一次 Hybrid parse/validation/print 管线。任一阶段失败时返回结构化失败、保持原文并且不产生 TextEdit。Prettier 和 TypeScript 分别延迟到首次 embedded CSS/JavaScript 与支持的 script 分析。
 
 Range Formatting 先把选区扩展到最小完整 Twig/HTML 结构，保持外层缩进与 EOL，并返回一个 edit。无法形成安全边界或包含未闭合 embedded block 时不修改文档。
 

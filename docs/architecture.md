@@ -32,12 +32,12 @@
 | Formatting | Language Server/Formatter | 状态栏、Output Channel | 同一 Formatter API |
 | 配对/撤销 | VS Code language configuration | 无文本追改 | VS Code 原生行为 |
 
-## Parser 模式
+## Parser
 
-- `hybrid` 是默认模式；无损 CST/AST 查询失败时只允许显式记录后降级。
-- `hybrid` 是唯一用户运行模式，正常查询不得预先计算 legacy 结果。
-- `hybrid-shadow` 只用于测试比较；`legacy` 只在 Hybrid parse、validation 或 query 致命失败时内部降级。
-- 旧的 `legacy`/`hybrid-shadow` 用户配置暂时映射到 Hybrid 并给出一次迁移提示；降级原因写入 TwigPlus Output Channel。
+- Hybrid lossless CST/AST 是唯一运行路径；diagnostics、navigation、selection 和 formatting 直接消费同一文档模型。
+- Hybrid parse/validation/query 失败时返回结构化失败并记录 URI、query 与原因，不运行第二套查询，也不提交 TextEdit。
+- tokenizer 仍是 Hybrid lexer 的组成部分；Symfony bundle-style 模板路径仍属于模板解析语法。
+- 已移除的 parser engine 设置会被 VS Code 安全忽略，扩展不会自动改写用户 settings；用户可手动删除该旧键。
 
 ## 生命周期
 

@@ -1,10 +1,8 @@
 import { getTwigTagKind, getTwigTagName, type TwigTagKind } from "./twigStructure";
 import { getTwigTag, selectTwigSpec } from "@twig-plus/language-spec";
-import type { SourceRange } from "./selectionRanges";
-import type { TwigBlockSymbolData, TwigMacroImport, TwigMacroReference, TwigStructureSymbolKind } from "./blockAnalysis";
+import type { SourceRange, TwigBlockSymbolData, TwigMacroImport, TwigMacroReference, TwigStructureSymbolKind, TwigTokenContext } from "./queryTypes";
 import { parseTwigExpression, parseTwigStatement, visitTwigExpression, type TwigExpression, type TwigStatement } from "./twigAst";
 import { lexTwig } from "./twigTokenizer";
-import type { TwigTokenContext } from "./twigTokenContext";
 
 interface HybridNodeBase extends SourceRange {
   raw: string;
@@ -260,6 +258,20 @@ export function collectHybridStructureSymbols(document: HybridDocument): TwigBlo
     }
   }
   return symbols.sort((left, right) => left.start - right.start);
+}
+
+export function collectHybridUnclosedTwigControlTags(document: HybridDocument, offset: number): string[] {
+  const stack: string[] = [];
+  for (const node of document.children) {
+    if (node.start >= offset || node.kind !== "TwigTag" || !node.tagName || !node.tagKind) continue;
+    if (node.tagKind === "opening") stack.push(node.tagName);
+    else if (node.tagKind === "closing") {
+      const opening = getTwigTag(node.tagName)?.opens;
+      const index = opening ? findLastIndex(stack, (name) => name === opening) : -1;
+      if (index >= 0) stack.splice(index, 1);
+    }
+  }
+  return stack;
 }
 
 export function collectHybridBlockSymbols(document: HybridDocument): TwigBlockSymbolData[] {
