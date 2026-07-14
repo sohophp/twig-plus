@@ -28,6 +28,7 @@ async function run() {
     testEmbeddedJavaScriptDefinition,
     testEmbeddedJavaScriptRename,
     testEmbeddedJavaScriptSemanticTokens,
+    testStructuralTwigQuickFix,
     testInvalidEmbeddedJavaScriptFormattingFailsFast,
     testTwigTagCompletion,
     testHtmlCompletion,
@@ -408,6 +409,32 @@ async function testEmbeddedJavaScriptSemanticTokens() {
   assert.ok(decoded.some((token) => token.text === "Page" && token.type === "class"));
   assert.ok(decoded.some((token) => token.text === "render" && token.type === "method"));
   assert.ok(decoded.every((token) => token.line === 1 || token.line === 2), "tokens must remain inside the script body");
+}
+
+async function testStructuralTwigQuickFix() {
+  const source = `{% if user %}\n  {% for item in items %}\n    {{ item }}`;
+  const fixed = `${source}\n  {% endfor %}\n{% endif %}`;
+  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
+  await vscode.window.showTextDocument(document);
+  await waitFor(() => vscode.languages.getDiagnostics(document.uri)
+    .some((diagnostic) => diagnostic.code === "unclosed-tag" && diagnostic.message.includes('"for"')), 4000);
+  const diagnostic = vscode.languages.getDiagnostics(document.uri)
+    .find((item) => item.code === "unclosed-tag" && item.message.includes('"for"'));
+  const actions = await vscode.commands.executeCommand(
+    "vscode.executeCodeActionProvider",
+    document.uri,
+    diagnostic.range,
+    vscode.CodeActionKind.QuickFix.value
+  );
+  const action = actions.find((item) => item.title === "Insert all missing Twig closing tags");
+  assert.ok(action && action.edit instanceof vscode.WorkspaceEdit, "LSP should return the atomic structural quick fix");
+  assert.strictEqual(action.isPreferred, true);
+  assert.strictEqual(await vscode.workspace.applyEdit(action.edit), true);
+  await waitFor(() => document.getText() === fixed);
+  await vscode.commands.executeCommand("undo");
+  await waitFor(() => document.getText() === source);
+  await vscode.commands.executeCommand("redo");
+  await waitFor(() => document.getText() === fixed);
 }
 
 function decodeSemanticTokens(source, data, legend) {

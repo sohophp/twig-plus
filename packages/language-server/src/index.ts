@@ -1,6 +1,6 @@
 import {
   createConnection, ProposedFeatures, TextDocuments, TextDocumentSyncKind,
-  CompletionItemKind, DiagnosticSeverity, DocumentSymbol, LSPErrorCodes, MarkupKind, ResponseError, SymbolKind,
+  CodeActionKind, CompletionItemKind, DiagnosticSeverity, DocumentSymbol, LSPErrorCodes, MarkupKind, ResponseError, SymbolKind,
   type Hover, type InitializeResult, InsertTextFormat, type Location, type Range, type SelectionRange, SemanticTokensBuilder,
   type SignatureHelp, TextEdit
 } from "vscode-languageserver/node";
@@ -14,6 +14,7 @@ import { EmbeddedJavaScriptService, embeddedSemanticTokenLegend } from "./embedd
 import { getTwigCatalogEntry, getTwigCompletions, TwigCompletionRegistry, type ProjectCompletionEntry } from "./twigCompletion";
 import { collectSymfonyReferences, getSymfonyReferenceAtOffset, getSymfonyReferenceMatch, requiredSymfonyPackages, type SymfonyReferenceKind } from "./symfonyReference";
 import { readStaticSymfonyReferences } from "./staticSymfonyIndex";
+import { getTwigStructuralQuickFixes } from "./twigCodeActions";
 
 export interface TwigPlusServerOptions {
   diagnoseUnresolvedNames?: boolean;
@@ -51,7 +52,8 @@ export function getServerCapabilities(): InitializeResult["capabilities"] {
     definitionProvider: true, referencesProvider: true, renameProvider: { prepareProvider: true },
     documentSymbolProvider: true, selectionRangeProvider: true, documentFormattingProvider: true,
     hoverProvider: true, signatureHelpProvider: { triggerCharacters: ["(", ","] }, documentRangeFormattingProvider: true,
-    semanticTokensProvider: { legend: embeddedSemanticTokenLegend, full: true, range: true }
+    semanticTokensProvider: { legend: embeddedSemanticTokenLegend, full: true, range: true },
+    codeActionProvider: { codeActionKinds: [CodeActionKind.QuickFix] }
   };
 }
 
@@ -536,6 +538,35 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   };
   connection.languages.semanticTokens.on((params) => buildEmbeddedSemanticTokens(params.textDocument.uri));
   connection.languages.semanticTokens.onRange((params) => buildEmbeddedSemanticTokens(params.textDocument.uri, params.range));
+  connection.onCodeAction((params) => {
+    if (params.context.only && !params.context.only.includes(CodeActionKind.QuickFix)) return [];
+    const document = documents.get(params.textDocument.uri);
+    if (!document) return [];
+    const model = modelFor(document);
+    if (!model) return [];
+    const diagnostics = params.context.diagnostics.flatMap((diagnostic) => {
+      const code = typeof diagnostic.code === "string" ? diagnostic.code : undefined;
+      if (!code || !diagnostic.source?.startsWith("TwigPlus")) return [];
+      return [{
+        code,
+        message: diagnostic.message,
+        range: { start: document.offsetAt(diagnostic.range.start), end: document.offsetAt(diagnostic.range.end) }
+      }];
+    });
+    return getTwigStructuralQuickFixes(model.document, diagnostics).map((fix) => ({
+      title: fix.title,
+      kind: CodeActionKind.QuickFix,
+      isPreferred: fix.preferred,
+      diagnostics: params.context.diagnostics.filter((diagnostic) =>
+        diagnostic.source?.startsWith("TwigPlus") && typeof diagnostic.code === "string" &&
+        fix.diagnosticCodes.includes(diagnostic.code)),
+      edit: {
+        changes: {
+          [document.uri]: fix.edits.map((edit) => TextEdit.replace(toRange(document, edit.range), edit.newText))
+        }
+      }
+    }));
+  });
   connection.onDocumentSymbol((params): DocumentSymbol[] => {
     const document = documents.get(params.textDocument.uri); if (!document) return [];
     const model = modelFor(document); if (!model) return [];
