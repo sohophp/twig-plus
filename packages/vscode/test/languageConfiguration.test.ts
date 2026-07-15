@@ -83,6 +83,11 @@ describe("language configuration", () => {
       command: "twigPlus.typeHtmlTagEnd", key: "shift+.", when: expect.stringContaining("!editorHasMultipleSelections")
     }));
   });
+
+  it("does not enable format on save from the recommended settings command", () => {
+    const extensionSource = readFileSync(path.join(__dirname, "..", "src", "extension.ts"), "utf8");
+    expect(extensionSource).not.toContain('"editor.formatOnSave": true');
+  });
 });
 
 function readLanguageConfiguration(): Record<string, unknown> {

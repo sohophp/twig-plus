@@ -16,8 +16,7 @@ TwigPlus contributes itself as the default formatter for the `twig` language. Fo
 ```json
 {
   "[twig]": {
-    "editor.defaultFormatter": "sohophp.twig-plus",
-    "editor.formatOnSave": true
+    "editor.defaultFormatter": "sohophp.twig-plus"
   },
   "twigPlus.format.enable": true,
   "twigPlus.format.profile": "phpstorm"
@@ -31,6 +30,7 @@ TwigPlus: Apply Recommended Twig Settings
 ```
 
 The command writes the recommended settings to the current workspace. TwigPlus does not silently change global settings during installation.
+It also leaves `editor.formatOnSave` unchanged; enable it explicitly if that is your preferred workflow.
 
 To inspect the active file and effective TwigPlus settings, run:
 
@@ -113,6 +113,17 @@ TwigPlus does not require Prettier, PHP CS Fixer, PHP Intelephense, or GitHub Co
 - GitHub Copilot may add suggestions while typing, but it should not replace TwigPlus formatter, completion, or definition providers.
 - Use `TwigPlus: Select Parser Engine` to switch parser modes without editing workspace JSON manually.
 
+To disable GitHub Copilot suggestions only for Twig while keeping Copilot enabled for other languages, add:
+
+```json
+{
+  "github.copilot.enable": {
+    "*": true,
+    "twig": false
+  }
+}
+```
+
 If another extension formats Twig files unexpectedly, set `editor.defaultFormatter` for `[twig]` to `sohophp.twig-plus`.
 
 GitHub Copilot does not register a Twig formatter, definition provider, or Twig template path provider. It can affect inline suggestions while typing, but it should not prevent TwigPlus formatting or template navigation. If TwigPlus appears inactive, check these first:
@@ -165,8 +176,7 @@ TwigPlus 是一个面向 VSCode 的 Twig 扩展，目标是尽量接近 PHPStorm
 ```json
 {
   "[twig]": {
-    "editor.defaultFormatter": "sohophp.twig-plus",
-    "editor.formatOnSave": true
+    "editor.defaultFormatter": "sohophp.twig-plus"
   },
   "twigPlus.format.enable": true,
   "twigPlus.format.profile": "phpstorm"
@@ -180,6 +190,7 @@ TwigPlus: Apply Recommended Twig Settings
 ```
 
 这个命令会把推荐配置写入当前 workspace。扩展安装时不会静默修改你的全局 VSCode 设置。
+该命令不会修改 `editor.formatOnSave`；如需保存时格式化，请自行显式开启。
 
 如果怀疑扩展没有生效，先执行：
 
@@ -190,3 +201,14 @@ TwigPlus: Show Status
 重点看当前文件的 `Language mode` 是否为 `twig`，以及 `[twig]` 的 `editor.defaultFormatter` 是否为 `sohophp.twig-plus`。
 
 TwigPlus 不依赖 Prettier、PHP CS Fixer、PHP Intelephense 或 GitHub Copilot。Prettier 作为运行时依赖已经随扩展打包；其它扩展最多会影响各自负责的语言或建议来源。Copilot 可能影响输入时的 inline suggestion，但不会注册 Twig formatter，也不会替代 TwigPlus 的模板路径跳转。如果 Twig 文件格式化结果混乱，请优先确认 `[twig]` 的 `editor.defaultFormatter` 是 `sohophp.twig-plus`，并确认文件语言模式不是 `HTML`。
+
+如需只对 Twig 禁用 GitHub Copilot 建议，可在用户或工作区设置中加入：
+
+```json
+{
+  "github.copilot.enable": {
+    "*": true,
+    "twig": false
+  }
+}
+```

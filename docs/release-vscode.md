@@ -26,8 +26,7 @@ TwigPlus contributes itself as the default formatter for the `twig` language. Fo
 ```json
 {
   "[twig]": {
-    "editor.defaultFormatter": "sohophp.twig-plus",
-    "editor.formatOnSave": true
+    "editor.defaultFormatter": "sohophp.twig-plus"
   },
   "twigPlus.format.enable": true,
   "twigPlus.format.profile": "phpstorm"
@@ -41,6 +40,7 @@ TwigPlus: Apply Recommended Twig Settings
 ```
 
 The command writes the recommended settings to the current workspace. The extension does not silently modify global settings on install.
+It leaves `editor.formatOnSave` unchanged so users can opt into save-time formatting separately.
 
 ## Versioning
 

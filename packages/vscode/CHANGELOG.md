@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Stopped enabling or recommending `editor.formatOnSave`; the recommended-settings command now preserves the user's existing save-time formatting preference.
 - Added TypeScript-powered Go to Definition for local declarations and import aliases inside supported embedded JavaScript, while rejecting external, generated, unsupported MIME, and cross-script targets that cannot be mapped safely to Twig.
 - Added embedded JavaScript Rename for local declarations and import aliases, including complete source-map validation, identifier checks, collision prevention, and native WorkspaceEdit Undo/Redo.
 - Added embedded JavaScript Semantic Tokens for classes, functions, methods, properties, parameters, and variables, including full/range LSP requests and safe Twig source mapping.

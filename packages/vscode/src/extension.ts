@@ -53,7 +53,6 @@ async function applyRecommendedSettings(): Promise<void> {
     {
       ...twigLanguageSettings,
       "editor.defaultFormatter": "sohophp.twig-plus",
-      "editor.formatOnSave": true,
       "editor.quickSuggestions": { other: "on", comments: "off", strings: "on" }
     },
     vscode.ConfigurationTarget.Workspace
