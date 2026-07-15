@@ -250,6 +250,30 @@ describe("pure Hybrid formatter", () => {
     expect(twice).toBe(expected);
     expect(threeTimes).toBe(expected);
   });
+
+  it("does not treat HTML style tags inside Twig comments as embedded blocks", async () => {
+    const source = [
+      '    {# <style id="rootStyle"> #}',
+      "            {# :root { #}",
+      "            {# --fontSize: {{ fontSize }}; #}",
+      "            {# } #}",
+      "    {# </style> #}"
+    ].join("\n");
+    const expected = [
+      '{# <style id="rootStyle"> #}',
+      "{# :root { #}",
+      "{# --fontSize: {{ fontSize }}; #}",
+      "{# } #}",
+      "{# </style> #}"
+    ].join("\n");
+    const options = { ...getDefaultOptions(), indentSize: 4 };
+    const once = await formatTwig(source, options);
+    const twice = await formatTwig(once, options);
+    const threeTimes = await formatTwig(twice, options);
+    expect(once).toBe(expected);
+    expect(twice).toBe(expected);
+    expect(threeTimes).toBe(expected);
+  });
 });
 
 describe("formatTwigDocument options", () => {
