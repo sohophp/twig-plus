@@ -8,6 +8,7 @@ async function run() {
 
   const tests = [
     testTwigPlusCommandsRegistered,
+    testToggleIndividuallyWrappedTwigComments,
     testTwigDelimiterTyping,
     testTypingTwigTagOffersBlock,
     testManualTwigCompletionWhenAutomaticSuggestionsAreDisabled,
@@ -72,6 +73,34 @@ async function testTwigPlusCommandsRegistered() {
     "status command should be registered"
   );
   assert.ok(commands.includes("twigPlus.insertLineBreak"), "atomic Twig Enter command should be registered");
+  assert.ok(commands.includes("twigPlus.toggleLineComment"), "Twig line comment command should be registered");
+}
+
+async function testToggleIndividuallyWrappedTwigComments() {
+  const source = [
+    '{# <style id="rootStyle"> #}',
+    "            {# :root { #}",
+    "            {# --fontSize: {{ fontSize }}; #}",
+    "            {# } #}",
+    "    {# </style> #}"
+  ].join("\n");
+  const expected = [
+    '<style id="rootStyle">',
+    "            :root {",
+    "            --fontSize: {{ fontSize }};",
+    "            }",
+    "    </style>"
+  ].join("\n");
+  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
+  const editor = await vscode.window.showTextDocument(document);
+  editor.selection = new vscode.Selection(0, 0, document.lineCount - 1, document.lineAt(document.lineCount - 1).text.length);
+
+  await vscode.commands.executeCommand("twigPlus.toggleLineComment");
+  assert.strictEqual(document.getText(), expected);
+  await vscode.commands.executeCommand("undo");
+  assert.strictEqual(document.getText(), source);
+  await vscode.commands.executeCommand("redo");
+  assert.strictEqual(document.getText(), expected);
 }
 
 async function openHomeDocument() {

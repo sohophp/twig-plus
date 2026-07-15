@@ -6,7 +6,7 @@
             "comments": "off",
             "strings": "on"
         },
-        "editor.formatOnSave": true
+        "editor.linkedEditing": true
     },
     "twigPlus.format.enable": true,
     "twigPlus.format.profile": "phpstorm",

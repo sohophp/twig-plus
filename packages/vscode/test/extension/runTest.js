@@ -7,6 +7,7 @@ const { runTests } = require("@vscode/test-electron");
 
 async function main() {
   sanitizeHostEnvironment();
+  assertGraphicalSession();
   process.env.DONT_PROMPT_WSL_INSTALL = "1";
 
   const extensionDevelopmentPath = path.resolve(__dirname, "../..");
@@ -31,6 +32,10 @@ async function main() {
     launchArgs: [
       `--folder-uri=${pathToFileURL(workspacePath).href}`,
       "--disable-extensions",
+      "--disable-gpu",
+      "--disable-workspace-trust",
+      "--skip-welcome",
+      "--skip-release-notes",
       `--user-data-dir=${path.join(profileRoot, "user-data")}`,
       `--extensions-dir=${path.join(profileRoot, "extensions")}`
     ]
@@ -53,6 +58,28 @@ async function main() {
 function sanitizeHostEnvironment() {
   for (const key of Object.keys(process.env)) {
     if (key.startsWith("VSCODE_") || key === "ELECTRON_RUN_AS_NODE" || key === "WSLENV") delete process.env[key];
+  }
+  if (process.env.XDG_RUNTIME_DIR && !fs.existsSync(process.env.XDG_RUNTIME_DIR)) {
+    delete process.env.XDG_RUNTIME_DIR;
+  }
+  const dbusAddress = process.env.DBUS_SESSION_BUS_ADDRESS;
+  const dbusSocket = dbusAddress?.match(/(?:^|;)unix:path=([^,;]+)/)?.[1];
+  if ((dbusAddress && !/^(?:unix|tcp):/.test(dbusAddress)) || (dbusSocket && !fs.existsSync(dbusSocket))) {
+    delete process.env.DBUS_SESSION_BUS_ADDRESS;
+  }
+}
+
+function assertGraphicalSession() {
+  if (process.platform !== "linux") return;
+  const display = process.env.DISPLAY;
+  if (!display && !process.env.WAYLAND_DISPLAY) {
+    throw new Error("No graphical display is available. Run this test under xvfb-run on headless Linux.");
+  }
+  const localDisplay = display?.match(/^:(\d+)(?:\.\d+)?$/)?.[1];
+  if (localDisplay && !fs.existsSync(`/tmp/.X11-unix/X${localDisplay}`)) {
+    throw new Error(
+      `DISPLAY=${display} has no X11 socket. Check whether /tmp/.X11-unix is a broken symlink and whether Xvfb is still running.`
+    );
   }
 }
 

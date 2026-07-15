@@ -2,6 +2,8 @@
 
 This guide covers the Marketplace release flow for the `TwigPlus` VSCode extension.
 
+For the complete Chinese workflow covering local verification, Git commits, Pull Requests, versioning, tagging, GitHub Releases, and Marketplace publishing, see [Git、Pull Request 与版本发布流程](git-pr-release-workflow.md).
+
 ## Prerequisites
 
 - A clean local build: `npm run build`

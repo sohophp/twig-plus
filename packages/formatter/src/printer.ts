@@ -5,6 +5,7 @@ import {
   getTwigTagKind
 } from "@twig-plus/parser";
 import type { HybridQueryFailure } from "@twig-plus/parser";
+import { maskCompleteTwigSegments } from "./twigSyntaxMask";
 
 export interface FormatterOptions {
   profile: "phpstorm" | "compact";
@@ -596,7 +597,9 @@ function getNextEmbeddedBlockState(
   line: string,
   current: "script" | "style" | null
 ): "script" | "style" | null {
-  if (current && isEmbeddedClosingLine(line, current)) {
+  const html = maskCompleteTwigSegments(line);
+
+  if (current && isEmbeddedClosingLine(html, current)) {
     return null;
   }
 
@@ -604,11 +607,11 @@ function getNextEmbeddedBlockState(
     return current;
   }
 
-  if (/<script\b[^>]*>/i.test(line) && !/<\/script>/i.test(line)) {
+  if (/<script\b[^>]*>/i.test(html) && !/<\/script>/i.test(html)) {
     return "script";
   }
 
-  if (/<style\b[^>]*>/i.test(line) && !/<\/style>/i.test(line)) {
+  if (/<style\b[^>]*>/i.test(html) && !/<\/style>/i.test(html)) {
     return "style";
   }
 
@@ -619,7 +622,7 @@ function isEmbeddedClosingLine(
   line: string,
   tagName: "script" | "style"
 ): boolean {
-  return new RegExp(`</${tagName}>`, "i").test(line);
+  return new RegExp(`</${tagName}>`, "i").test(maskCompleteTwigSegments(line));
 }
 
 function parseHtmlOpeningTag(line: string): {

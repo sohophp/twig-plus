@@ -7,6 +7,7 @@ import { registerFallbackProviders } from "./language/fallbackProviders";
 import { getConfiguredTemplateRoots } from "./language/templateConfig";
 import { registerHybridParserRuntime, reportRuntimeError } from "./language/parserRuntime";
 import { registerTwigEnterController } from "./editing/enterController";
+import { registerTwigCommentController } from "./editing/twigComment";
 import { registerHtmlLinkedEditingProvider } from "./editing/linkedEditingProvider";
 import { getHtmlTagClosingMode, registerHtmlOnTypeController } from "./editing/htmlOnType";
 import { initializeTwigPlusOutput } from "./output";
@@ -16,6 +17,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registerHybridParserRuntime(context);
   registerCommands(context);
   registerTwigEnterController(context);
+  registerTwigCommentController(context);
   registerHtmlOnTypeController(context);
   registerHtmlLinkedEditingProvider(context);
   registerHtmlCompletionProvider(context);
@@ -72,8 +74,8 @@ async function showTwigPlusStatus(context: vscode.ExtensionContext): Promise<voi
     `TwigPlus ${context.extension.packageJSON.version ?? "(unknown version)"}`,
     `Active file: ${document ? document.uri.fsPath || document.uri.toString() : "(no active editor)"}`,
     `Language mode: ${document?.languageId ?? "(none)"}`,
-    `Twig default formatter: ${String(twigLanguageSettings["editor.defaultFormatter"] ?? "(unset)")}`,
-    `Twig format on save: ${String(twigLanguageSettings["editor.formatOnSave"] ?? "(unset)")}`,
+    `Twig default formatter: ${String(document ? vscode.workspace.getConfiguration("editor", document).get("defaultFormatter", "(unset)") : twigLanguageSettings["editor.defaultFormatter"] ?? "(unset)")}`,
+    `Twig format on save: ${String(document ? vscode.workspace.getConfiguration("editor", document).get("formatOnSave", false) : twigLanguageSettings["editor.formatOnSave"] ?? "(unset)")}`,
     `Twig quick suggestions: ${JSON.stringify(twigLanguageSettings["editor.quickSuggestions"] ?? "(default)")}`,
     `twigPlus.format.enable: ${String(formatConfig.get("enable", true))}`,
     `twigPlus.format.profile: ${String(formatConfig.get("profile", "phpstorm"))}`,

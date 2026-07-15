@@ -1,8 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 - 2026-07-15
 
 - Stopped enabling or recommending `editor.formatOnSave`; the recommended-settings command now preserves the user's existing save-time formatting preference.
+- Fixed repeated indentation drift when Twig comments contain HTML-like `<style>` or `<script>` tags.
+- Added a Twig-aware line-comment toggle that removes independently wrapped `{# ... #}` markers across a selection with one Undo/Redo step.
+- Fixed the line-comment command to commit its edit synchronously on the minimum VS Code 1.90 baseline.
+- Hardened Extension Host startup diagnostics and environment cleanup for WSLg and headless Linux sessions.
 - Added TypeScript-powered Go to Definition for local declarations and import aliases inside supported embedded JavaScript, while rejecting external, generated, unsupported MIME, and cross-script targets that cannot be mapped safely to Twig.
 - Added embedded JavaScript Rename for local declarations and import aliases, including complete source-map validation, identifier checks, collision prevention, and native WorkspaceEdit Undo/Redo.
 - Added embedded JavaScript Semantic Tokens for classes, functions, methods, properties, parameters, and variables, including full/range LSP requests and safe Twig source mapping.

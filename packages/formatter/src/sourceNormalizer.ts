@@ -1,4 +1,5 @@
 import type { HybridDocument, TwigNode } from "@twig-plus/parser";
+import { maskCompleteTwigSegments } from "./twigSyntaxMask";
 
 /** Normalize a parsed lossless document without rescanning Twig delimiters. */
 export function normalizeHybridSource(document: HybridDocument): string {
@@ -364,11 +365,13 @@ function skipWhitespace(value: string, index: number): number {
 }
 
 function getNextEmbeddedBlockTag(line: string): "script" | "style" | null {
-  if (/<script\b[^>]*>/i.test(line) && !/<\/script>/i.test(line)) {
+  const html = maskCompleteTwigSegments(line);
+
+  if (/<script\b[^>]*>/i.test(html) && !/<\/script>/i.test(html)) {
     return "script";
   }
 
-  if (/<style\b[^>]*>/i.test(line) && !/<\/style>/i.test(line)) {
+  if (/<style\b[^>]*>/i.test(html) && !/<\/style>/i.test(html)) {
     return "style";
   }
 
@@ -376,5 +379,5 @@ function getNextEmbeddedBlockTag(line: string): "script" | "style" | null {
 }
 
 function isEmbeddedClosingLine(line: string, tagName: "script" | "style"): boolean {
-  return new RegExp(`</${tagName}>`, "i").test(line);
+  return new RegExp(`</${tagName}>`, "i").test(maskCompleteTwigSegments(line));
 }
