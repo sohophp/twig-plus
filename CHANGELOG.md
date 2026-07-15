@@ -1,11 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 - 2026-07-15
 
 - Added TypeScript-powered Go to Definition for local declarations and import aliases inside supported embedded JavaScript, with source-map-safe Twig ranges and isolated script scopes.
 - Added safe embedded JavaScript Rename with prepare ranges, complete Twig-mapped edits, JavaScript identifier validation, and same-scope collision rejection.
 - Added full and range Semantic Tokens for TypeScript-classified identifiers inside supported embedded JavaScript, with source-map-safe filtering for Twig placeholders and unsupported script MIME types.
 - Added LSP-owned structural Twig Quick Fixes that atomically insert all missing closing tags in reverse nesting order or precisely remove unexpected tags and empty outputs.
+- Stopped enabling or recommending format-on-save while retaining TwigPlus as the Twig default formatter.
+- Fixed formatting idempotence for Twig comments containing HTML-like style/script tags and added a Twig-aware multi-line comment toggle.
+- Hardened minimum-version Extension Host execution and diagnostics for WSLg and headless Linux environments.
 
 ## 1.2.0 - 2026-07-14
 

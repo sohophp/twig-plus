@@ -3,23 +3,21 @@ import { unwrapTwigComment, wrapTwigComment } from "./twigCommentLogic";
 
 export function registerTwigCommentController(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerTextEditorCommand("twigPlus.toggleLineComment", async (editor) => {
+    vscode.commands.registerTextEditorCommand("twigPlus.toggleLineComment", (editor, edit) => {
       if (editor.document.languageId !== "twig") return;
 
       const lineNumbers = getSelectedLineNumbers(editor.selections);
       const lines = lineNumbers.map((lineNumber) => editor.document.lineAt(lineNumber));
       const uncomment = lines.every((line) => !line.text.trim() || unwrapTwigComment(line.text) !== null);
 
-      await editor.edit((edit) => {
-        for (const line of lines) {
-          const replacement = uncomment
-            ? unwrapTwigComment(line.text)
-            : wrapTwigComment(line.text);
-          if (replacement !== null && replacement !== line.text) {
-            edit.replace(line.range, replacement);
-          }
+      for (const line of lines) {
+        const replacement = uncomment
+          ? unwrapTwigComment(line.text)
+          : wrapTwigComment(line.text);
+        if (replacement !== null && replacement !== line.text) {
+          edit.replace(line.range, replacement);
         }
-      });
+      }
     })
   );
 }

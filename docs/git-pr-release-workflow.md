@@ -116,6 +116,10 @@ xvfb-run -a npm run vscode:test:min --workspace packages/vscode
 xvfb-run -a npm run vscode:test:current --workspace packages/vscode
 ```
 
+WSLg 已开启且 `DISPLAY=:0` 可用时，直接运行前一组 npm 命令即可；不要求再用 `xvfb-run` 重复验证。
+
+如果 `xvfb-run` 结束时报告 `kill: No such process` 或一直没有出现 `[TwigPlus UI] START`，说明虚拟显示器本身没有成功启动；按 [Rocky Linux / WSL 无界面环境排查](troubleshooting.md#rocky-linux--wsl-无界面环境下-extension-host-无法启动) 检查 X11 socket 和 DBus/XDG 会话变量。
+
 测试报告写入 `packages/vscode/.vscode-test-results/`。退出码为 0 仍不足以单独证明通过；报告中的执行数量、断言、VS Code 版本和状态也必须完整。
 
 ### 4.4 手工冒烟测试
