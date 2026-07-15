@@ -7,6 +7,7 @@ import { registerFallbackProviders } from "./language/fallbackProviders";
 import { getConfiguredTemplateRoots } from "./language/templateConfig";
 import { registerHybridParserRuntime, reportRuntimeError } from "./language/parserRuntime";
 import { registerTwigEnterController } from "./editing/enterController";
+import { registerTwigCommentController } from "./editing/twigComment";
 import { registerHtmlLinkedEditingProvider } from "./editing/linkedEditingProvider";
 import { getHtmlTagClosingMode, registerHtmlOnTypeController } from "./editing/htmlOnType";
 import { initializeTwigPlusOutput } from "./output";
@@ -16,6 +17,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registerHybridParserRuntime(context);
   registerCommands(context);
   registerTwigEnterController(context);
+  registerTwigCommentController(context);
   registerHtmlOnTypeController(context);
   registerHtmlLinkedEditingProvider(context);
   registerHtmlCompletionProvider(context);

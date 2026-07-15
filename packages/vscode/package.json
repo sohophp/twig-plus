@@ -32,6 +32,7 @@
   "activationEvents": [
     "onLanguage:twig",
     "onCommand:twigPlus.applyRecommendedSettings",
+    "onCommand:twigPlus.toggleLineComment",
     "onCommand:twigPlus.showStatus"
   ],
   "main": "./dist/extension.js",
@@ -85,6 +86,11 @@
         "category": "TwigPlus"
       },
       {
+        "command": "twigPlus.toggleLineComment",
+        "title": "Toggle Twig Line Comment",
+        "category": "TwigPlus"
+      },
+      {
         "command": "twigPlus.insertHtmlCloseTag",
         "title": "Insert HTML Closing Tag",
         "category": "TwigPlus"
@@ -101,6 +107,12 @@
       }
     ],
     "keybindings": [
+      {
+        "command": "twigPlus.toggleLineComment",
+        "key": "ctrl+/",
+        "mac": "cmd+/",
+        "when": "editorTextFocus && editorLangId == twig && !editorReadonly"
+      },
       {
         "command": "twigPlus.typeHtmlTagEnd",
         "key": "shift+.",
