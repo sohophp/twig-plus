@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+{% set adminConfig = getAdminConfigure() %}
+{% set theme= adminConfig.module_path[0]['theme']??'c1' %}
+<html lang="en" style="font-size: {{ adminConfig.uiSettings.font_size?:'14px' }};color: {{ color }}">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="robots" content="none" />
+    <title>Control Panel</title>
+    <script type="text/javascript">
+      window.AdminConfigure = {{ adminConfig|json_encode|raw }};
+    </script> 
+    <script>
+      window.addEventListener("pageshow", (event) => {
+        const path = window.location.pathname + window.location.search;
+        const keyPrefix = "admin.pageshow.reload";
+        const pathKey = keyPrefix + ".path." + encodeURIComponent(path);
+        const totalKey = keyPrefix + ".total";
+        const lastPathKey = keyPrefix + ".lastPath";
+
+        if (event.persisted) {
+          const pathCount = Number(sessionStorage.getItem(pathKey) || "0") + 1;
+          const totalCount = Number(sessionStorage.getItem(totalKey) || "0") + 1;
+          sessionStorage.setItem(pathKey, String(pathCount));
+          sessionStorage.setItem(totalKey, String(totalCount));
+          sessionStorage.setItem(lastPathKey, path);
+          console.log(
+            "[pageshow] restored from bfcache, reload #" +
+              pathCount +
+              " (total " +
+              totalCount +
+              "), path: " +
+              path,
+          );
+          window.location.reload();
+        } else {
+          const pathCount = Number(sessionStorage.getItem(pathKey) || "0");
+          const totalCount = Number(sessionStorage.getItem(totalKey) || "0");
+          const lastPath = sessionStorage.getItem(lastPathKey) || "(none)";
+          console.log(
+            "[pageshow] loaded normally, reload #" +
+              pathCount +
+              " (total " +
+              totalCount +
+              "), last persisted path: " +
+              lastPath,
+          );
+        }
+      });
+    </script>
+    <script defer src="/resources/ckeditor/ckeditor.js"></script>
+    <script defer src="/resources/ckfinder/ckfinder.js"></script>
+    {% if config('devWebpack') %}
+      <script defer src="https://localhost:8080/runtime.js?{{ " now"|date("U") }}"></script>
+      <script defer src="https://localhost:8080/common.js?{{ " now"|date("U") }}"></script>
+      <link href="https://localhost:8080/common.css?{{ " now"|date("U") }}" rel="stylesheet">
+      <link rel="shortcut icon" href="https://localhost:8080/dist/images/favicon.ico" />
+    {% elseif config('devVite.enable') %}
+      {% set viteServer = config('devVite.server', 'https://localhost:5173') %}
+      <script type="module" src="{{ viteServer }}/@vite/client"></script>
+      <script type="module" src="{{ viteServer }}/js/main.ts"></script>
+      <link rel="shortcut icon" href="{{ viteServer }}/images/favicon.ico" />
+      <link href="{{ viteServer }}/styles/main.scss?{{ 'now'|date('U') }}" rel="stylesheet">
+    {% else %}
+
+      <link rel="preload" href="/resources/dist/assets/images/logo.png" as="image" />
+      {# <link rel="preload" href="/resources/dist/assets/fonts/bootstrap-icons.woff2" as="font" type="font/woff2" #} {# crossorigin> #}
+      <link rel="shortcut icon" href="/resources/dist/assets/images/favicon.ico" />
+      <link href="/resources/dist/assets/css/main.css" rel="stylesheet" type="text/css" />
+      <script defer src="/resources/dist/assets/js/main.js"></script>
+    {% endif %}
+
+    {% block scripts_for_head %}
+    {% endblock %}
+    {# <style id="rootStyle"> #}
+    {# :root { #}
+    {# --fontSize: {{ fontSize }}; #}
+    {# } #}
+    {# </style> #}
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll("a.doc-link").forEach((el) => {
+          el.addEventListener("click", (ev) => {
+            fetch(el.href, {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            })
+              .then((res) => res.json())
+              .then((json) => {
+                console.log({ json });
+                Common.soDialog.openOffcanvas({
+                  title: el.textContent,
+                  placement: "end",
+                  animation: "slide",
+                  content: json.contentHtml,
+                  width: "40rem",
+                  footerButtons: [],
+                });
+              });
+            return ev.preventDefault();
+          });
+        });
+      });
+    </script>
+  </head>
+
+  <body class="hasheader" style="font-family:'{{ adminConfig.uiSettings.font_family }}'">
+    {% block body %}
+      <div class="admin16-all-container {{ adminConfig.uiSettings.sidebar_style ?? 'SidebarStyle1' }}">
+        {% include 'header.twig' %}
+        <aside class="app-sidebar">
+
+          {# <div class="sidebar-header">&nbsp;</div> #}
+          {# <hr class="sidebar-divider" /> #}
+          <div>
+            <div class="sidebar-section-title"> # GET STARTED</div>
+            <ul class="sidebar-menu level-0">
+              {# <li> #}
+              {# <a href="#quick-start" class="menu-link level-0"> #}
+              {# <span style="display: flex; align-items: center;"> #}
+              {# <span class="menu-icon"> #}
+              {# <span style="font-size: 16px; margin-right: 8px;">⭐</span> #}
+              {# </span> #}
+              {# </span> #}
+              {# <span>Quick Start</span> #}
+              {# </a> #}
+              {# </li> #}
+              {% set idPath=adminConfig.module_path|column('id') %}
+              {% for item in adminConfig.modules %}
+                <li class="menu-item {% if item.id in idPath %} active {% endif %}" data-module-id="{{ item.id }}">
+                  <a href="{{ item.url }}" class="menu-link level-0">
+                    <span style="display: flex; align-items: center;">
+                      {% if item.icon %}
+                        <span class="menu-icon">
+                          <span class="{{ item.icon }}" style="font-size: 1rem; margin-right: 0.5rem;"></span>
+                        </span>
+                      {% endif %}
+                      <span>{{ item.name }}</span>
+                    </span>
+                    <svg
+                      class="arrow-up"
+                      width="1rem"
+                      height="1rem"
+                      role="presentation"
+                      viewBox="0 0 64 64"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                      focusable="false">
+                      <path d="M57.5676 43.5936L54.7396 46.4216L31.5535 23.2356L8.36755 46.4216L5.53955 43.5936L31.5535 17.5786L57.5676 43.5936Z"></path>
+                    </svg>
+                    <svg
+                      class="arrow-down"
+                      width="1rem"
+                      height="1rem"
+                      role="presentation"
+                      viewBox="0 0 64 64"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                      focusable="false">
+                      <path d="M5.53963 20.4066L8.36763 17.5786L31.5536 40.7646L54.7396 17.5786L57.5676 20.4066L31.5536 46.4216L5.53963 20.4066Z"></path>
+                    </svg>
+                    {# <span class="arrow">▼</span> #}
+                  </a>
+                  {% if item.children %}
+                    <ul class="sidebar-menu level-1">
+                      {% for child in item.children %}
+                        <li data-module-id="{{ child.id }}" class="{% if child.id in idPath %} active{% endif %}">
+                          <a href="{{ child.url }}" class="menu-link level-1">
+                            <span style="display: flex; align-items: center;">
+                              <span>{{ child.name }}</span>
+                            </span>
+                          </a>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+
+        </aside>
+        <script>
+          document.addEventListener("DOMContentLoaded", function () {
+            {# const path = {{ adminConfig.module_path|column('id')|json_encode }} #}
+            const sidebar = document.querySelector(".app-sidebar");
+            const menuLinks = sidebar.querySelectorAll(".menu-link");
+            menuLinks.forEach((link) => {
+              // const moduleId = parseInt(link.closest(".menu-item").getAttribute("data-module-id"));
+              // if (path.includes(moduleId)) {
+              //     console.log("Activating module ID:", moduleId);
+              //     link.closest("li").classList.add("active");
+              // }
+              link.addEventListener("click", function (e) {
+                document.querySelectorAll(".menu-item.active").forEach((item) => {
+                  if (item !== this.closest(".menu-item")) {
+                    item.classList.remove("active");
+                  }
+                });
+                const menuItem = this.closest(".menu-item");
+                if (!menuItem) return; // No parent menu item found
+                const sib = this.nextElementSibling;
+                if (sib && sib.classList.contains("sidebar-menu")) {
+                  menuItem.classList.toggle("active"); // Toggle the active class
+                  e.preventDefault();
+                }
+              });
+            });
+          });
+        </script>
+
+        <div class="admin16-main-container {{ theme }}">
+          <div class="nav1-wrap">
+            <ul>
+              {% for m in adminConfig.modules %}
+                <li {{ m.id in adminConfig.module_path|column('id') ?' class="active" ':'' }}>
+                  <a href="{{ m.url }}" class="{{ m.theme }}" title="{{ m.name }}">
+                    <span class="icon {{ m.icon }}"></span>
+                    <span class="mname">{{ m.name }}</span>
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+
+          <div class="nav2-wrap">
+            <ul>
+              {% for m in adminConfig['module_path'][0]['children']??[] %}
+                <li {{ m.id in adminConfig.module_path|column('id') ?' class="active" ':'' }}>
+                  <a href="{{ m.url }}">{{ m.name }}</a>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+
+          <div class="main-wrap {{ theme }}">
+            <div class="main_content" id="main-container">
+              {% block main %}
+              {% endblock %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+
+      {% include "ui.twig" %}
+
+    {% endblock %}
+
+    {% block scripts_for_body %}
+    {% endblock %}
+
+  </body>
+</html>
