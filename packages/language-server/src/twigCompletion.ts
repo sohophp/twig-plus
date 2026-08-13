@@ -4,8 +4,31 @@ import { getHybridCompletionContext, getHybridTokenContextAtOffset, type HybridD
 import { getSymfonyTwigCallables, getSymfonyTwigTags, selectTwigSpec, type TwigCallableKind } from "@twig-plus/language-spec";
 
 interface Entry { label: string; detail: string; insertText?: string; priority?: number; signature?: string; documentation?: string; source?: "twig-core" | "twig-extra" | "symfony-bridge" | "project"; package?: string; }
-export interface ProjectCompletionEntry { kind: "tag" | "filter" | "function" | "test"; name: string; detail?: string; signature?: string; documentation?: string; }
+export interface ProjectCompletionEntry { kind: "tag" | "filter" | "function" | "test"; name: string; detail?: string; signature?: string; documentation?: string; returnType?: string; }
 export interface TwigCatalogEntry { kind: ProjectCompletionEntry["kind"]; name: string; detail: string; signature?: string; documentation?: string; }
+export const SYMFONY_APP_MEMBERS = [
+  "token", "user", "request", "session", "environment", "debug", "locale", "enabled_locales", "flashes",
+  "current_route", "current_route_parameters"
+] as const;
+export interface ProjectTypeMember { name: string; kind: "property" | "method"; type?: string; signature?: string; documentation?: string; }
+export type ProjectTypeIndex = Record<string, { name: string; members: ProjectTypeMember[] }>;
+
+export function resolveProjectMembers(path: string[], globalTypes: Record<string, string>, types: ProjectTypeIndex): ProjectTypeMember[] {
+  let type: string | undefined = globalTypes[path[0]];
+  for (const segment of path.slice(1)) type = type ? types[type]?.members.find((entry) => entry.name === segment)?.type : undefined;
+  return type ? types[type]?.members ?? [] : [];
+}
+
+export function getTwigExpressionPrefix(source: string, offset: number): string {
+  return source.slice(0, offset).match(/([A-Za-z_][A-Za-z0-9_]*)$/)?.[1] ?? "";
+}
+
+export function getTwigMemberContext(source: string, offset: number): { path: string[]; prefix: string; start: number } | null {
+  const match = source.slice(0, offset).match(/\b([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\.([A-Za-z_][A-Za-z0-9_]*)?$/);
+  if (!match) return null;
+  const prefix = match[2] ?? "";
+  return { path: match[1].split("."), prefix, start: offset - prefix.length };
+}
 
 export class TwigCompletionRegistry {
   private project: ProjectCompletionEntry[] = [];
@@ -15,6 +38,7 @@ export class TwigCompletionRegistry {
   setPackages(packages: string[]): void { this.packages = new Set(packages); }
   setPackageVersions(versions: Record<string, string>): void { this.packageVersions = new Map(Object.entries(versions)); }
   getSymfonyVersion(): string | undefined { return this.packageVersions.get("symfony/twig-bridge")?.replace(/^v/, ""); }
+  getReturnType(name: string, kind: ProjectCompletionEntry["kind"]): string | undefined { return this.project.find((entry) => entry.name === name && entry.kind === kind)?.returnType; }
   hasAnyPackage(packages: readonly string[]): boolean { return packages.some((name) => this.packages.has(name)); }
   permits(source: Entry["source"], packageName?: string): boolean {
     if (!source || source === "twig-core" || source === "project") return true;

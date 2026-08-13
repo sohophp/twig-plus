@@ -1,15 +1,41 @@
 import { describe, expect, it } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { parseHybridDocument } from "@twig-plus/parser";
-import { getTwigCompletions, TwigCompletionRegistry } from "../src/twigCompletion";
+import { getTwigCompletions, getTwigExpressionPrefix, getTwigMemberContext, resolveProjectMembers, SYMFONY_APP_MEMBERS, TwigCompletionRegistry } from "../src/twigCompletion";
 
 describe("Twig completion contexts", () => {
+  it("separates expression variables from member completion", () => {
+    expect(getTwigExpressionPrefix("{{ dump(ap", 10)).toBe("ap");
+    expect(getTwigMemberContext("{{ dump(app.", 12)).toEqual({ path: ["app"], prefix: "", start: 12 });
+    expect(getTwigMemberContext("{{ app.cur", 10)).toEqual({ path: ["app"], prefix: "cur", start: 7 });
+    expect(getTwigMemberContext("{{ legacyApp.navigation.he", 26)).toEqual({ path: ["legacyApp", "navigation"], prefix: "he", start: 24 });
+    expect(SYMFONY_APP_MEMBERS).toEqual(expect.arrayContaining(["user", "request", "current_route"]));
+  });
+
+  it("resolves typed project members across a global property chain", () => {
+    const types = {
+      "App\\Entity\\App": { name: "App\\Entity\\App", members: [{ name: "navigation", kind: "property" as const, type: "App\\Navigation" }] },
+      "App\\Navigation": { name: "App\\Navigation", members: [{ name: "header", kind: "property" as const }, { name: "invalidate", kind: "method" as const, signature: "invalidate()" }] }
+    };
+    expect(resolveProjectMembers(["legacyApp", "navigation"], { legacyApp: "App\\Entity\\App" }, types).map((entry) => entry.name))
+      .toEqual(["header", "invalidate"]);
+    expect(resolveProjectMembers(["missing"], {}, types)).toEqual([]);
+  });
   it("offers tests inside if tag expressions", () => {
     const source = "{% if user is def %}";
     const document = TextDocument.create("file:///completion.html.twig", "twig", 1, source);
     const offset = source.indexOf("def") + 3;
     const labels = getTwigCompletions(document, parseHybridDocument(source), offset).map((item) => item.label);
     expect(labels).toContain("defined");
+  });
+
+  it("keeps callable names available while completing a function argument", () => {
+    const registry = new TwigCompletionRegistry();
+    registry.setPackages(["symfony/twig-bundle", "symfony/twig-bridge"]);
+    const source = "{{ dump(le) }}";
+    const document = TextDocument.create("file:///argument.twig", "twig", 1, source);
+    const offset = source.indexOf("le") + 2;
+    expect(getTwigCompletions(document, parseHybridDocument(source), offset, registry).map((item) => item.label)).toContain("cycle");
   });
 
   it("only exposes optional Symfony and Extra symbols for installed packages", () => {

@@ -10,10 +10,15 @@ export interface ProjectCompletionEntry {
   detail?: string;
   documentation?: string;
   signature?: string;
+  type?: string;
+  returnType?: string;
 }
 
+export interface ProjectTypeMember { name: string; kind: "property" | "method"; type?: string; signature?: string; documentation?: string; }
+export interface ProjectTypeEntry { name: string; members: ProjectTypeMember[]; }
+
 export interface ProjectMetadataSnapshot {
-  schemaVersion?: 1 | 2 | 3;
+  schemaVersion?: 1 | 2 | 3 | 4;
   providerId: string;
   projectRoot: string;
   generatedAt: number;
@@ -33,7 +38,13 @@ export interface ProjectMetadataSnapshot {
     tests?: ProjectCompletionEntry[];
     tags?: ProjectCompletionEntry[];
   };
-  contexts?: Array<{ template: string; complete: boolean; variables: string[] }>;
+  types?: Record<string, ProjectTypeEntry>;
+  contexts?: Array<{
+    template: string;
+    complete: boolean;
+    variables: string[] | Record<string, string>;
+    sources?: Array<{ controller: string; path: string; line?: number }>;
+  }>;
   references?: {
     routes?: ProjectReferenceEntry[];
     translations?: ProjectReferenceEntry[];

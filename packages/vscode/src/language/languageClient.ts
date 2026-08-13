@@ -30,7 +30,9 @@ export async function startTwigLanguageClient(context: vscode.ExtensionContext):
       configurationSection: ["twigPlus"],
       fileEvents: [
         vscode.workspace.createFileSystemWatcher("**/*.twig"),
-        vscode.workspace.createFileSystemWatcher("**/.twig-plus/symfony-metadata.json")
+        vscode.workspace.createFileSystemWatcher("**/.twig-plus/symfony-metadata.json"),
+        vscode.workspace.createFileSystemWatcher("**/config/{packages,symfony/packages}/twig.{yaml,yml}"),
+        vscode.workspace.createFileSystemWatcher("**/src/Twig/*.php")
       ]
     }
   };

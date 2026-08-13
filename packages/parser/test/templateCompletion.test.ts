@@ -265,6 +265,16 @@ describe("template completion candidate helpers", () => {
     ).toBe("resources/views/layout.twig");
   });
 
+  it("completes and resolves Symfony namespaced templates", () => {
+    const paths = ["templates/app/layout.html.twig", "templates/common/card.html.twig"];
+    const namespaces = { site: ["templates/app", "templates/common"] };
+
+    expect(collectTemplateCompletionCandidates(paths, "@site/lay", undefined, ["templates"], namespaces))
+      .toEqual(["@site/layout.html.twig"]);
+    expect(resolveTemplateWorkspacePath(paths, "@site/layout.html.twig", "templates/app/page.html.twig", ["templates"], namespaces))
+      .toBe("templates/app/layout.html.twig");
+  });
+
   it("prefers same-directory bare references before root-level matches", () => {
     expect(
       resolveTemplateWorkspacePath(

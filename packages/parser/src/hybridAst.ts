@@ -107,6 +107,11 @@ const VOID_HTML_TAGS = new Set([
   "area", "base", "br", "col", "embed", "hr", "img", "input", "link",
   "meta", "param", "source", "track", "wbr"
 ]);
+const P_IMPLICIT_CLOSE_TAGS = new Set([
+  "address", "article", "aside", "blockquote", "details", "dialog", "div", "dl", "fieldset", "figcaption",
+  "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup", "hr", "main",
+  "menu", "nav", "ol", "p", "pre", "search", "section", "table", "ul"
+]);
 
 export function parseHybridDocument(source: string): HybridDocument {
   const children: HybridNode[] = [];
@@ -634,8 +639,12 @@ function pairHtmlElements(nodes: HybridNode[]): NodePair[] {
   const stack: HtmlTagNode[] = [];
   const pairs: NodePair[] = [];
   for (const node of nodes) {
-    if (node.kind === "HtmlOpenTag" && !node.selfClosing) stack.push(node);
+    if (node.kind === "HtmlOpenTag" && !node.selfClosing) {
+      if (node.tagName && P_IMPLICIT_CLOSE_TAGS.has(node.tagName)) closeImplicitParagraph(stack, pairs, node.start);
+      stack.push(node);
+    }
     else if (node.kind === "HtmlCloseTag" && node.tagName) {
+      if (node.tagName !== "p" && P_IMPLICIT_CLOSE_TAGS.has(node.tagName)) closeImplicitParagraph(stack, pairs, node.start);
       const index = findLastIndex(stack, (open) => open.tagName === node.tagName);
       if (index >= 0) {
         const open = stack.splice(index, 1)[0];
@@ -644,6 +653,13 @@ function pairHtmlElements(nodes: HybridNode[]): NodePair[] {
     }
   }
   return pairs.sort((left, right) => left.start - right.start);
+}
+
+function closeImplicitParagraph(stack: HtmlTagNode[], pairs: NodePair[], end: number): void {
+  const index = findLastIndex(stack, (open) => open.tagName === "p");
+  if (index < 0) return;
+  const open = stack.splice(index, 1)[0];
+  pairs.push({ kind: "HtmlElement", name: "p", start: open.start, end, openStart: open.start, openEnd: open.end, closeStart: end, closeEnd: end });
 }
 
 function pairTwigBlocks(nodes: HybridNode[]): NodePair[] {

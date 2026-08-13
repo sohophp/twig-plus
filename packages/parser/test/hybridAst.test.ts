@@ -52,6 +52,19 @@ describe("parseHybridDocument", () => {
     expect(control?.children.map((node) => node.name)).toEqual(["p", "span"]);
   });
 
+  it("implicitly closes paragraphs before paragraph and block starts", () => {
+    const source = `<div><p>First<p>Second<div>Block</div></div><side><span>Feedback</span></side>`;
+    const document = parseHybridDocument(source);
+    const paragraphs = document.htmlElements.filter((pair) => pair.name === "p");
+    expect(paragraphs).toHaveLength(2);
+    expect(paragraphs.every((pair) => pair.closeStart === pair.closeEnd)).toBe(true);
+    const sideOffset = source.indexOf("side") + 1;
+    const ranges = collectHybridSelectionRanges(document, sideOffset);
+    expect(ranges.some((range) => source.slice(range.start, range.end).startsWith("<side>"))).toBe(true);
+    expect(ranges.filter((range) => source.slice(range.start, range.end).startsWith("<side>")))
+      .toEqual([expect.objectContaining({ start: source.indexOf("<side>"), end: source.length })]);
+  });
+
   it("answers editor context and selection queries from the syntax document", () => {
     const source = `{% if user %}<p title="{{ user.name }}">{{ user.name|upper }}</p>{% else %}Guest{% endif %}`;
     const document = parseHybridDocument(source);

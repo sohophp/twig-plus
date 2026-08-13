@@ -40,6 +40,12 @@ const fixtureNames = [
 ];
 
 describe("formatTwigDocument fixtures", () => {
+  it("honors HTML implicit paragraph closing without drifting following siblings", async () => {
+    const source = `<div>\n<p>First\n<p>Second\n<div>Block</div>\n</div>\n{% include 'footer.twig' %}\n<side>\n<div>Feedback</div>\n</side>`;
+    const actual = await formatTwig(source, getDefaultOptions());
+    expect(actual).toBe(`<div>\n  <p>First\n  <p>Second\n  <div>Block</div>\n</div>\n{% include 'footer.twig' %}\n<side>\n  <div>Feedback</div>\n</side>`);
+  });
+
   for (const fixtureName of fixtureNames) {
     it(fixtureName, async () => {
       const input = readFixture("input", fixtureName);

@@ -14,6 +14,7 @@ export interface TemplateReferenceAtOffset {
 }
 
 export type TemplateReferenceStyle = "relative" | "bundle";
+export type TemplateNamespaces = Record<string, string[]>;
 
 export const DEFAULT_TEMPLATE_ROOTS = [
   "templates",
@@ -94,7 +95,8 @@ export function collectTemplateReferenceAliases(
   workspacePath: string,
   currentWorkspacePath?: string,
   prefix = "",
-  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS,
+  templateNamespaces: TemplateNamespaces = {}
 ): string[] {
   const normalized = workspacePath.replace(/\\/g, "/");
   const aliases = new Set<string>();
@@ -104,6 +106,11 @@ export function collectTemplateReferenceAliases(
   );
 
   aliases.add(relativeReference);
+
+  for (const [namespace, roots] of Object.entries(templateNamespaces)) {
+    const namespaceRelative = mapWorkspaceTemplateToReferenceWithRoots(normalized, roots);
+    if (namespaceRelative !== normalized) aliases.add(`@${namespace}/${namespaceRelative}`);
+  }
 
   const bundleReference = mapWorkspaceTemplateToBundleReference(normalized);
   if (bundleReference) {
@@ -126,7 +133,8 @@ export function collectTemplateCompletionCandidates(
   workspacePaths: string[],
   prefix: string,
   currentWorkspacePath?: string,
-  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS,
+  templateNamespaces: TemplateNamespaces = {}
 ): string[] {
   const normalizedPrefix = prefix.replace(/\\/g, "/").toLowerCase();
   const seen = new Set<string>();
@@ -137,7 +145,8 @@ export function collectTemplateCompletionCandidates(
       workspacePath,
       currentWorkspacePath,
       prefix,
-      templateRoots
+      templateRoots,
+      templateNamespaces
     )) {
       if (!referencePath.endsWith(".twig")) {
         continue;
@@ -163,10 +172,23 @@ export function resolveTemplateWorkspacePath(
   workspacePaths: string[],
   referencePath: string,
   currentWorkspacePath?: string,
-  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS,
+  templateNamespaces: TemplateNamespaces = {}
 ): string | null {
   const normalizedReference = referencePath.replace(/\\/g, "/").toLowerCase();
   const normalizedCurrentPath = currentWorkspacePath?.replace(/\\/g, "/");
+
+  const namespaced = referencePath.match(/^@([^/]+)\/(.+)$/);
+  if (namespaced) {
+    const [, namespace, relativePath] = namespaced;
+    const namespaceRoots = templateNamespaces[namespace] ?? [];
+    for (const workspacePath of sortWorkspaceTemplatePaths(workspacePaths, namespaceRoots)) {
+      if (mapWorkspaceTemplateToReferenceWithRoots(workspacePath, namespaceRoots).toLowerCase() === relativePath.toLowerCase()) {
+        return workspacePath.replace(/\\/g, "/");
+      }
+    }
+    return null;
+  }
 
   const contextualWorkspacePath = resolveContextualWorkspacePath(
     workspacePaths,
@@ -183,7 +205,8 @@ export function resolveTemplateWorkspacePath(
       workspacePath,
       normalizedCurrentPath,
       referencePath,
-      templateRoots
+      templateRoots,
+      templateNamespaces
     )) {
       if (alias.toLowerCase() === normalizedReference) {
         return workspacePath.replace(/\\/g, "/");

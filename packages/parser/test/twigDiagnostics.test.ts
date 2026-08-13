@@ -72,6 +72,18 @@ describe("Hybrid diagnostics", () => {
     ]);
   });
 
+  it("warns when HTML implicitly closes a paragraph", () => {
+    const diagnostics = analyzeDiagnostics("<p>First<p>Second<div>Block</div>");
+    expect(diagnostics).toEqual([
+      expect.objectContaining({ code: "implicit-paragraph-close", severity: "warning", message: expect.stringContaining("before <p>") }),
+      expect.objectContaining({ code: "implicit-paragraph-close", severity: "warning", message: expect.stringContaining("before <div>") })
+    ]);
+  });
+
+  it("does not warn for explicitly closed paragraphs", () => {
+    expect(analyzeDiagnostics("<p>First</p><div>Block</div>")).toEqual([]);
+  });
+
   it("reports unexpected middle or closing tags", () => {
     const diagnostics = analyzeDiagnostics("{% else %}\n{% endif %}");
 

@@ -57,4 +57,17 @@ describe("Twig structural quick fixes", () => {
       code: "unresolved-name", message: "Unresolved variable 'missing'.", range: { start: 3, end: 10 }
     }])).toEqual([]);
   });
+
+  it("offers to make an implicitly closed paragraph explicit", () => {
+    const source = `<p>First<p>Second`;
+    const fixes = getTwigStructuralQuickFixes(parseHybridDocument(source), [{
+      code: "implicit-paragraph-close",
+      message: "HTML <p> is implicitly closed before <p>.",
+      range: { start: 0, end: 3 }
+    }]);
+    expect(fixes).toEqual([expect.objectContaining({
+      title: "Insert missing </p>", preferred: true,
+      edits: [{ range: { start: 8, end: 8 }, newText: "</p>" }]
+    })]);
+  });
 });

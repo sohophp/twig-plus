@@ -54,6 +54,15 @@ export function getTwigStructuralQuickFixes(
       preferred: true,
       edits: [{ range: diagnostic.range, newText: "" }]
     });
+    if (diagnostic.code === "implicit-paragraph-close") {
+      const paragraph = document.htmlElements.find((pair) => pair.name === "p" && pair.openStart === diagnostic.range.start && pair.closeStart === pair.closeEnd);
+      if (paragraph) fixes.push({
+        title: "Insert missing </p>",
+        diagnosticCodes: [diagnostic.code],
+        preferred: true,
+        edits: [{ range: { start: paragraph.closeStart, end: paragraph.closeStart }, newText: "</p>" }]
+      });
+    }
   }
   return fixes;
 }

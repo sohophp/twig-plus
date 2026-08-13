@@ -2,6 +2,7 @@ import {
   DEFAULT_TEMPLATE_ROOTS,
   resolveTemplateWorkspacePath
 } from "./templateCompletion";
+import type { TemplateNamespaces } from "./templateCompletion";
 import type { HybridDocument, TwigNode } from "./hybridAst";
 import { getTwigTag } from "@twig-plus/language-spec";
 
@@ -22,6 +23,7 @@ export function getTwigDiagnosticCode(message: string): string {
   if (message.startsWith("Duplicate Twig block")) return "duplicate-block";
   if (message.startsWith("Template ")) return "missing-template";
   if (message.startsWith("Empty Twig output")) return "empty-output";
+  if (message.startsWith("HTML <p> is implicitly closed")) return "implicit-paragraph-close";
   return "twig-diagnostic";
 }
 
@@ -29,11 +31,24 @@ export function analyzeHybridDiagnostics(
   document: HybridDocument,
   workspacePaths: string[] = [],
   currentWorkspacePath?: string,
-  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
+  templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS,
+  templateNamespaces: TemplateNamespaces = {}
 ): TwigDiagnostic[] {
   const diagnostics: TwigDiagnostic[] = [];
   const stack: TwigNode[] = [];
   const blocks = new Set<string>();
+  for (const pair of document.htmlElements) {
+    if (pair.name !== "p" || pair.closeStart !== pair.closeEnd) continue;
+    const followingNode = document.children.find((node) => node.start === pair.closeStart && "tagName" in node);
+    const following = followingNode && "tagName" in followingNode ? followingNode.tagName : undefined;
+    diagnostics.push({
+      code: "implicit-paragraph-close",
+      message: `HTML <p> is implicitly closed${following ? ` before <${following}>` : ""}. This is valid HTML, but a missing </p> is likely.`,
+      severity: "warning",
+      start: pair.openStart,
+      end: pair.openEnd
+    });
+  }
   for (const node of document.children) {
     if (node.kind === "TwigOutput" && !node.inner.trim()) diagnostics.push({ message: "Empty Twig output block.", severity: "hint", start: node.start, end: node.end });
     if (node.kind !== "TwigTag" || !node.tagName || !node.tagKind) continue;
@@ -44,7 +59,7 @@ export function analyzeHybridDiagnostics(
     }
     const relation = node.statement && ["extends", "include", "embed", "import", "from"].includes(node.statement.name ?? "")
       ? extractTemplateRelation(node) : null;
-    if (relation && relation.reference.endsWith(".twig") && workspacePaths.length > 0 && !resolveTemplateWorkspacePath(workspacePaths, relation.reference, currentWorkspacePath, templateRoots)) {
+    if (relation && relation.reference.endsWith(".twig") && workspacePaths.length > 0 && !resolveTemplateWorkspacePath(workspacePaths, relation.reference, currentWorkspacePath, templateRoots, templateNamespaces)) {
       diagnostics.push({
         message: `Template "${relation.reference}" referenced by "${node.statement!.name}" was not found. Searched Twig template roots: ${templateRoots.join(", ")}. Configure twigPlus.templates.roots if your project uses another template directory.`,
         severity: "warning", start: relation.start, end: relation.end

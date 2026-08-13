@@ -45,6 +45,7 @@ export function printFormattedTwig(source: string, options: FormatterOptions): s
   const output: string[] = [];
   let indentLevel = 0;
   let embeddedBlockTag: "script" | "style" | null = null;
+  let paragraphOpen = false;
 
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
@@ -54,6 +55,10 @@ export function printFormattedTwig(source: string, options: FormatterOptions): s
       continue;
     }
 
+    if (paragraphOpen && startsParagraphImplicitCloser(trimmed)) {
+      indentLevel = Math.max(0, indentLevel - 1);
+      paragraphOpen = false;
+    }
     const leadingDedent = getLeadingDedentCount(trimmed);
     indentLevel = Math.max(0, indentLevel - leadingDedent);
 
@@ -72,10 +77,24 @@ export function printFormattedTwig(source: string, options: FormatterOptions): s
 
     const lineDelta = getLineIndentDeltaAfterLeading(trimmed);
     indentLevel = Math.max(0, indentLevel + lineDelta);
+    paragraphOpen = updateParagraphState(trimmed, paragraphOpen);
     embeddedBlockTag = getNextEmbeddedBlockState(trimmed, embeddedBlockTag);
   }
 
   return output.join("\n");
+}
+
+const PARAGRAPH_IMPLICIT_CLOSE_PATTERN = /^<(?!\/p\b)\/?(?:address|article|aside|blockquote|details|dialog|div|dl|fieldset|figcaption|figure|footer|form|h[1-6]|header|hgroup|hr|main|menu|nav|ol|p|pre|search|section|table|ul)\b/i;
+function startsParagraphImplicitCloser(line: string): boolean {
+  return PARAGRAPH_IMPLICIT_CLOSE_PATTERN.test(line);
+}
+function updateParagraphState(line: string, current: boolean): boolean {
+  let open = current;
+  for (const match of line.matchAll(/<\/?p\b[^>]*>/gi)) {
+    if (/^<\/p/i.test(match[0])) open = false;
+    else if (!/\/>$/.test(match[0])) open = !/<\/p\s*>/i.test(line.slice((match.index ?? 0) + match[0].length));
+  }
+  return open;
 }
 
 function renderLine(

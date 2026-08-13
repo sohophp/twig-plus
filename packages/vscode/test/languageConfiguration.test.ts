@@ -82,11 +82,21 @@ describe("language configuration", () => {
     expect(manifest.contributes.keybindings).toContainEqual(expect.objectContaining({
       command: "twigPlus.typeHtmlTagEnd", key: "shift+.", when: expect.stringContaining("!editorHasMultipleSelections")
     }));
+    const htmlTagEnd = manifest.contributes.keybindings.find((item) => item.command === "twigPlus.typeHtmlTagEnd");
+    expect(htmlTagEnd?.when).not.toContain("!suggestWidgetVisible");
+    expect(htmlTagEnd?.when).not.toContain("!inlineSuggestionVisible");
   });
 
   it("does not enable format on save from the recommended settings command", () => {
     const extensionSource = readFileSync(path.join(__dirname, "..", "src", "extension.ts"), "utf8");
     expect(extensionSource).not.toContain('"editor.formatOnSave": true');
+  });
+
+  it("falls back to document-change HTML closing when the keyboard binding is bypassed", () => {
+    const source = readFileSync(path.join(__dirname, "..", "src", "editing", "htmlOnType.ts"), "utf8");
+    expect(source).toContain("onDidChangeTextDocument");
+    expect(source).toContain('event.contentChanges[0].text !== ">"');
+    expect(source).toContain("undoStopBefore: false");
   });
 });
 

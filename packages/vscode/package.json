@@ -2,7 +2,7 @@
   "name": "twig-plus",
   "displayName": "TwigPlus",
   "description": "Twig formatter and editor tooling for VSCode.",
-  "version": "1.3.0",
+  "version": "1.3.5",
   "publisher": "sohophp",
   "icon": "assets/logo.png",
   "license": "MIT",
@@ -61,6 +61,13 @@
         "embeddedLanguages": {
           "meta.embedded.block.javascript": "javascript"
         }
+      },
+      {
+        "scopeName": "text.html.twigplus.injection",
+        "path": "./syntaxes/twig-injection.tmLanguage.json",
+        "injectTo": [
+          "text.html.twigplus"
+        ]
       }
     ],
     "snippets": [
@@ -117,7 +124,7 @@
         "command": "twigPlus.typeHtmlTagEnd",
         "key": "shift+.",
         "mac": "shift+.",
-        "when": "editorTextFocus && editorLangId == twig && !editorHasMultipleSelections && !editorHasSelection && !suggestWidgetVisible && !inlineSuggestionVisible && !inSnippetMode && !renameInputVisible"
+        "when": "editorTextFocus && editorLangId == twig && !editorHasMultipleSelections && !editorHasSelection && !inSnippetMode && !renameInputVisible"
       },
       {
         "command": "twigPlus.insertJavaScriptBracePair",

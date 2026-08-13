@@ -1,0 +1,15 @@
+{
+  "scopeName": "text.html.twigplus.injection",
+  "injectionSelector": "L:text.html.twigplus",
+  "patterns": [
+    {
+      "include": "text.html.twigplus#twig-comment"
+    },
+    {
+      "include": "text.html.twigplus#twig-output"
+    },
+    {
+      "include": "text.html.twigplus#twig-tag"
+    }
+  ]
+}
