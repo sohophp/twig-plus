@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.7 - 2026-08-20
+
+- Restored Twig keyword highlighting for tag modifiers such as `only`, `ignore missing`, and `as`.
+- Added generated-grammar regression coverage so tag modifiers remain synchronized with the TextMate grammar.
+
 ## 1.3.6 - 2026-08-20
 
 - Kept long `include ... with { ... } only` maps readable across formatting instead of collapsing their arguments onto one line.
