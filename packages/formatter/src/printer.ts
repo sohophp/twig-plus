@@ -114,6 +114,15 @@ function renderLine(
     return [`${getIndent(indentLevel, options)}${normalizedSingleChildWrapper}`];
   }
 
+  const wrappedTwigInclude = maybeWrapTwigIncludeWithMap(
+    normalized,
+    indentLevel,
+    options
+  );
+  if (wrappedTwigInclude) {
+    return wrappedTwigInclude;
+  }
+
   const splitLines = maybeSplitTwigControlLine(normalized, indentLevel, options);
   if (splitLines) {
     return splitLines;
@@ -288,6 +297,121 @@ function maybeWrapHtmlAttributes(
   lines[lines.length - 1] += parsed.selfClosing ? " />" : ">";
 
   return lines;
+}
+
+function maybeWrapTwigIncludeWithMap(
+  line: string,
+  indentLevel: number,
+  options: FormatterOptions
+): string[] | null {
+  if (line.length <= options.printWidth) {
+    return null;
+  }
+
+  const openingMatch = line.match(/^\{%-?\s*include\b/);
+  if (!openingMatch) {
+    return null;
+  }
+
+  const withMapMatch = /\swith\s+\{/.exec(line);
+  if (!withMapMatch) {
+    return null;
+  }
+
+  const mapStart = withMapMatch.index + withMapMatch[0].lastIndexOf("{");
+  const mapEnd = findMatchingTwigDelimiter(line, mapStart, "{", "}");
+  if (mapEnd === -1 || !/^\s*(?:only\s*)?-?%\}$/.test(line.slice(mapEnd + 1))) {
+    return null;
+  }
+
+  const entries = splitTopLevelTwigList(line.slice(mapStart + 1, mapEnd));
+  if (entries.length < 2) {
+    return null;
+  }
+
+  const baseIndent = getIndent(indentLevel, options);
+  const entryIndent = getIndent(indentLevel + 1, options);
+  const suffix = line.slice(mapEnd + 1).trim();
+
+  return [
+    `${baseIndent}${line.slice(0, mapStart + 1).trim()}`,
+    ...entries.map((entry, index) =>
+      `${entryIndent}${entry}${index < entries.length - 1 ? "," : ""}`
+    ),
+    `${baseIndent}}${suffix ? ` ${suffix}` : ""}`
+  ];
+}
+
+function findMatchingTwigDelimiter(
+  source: string,
+  start: number,
+  opening: string,
+  closing: string
+): number {
+  let depth = 0;
+  let quote: "\"" | "'" | null = null;
+  let escaped = false;
+
+  for (let index = start; index < source.length; index += 1) {
+    const char = source[index];
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "\"" || char === "'") {
+      quote = char;
+    } else if (char === opening) {
+      depth += 1;
+    } else if (char === closing && --depth === 0) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function splitTopLevelTwigList(source: string): string[] {
+  const entries: string[] = [];
+  let start = 0;
+  let quote: "\"" | "'" | null = null;
+  let escaped = false;
+  const closingFor: Record<string, string> = { "(": ")", "[": "]", "{": "}" };
+  const stack: string[] = [];
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (char === "\"" || char === "'") {
+      quote = char;
+    } else if (closingFor[char]) {
+      stack.push(closingFor[char]);
+    } else if (stack.at(-1) === char) {
+      stack.pop();
+    } else if (char === "," && stack.length === 0) {
+      entries.push(source.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+
+  entries.push(source.slice(start).trim());
+  return entries.filter(Boolean);
 }
 
 function maybeSplitInlineTwigDirectiveLine(

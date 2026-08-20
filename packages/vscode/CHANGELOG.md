@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.6 - 2026-08-20
+
+- Kept long `include ... with { ... } only` maps readable across formatting instead of collapsing their arguments onto one line.
+- Added nested-expression and three-pass idempotence coverage for multiline include maps.
+
 ## 1.3.0 - 2026-07-15
 
 - Stopped enabling or recommending `editor.formatOnSave`; the recommended-settings command now preserves the user's existing save-time formatting preference.

@@ -427,6 +427,48 @@ describe("formatTwigDocument options", () => {
     expect(await formatTwig(actual, getDefaultOptions())).toBe(actual);
   });
 
+  it("keeps long include maps readable and idempotent", async () => {
+    const source = [
+      "    {% include '@site/partials/banner.html.twig' with {",
+      "      banner: page.banner,",
+      "      fallbackTitle: page.name,",
+      "      fallbackDesktop: asset('images/banner-about.jpg', 'theme'),",
+      "      fallbackMobile: asset('images/banner-about-mb.jpg', 'theme')",
+      "    } only %}"
+    ].join("\n");
+    const expected = [
+      "{% include '@site/partials/banner.html.twig' with {",
+      "  banner: page.banner,",
+      "  fallbackTitle: page.name,",
+      "  fallbackDesktop: asset('images/banner-about.jpg', 'theme'),",
+      "  fallbackMobile: asset('images/banner-about-mb.jpg', 'theme')",
+      "} only %}"
+    ].join("\n");
+
+    const once = await formatTwig(source, getDefaultOptions());
+    const twice = await formatTwig(once, getDefaultOptions());
+    const threeTimes = await formatTwig(twice, getDefaultOptions());
+
+    expect(once).toBe(expected);
+    expect(twice).toBe(expected);
+    expect(threeTimes).toBe(expected);
+  });
+
+  it("does not split commas inside include-map expressions", async () => {
+    const source = "{% include 'card.twig' with { title: title|trans({}, 'Cards'), image: asset('images/card.jpg', 'theme'), options: { sizes: [320, 640] } } only %}";
+    const expected = [
+      "{% include 'card.twig' with {",
+      "  title: title|trans({}, 'Cards'),",
+      "  image: asset('images/card.jpg', 'theme'),",
+      "  options: { sizes: [320, 640] }",
+      "} only %}"
+    ].join("\n");
+
+    const once = await formatTwig(source, getDefaultOptions());
+    expect(once).toBe(expected);
+    expect(await formatTwig(await formatTwig(once, getDefaultOptions()), getDefaultOptions())).toBe(expected);
+  });
+
   it("normalizes multiline twig output filters inside html wrappers", async () => {
     const actual = await formatTwig(
       [` <div class="editor">{{ content.content|`, `        raw }}</div>`].join("\n"),
