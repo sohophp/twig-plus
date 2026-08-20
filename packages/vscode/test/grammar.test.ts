@@ -58,4 +58,16 @@ describe("Twig TextMate grammar", () => {
       "support.function.twig", "variable.other.property.twig", "variable.other.twig", "keyword.operator.twig"
     ]));
   });
+
+  it("classifies include and import modifiers as Twig control keywords", () => {
+    const grammar = JSON.parse(readFileSync(path.resolve(__dirname, "../syntaxes/twig.tmLanguage.json"), "utf8"));
+    const keywordPattern = grammar.repository["twig-tag"].patterns.find(
+      (pattern: { name?: string }) => pattern.name === "keyword.control.twig"
+    );
+    const keyword = new RegExp(keywordPattern.match, "g");
+
+    expect("include with only ignore missing as".match(keyword)).toEqual([
+      "include", "with", "only", "ignore missing", "as"
+    ]);
+  });
 });

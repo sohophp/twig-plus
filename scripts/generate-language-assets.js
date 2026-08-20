@@ -8,6 +8,7 @@ const tags = selectTwigSpec().tags;
 const opening = tags.filter((tag) => tag.closing).map((tag) => tag.name);
 const closing = tags.filter((tag) => tag.form === "closing").map((tag) => tag.name);
 const branches = tags.filter((tag) => tag.form === "branch").map((tag) => tag.name);
+const tagModifiers = ["as", "ignore missing", "only"];
 
 const snippets = Object.fromEntries(tags.filter((tag) => tag.form !== "closing").map((tag) => {
   const inner = tag.snippet ?? tag.name;
@@ -20,7 +21,7 @@ const snippets = Object.fromEntries(tags.filter((tag) => tag.form !== "closing")
 const grammarFile = path.join(root, "packages/vscode/syntaxes/twig.tmLanguage.json");
 const grammar = JSON.parse(fs.readFileSync(grammarFile, "utf8"));
 const keyword = grammar.repository["twig-tag"].patterns.find((pattern) => pattern.name === "keyword.control.twig");
-keyword.match = `\\b(${tags.map((tag) => escapeRegex(tag.name)).join("|")})\\b`;
+keyword.match = `\\b(${[...tags.map((tag) => tag.name), ...tagModifiers].map(escapeRegex).join("|")})\\b`;
 
 const configurationFile = path.join(root, "packages/vscode/language-configuration.json");
 const configuration = JSON.parse(fs.readFileSync(configurationFile, "utf8"));
