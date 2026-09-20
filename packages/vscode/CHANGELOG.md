@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added bounded PHP/Twig controller-context variable Rename: a single WorkspaceEdit updates unshadowed references in the direct target template and every exact PHP `render()` key supplied by PHP Companion. The packaged Extension Host runner can load both VSIX artifacts and verifies one-step Apply, Undo, and Redo across the PHP and Twig files.
+- Added the internal Symfony route Rename bridge used by PHP Companion, including WSL Remote URI preservation and fail-closed bounded scans.
+
 ## 1.3.7 - 2026-08-20
 
 - Restored Twig keyword highlighting for tag modifiers such as `only`, `ignore missing`, and `as`.

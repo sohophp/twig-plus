@@ -54,6 +54,11 @@ describe("language configuration", () => {
     expect(binding?.when).toContain("!renameInputVisible");
   });
 
+  it("activates the internal PHP Companion route rename bridge on demand", () => {
+    const manifest = JSON.parse(readFileSync(path.join(__dirname, "..", "package.json"), "utf8")) as { activationEvents: string[] };
+    expect(manifest.activationEvents).toContain("onCommand:twigPlus.provideSymfonyRouteRename");
+  });
+
   it("exposes independently configurable stable auto-closing features", () => {
     const manifestPath = path.join(__dirname, "..", "package.json");
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {

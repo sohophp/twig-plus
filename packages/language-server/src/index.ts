@@ -11,11 +11,13 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { analyzeHybridDiagnostics, collectHybridSelectionRanges, collectTemplateCompletionCandidates, createDocumentModel, createWorkspaceModel, DEFAULT_TEMPLATE_ROOTS, getHybridTokenContextAtOffset, getTemplateReferenceMatch, getTwigCallable, getTwigDiagnosticCode, getTwigOperator, getTwigTag, parseDocument, resolveTemplateWorkspacePath, type DocumentModel, type SemanticSymbol, type TemplateNamespaces, type TemplateUriResolver } from "@twig-plus/parser";
 import { formatTwigRangeWithResult, formatTwigWithResult, type FormatterOptions, type FormatterStage } from "@twig-plus/formatter";
 import { EmbeddedJavaScriptService, embeddedSemanticTokenLegend } from "./embeddedJavaScript";
-import { getTwigCatalogEntry, getTwigCompletions, getTwigExpressionPrefix, getTwigMemberContext, resolveProjectMembers, SYMFONY_APP_MEMBERS, TwigCompletionRegistry, type ProjectCompletionEntry } from "./twigCompletion";
+import { getTwigCatalogEntry, getTwigCompletions, getTwigExpressionPrefix, getTwigMemberContext, resolveProjectMembers, SYMFONY_APP_MEMBERS, TwigCompletionRegistry, type ProjectCompletionEntry, type ProjectTypeIndex } from "./twigCompletion";
 import { collectSymfonyReferences, getSymfonyReferenceAtOffset, getSymfonyReferenceMatch, requiredSymfonyPackages, type SymfonyReferenceKind } from "./symfonyReference";
 import { readStaticSymfonyReferences } from "./staticSymfonyIndex";
 import { parseTwigExtensionGlobals } from "./staticTwigGlobals";
 import { getTwigStructuralQuickFixes } from "./twigCodeActions";
+import { mergeProjectContexts, type LoadedControllerContext } from "./projectContexts";
+import { collectSymfonyRouteRenameEdits } from "./symfonyRouteRename";
 
 export interface TwigPlusServerOptions {
   diagnoseUnresolvedNames?: boolean;
@@ -36,17 +38,62 @@ interface LoadedProjectMetadata {
   completions: ProjectCompletionEntry[];
   globals: string[];
   globalTypes: Record<string, string>;
-  types: Record<string, { name: string; members: Array<{ name: string; kind: "property" | "method"; type?: string; signature?: string; documentation?: string }> }>;
+  types: ProjectTypeIndex;
   catalogComplete: boolean;
   twigVersion?: string;
   symfonyVersion?: string;
-  contexts: Array<{ template: string; complete: boolean; variables: Record<string, string> }>;
+  contexts: LoadedControllerContext[];
   packages: string[];
   packageVersions: Record<string, string>;
   references: Record<SymfonyReferenceKind, LoadedSymfonyReference[]>;
   referenceCatalogsComplete: Set<SymfonyReferenceKind>;
 }
 interface ComposerEnvironment { twigVersion?: string; symfonyVersion?: string; packages: string[]; packageVersions: Record<string, string>; }
+
+function interopTypeName(value: unknown): string {
+  if (!isRecord(value) || typeof value.kind !== "string") return "mixed";
+  if ((value.kind === "primitive" || value.kind === "named") && typeof value.name === "string") return value.name;
+  if ((value.kind === "union" || value.kind === "intersection") && Array.isArray(value.types)) {
+    const types = value.types.slice(0, 32).map(interopTypeName);
+    return types.includes("mixed") ? "mixed" : types.join(value.kind === "union" ? "|" : "&");
+  }
+  return "mixed";
+}
+
+function interopPayload(value: unknown, workspaceFolders: string[]): { projectRoot: string; contexts: LoadedControllerContext[]; types: LoadedProjectMetadata["types"] } | null {
+  if (!isRecord(value) || !isRecord(value.hello) || value.hello.protocolVersion !== 1 || value.hello.providerId !== "php-companion"
+    || typeof value.hello.projectId !== "string" || !workspaceFolders.includes(value.hello.projectId) || !Array.isArray(value.contexts) || !isRecord(value.types)) return null;
+  const projectRoot = value.hello.projectId;
+  const contexts = value.contexts.slice(0, 10_000).flatMap((entry): LoadedControllerContext[] => {
+    if (!isRecord(entry) || typeof entry.template !== "string" || typeof entry.complete !== "boolean" || !Array.isArray(entry.variables) || !Array.isArray(entry.sources)) return [];
+    const variables: Record<string, string> = {};
+    const variableSources: NonNullable<LoadedControllerContext["variableSources"]> = {};
+    for (const variable of entry.variables.slice(0, 10_000)) if (isRecord(variable) && typeof variable.name === "string") {
+      variables[variable.name] = interopTypeName(variable.type);
+      if (Array.isArray(variable.sources)) variableSources[variable.name] = variable.sources.slice(0, 10_000).flatMap((source) => isRecord(source)
+        && typeof source.uri === "string" && typeof source.line === "number" && typeof source.character === "number"
+        ? [{ uri: source.uri, line: Math.max(0, Math.floor(source.line)), character: Math.max(0, Math.floor(source.character)) }] : []);
+    }
+    const sources = entry.sources.slice(0, 10_000).flatMap((source): LoadedControllerContext["sources"] => {
+      const location = isRecord(source) && isRecord(source.location) ? source.location : null;
+      return location && typeof source.symbol === "string" && typeof location.uri === "string" && typeof location.line === "number"
+        ? [{ controller: source.symbol, uri: location.uri, line: Math.max(0, Math.floor(location.line)), character: 0 }] : [];
+    });
+    return [{ projectRootUri: projectRoot, template: entry.template, complete: entry.complete, variables, ...(Object.keys(variableSources).length ? { variableSources } : {}), sources }];
+  });
+  const types: LoadedProjectMetadata["types"] = {};
+  for (const [name, entry] of Object.entries(value.types).slice(0, 250)) {
+    if (!isRecord(entry) || !Array.isArray(entry.members)) continue;
+    types[name] = { name, members: entry.members.slice(0, 10_000).flatMap((member) => {
+      if (!isRecord(member) || typeof member.name !== "string" || (member.kind !== "property" && member.kind !== "method")) return [];
+      const location = isRecord(member.location) && typeof member.location.uri === "string" && typeof member.location.line === "number"
+        ? [{ uri: member.location.uri, line: Math.max(0, Math.floor(member.location.line)), character: typeof member.location.character === "number" ? Math.max(0, Math.floor(member.location.character)) : 0 }]
+        : undefined;
+      return [{ name: member.name, kind: member.kind, type: interopTypeName(member.type), signature: typeof member.signature === "string" ? member.signature : undefined, sources: location }];
+    }) };
+  }
+  return { projectRoot, contexts: contexts.map((context) => ({ ...context, types })), types };
+}
 
 export function getServerCapabilities(): InitializeResult["capabilities"] {
   return {
@@ -97,6 +144,10 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   let composerTwigVersion: string | undefined;
   const resourceSettings = new Map<string, TwigPlusSettings>();
   const folderSettings = new Map<string, TwigPlusSettings>();
+  let diskContexts: LoadedControllerContext[] = [];
+  const liveContextsByRoot = new Map<string, LoadedControllerContext[]>();
+  let diskTypes: LoadedProjectMetadata["types"] = {};
+  const liveTypesByRoot = new Map<string, LoadedProjectMetadata["types"]>();
   let supportsConfiguration = false;
   let workspaceModelCache: ReturnType<typeof createWorkspaceModel> | null = null;
   let templateNamespaces: TemplateNamespaces = {};
@@ -111,7 +162,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   const permitsSymfonyReference = (kind: SymfonyReferenceKind, mode: "auto" | "on" | "off") =>
     mode === "on" || (mode === "auto" && completionRegistry.permits("symfony-bridge") && completionRegistry.hasAnyPackage(requiredSymfonyPackages(kind)));
   const twigVersionFor = (uri: string) => settingsFor(uri).twig?.version ?? projectMetadata.twigVersion ?? composerTwigVersion;
-  const contextFor = (uri: string) => projectMetadata.contexts.find((item) => uri.replaceAll("\\", "/").endsWith(item.template.replaceAll("\\", "/")));
+  const contextFor = (uri: string) => projectMetadata.contexts.find((item) => uri.startsWith(item.projectRootUri + "/") && uri.replaceAll("\\", "/").endsWith(item.template.replaceAll("\\", "/")));
 
   const modelFor = (document: TextDocument): DocumentModel | null => {
     if (document.getText().length > MAX_DOCUMENT_LENGTH) return null;
@@ -149,6 +200,10 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     }
     workspaceModelCache = null;
     projectMetadata = await readProjectCompletionMetadata(workspaceFolders);
+    diskContexts = projectMetadata.contexts;
+    diskTypes = projectMetadata.types;
+    projectMetadata.contexts = mergeProjectContexts([...diskContexts, ...[...liveContextsByRoot.values()].flat()]);
+    projectMetadata.types = Object.assign({}, diskTypes, ...liveTypesByRoot.values());
     completionRegistry.replaceProject(projectMetadata.completions);
     const composer = await readComposerEnvironment(workspaceFolders);
     composerTwigVersion = composer.twigVersion;
@@ -231,6 +286,27 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     workspaceModelCache = null;
     scheduleFullIndex();
     for (const document of documents.all()) scheduleDiagnostics(document, 0);
+  });
+  connection.onNotification("twigPlus/updatePhpContexts", (payload: unknown) => {
+    const loaded = interopPayload(payload, workspaceFolders); if (!loaded) return;
+    liveContextsByRoot.set(loaded.projectRoot, loaded.contexts);
+    liveTypesByRoot.set(loaded.projectRoot, loaded.types);
+    projectMetadata.contexts = mergeProjectContexts([...diskContexts, ...[...liveContextsByRoot.values()].flat()]);
+    projectMetadata.types = Object.assign({}, diskTypes, ...liveTypesByRoot.values());
+    cache.clear();
+    for (const document of documents.all()) scheduleDiagnostics(document, 0);
+  });
+  connection.onRequest("twigPlus/symfonyRouteRenameEdits", async (params: unknown, cancellation) => {
+    if (!isRecord(params) || typeof params.rootUri !== "string" || typeof params.oldName !== "string"
+      || typeof params.newName !== "string" || !/^[A-Za-z0-9_.:-]+$/.test(params.oldName)
+      || !/^[A-Za-z0-9_.:-]+$/.test(params.newName) || !workspaceFolders.includes(params.rootUri)) return { complete: false, edits: [] };
+    const rootUri = params.rootUri; const oldName = params.oldName;
+    const rootPath = workspacePathForUri(rootUri); if (!rootPath) return { complete: false, edits: [] };
+    await workspaceReady;
+    const open = new Map(documents.all().map((document) => [document.uri, document.getText()]));
+    return collectSymfonyRouteRenameEdits(rootPath, oldName, open, () => cancellation.isCancellationRequested,
+      { maxFiles: MAX_INDEXED_FILES, maxFileBytes: MAX_INDEXED_FILE_BYTES },
+      (file) => workspaceUriForPath(rootUri, rootPath, file));
   });
   connection.onDidChangeWatchedFiles((event) => {
     if (event.changes.some((change) => change.uri.endsWith("/.twig-plus/symfony-metadata.json") || /\/config\/(?:packages|symfony\/packages)\/twig\.ya?ml$/.test(change.uri) || /\/src\/Twig\/[^/]+\.php$/.test(change.uri))) scheduleFullIndex();
@@ -342,6 +418,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   connection.onCompletion(async (params) => {
     const completionStarted = performance.now();
     const document = documents.get(params.textDocument.uri); if (!document) return [];
+    await workspaceReady;
     const model = modelFor(document); if (!model) return [];
     const offset = document.offsetAt(params.position);
     const lineStart = document.offsetAt({ line: params.position.line, character: 0 });
@@ -393,8 +470,9 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       if (member.path.length === 1 && member.path[0] === "app" && completionRegistry.permits("symfony-bridge") && !projectMetadata.globalTypes.app) return SYMFONY_APP_MEMBERS.filter((name) => name.startsWith(member.prefix.toLowerCase())).map((name) => ({
           label: name, detail: "Symfony app property", kind: CompletionItemKind.Property, sortText: `000_${name}`, textEdit: TextEdit.replace(range, name)
         }));
-      const effectiveTypes = { ...projectMetadata.globalTypes, ...(contextFor(document.uri)?.variables ?? {}) };
-      return resolveProjectMembers(member.path, effectiveTypes, projectMetadata.types).filter((entry) => entry.name.toLowerCase().startsWith(member.prefix.toLowerCase())).map((entry) => ({
+      const controllerContext = contextFor(document.uri);
+      const effectiveTypes = { ...projectMetadata.globalTypes, ...(controllerContext?.variables ?? {}) };
+      return resolveProjectMembers(member.path, effectiveTypes, controllerContext?.types ?? projectMetadata.types).filter((entry) => entry.name.toLowerCase().startsWith(member.prefix.toLowerCase())).map((entry) => ({
         label: entry.name, detail: [entry.signature ?? `Project ${entry.kind}`, entry.type].filter(Boolean).join(" · "),
         documentation: entry.documentation, kind: entry.kind === "method" ? CompletionItemKind.Method : CompletionItemKind.Property,
         sortText: `000_${entry.name}`, textEdit: TextEdit.replace(range, entry.name)
@@ -466,7 +544,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const parameters = parametersFromSignature(label);
     return { signatures: [{ label, documentation: entry?.documentation, parameters: parameters.map((parameter) => ({ label: parameter })) }], activeSignature: 0, activeParameter: Math.min(call.activeParameter, Math.max(0, parameters.length - 1)) };
   });
-  connection.onDefinition(async (params): Promise<Location | null> => {
+  connection.onDefinition(async (params): Promise<Location | Location[] | null> => {
     const document = documents.get(params.textDocument.uri); if (!document) return null;
     const model = modelFor(document); if (!model) return null;
     const offset = document.offsetAt(params.position);
@@ -488,6 +566,23 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       const target = documentForUri(workspaceLocation.uri, documents, indexedDocuments);
       if (target) return { uri: workspaceLocation.uri, range: toRange(target, workspaceLocation) };
     }
+    const contextWord = wordAt(document.getText(), offset);
+    const controllerContext = contextFor(document.uri);
+    const memberContext = contextWord && getTwigMemberContext(document.getText(), contextWord.end);
+    const projectMember = memberContext && controllerContext
+      ? resolveProjectMembers(memberContext.path, { ...projectMetadata.globalTypes, ...controllerContext.variables }, controllerContext.types ?? projectMetadata.types)
+        .find((member) => member.name === contextWord.value)
+      : undefined;
+    if (projectMember?.sources?.length) return projectMember.sources.map((source) => ({
+      uri: source.uri,
+      range: { start: { line: source.line, character: source.character }, end: { line: source.line, character: source.character + contextWord!.value.length } }
+    }));
+    const contextSource = contextWord && Object.hasOwn(controllerContext?.variables ?? {}, contextWord.value)
+      ? controllerContext?.sources[0] : undefined;
+    if (contextSource) return {
+      uri: contextSource.uri,
+      range: { start: { line: contextSource.line, character: contextSource.character }, end: { line: contextSource.line, character: contextSource.character } }
+    };
     const target = symbolAt(model, offset);
     return target ? { uri: document.uri, range: toRange(document, target.nameRange) } : null;
   });
@@ -510,6 +605,9 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const offset = document.offsetAt(params.position);
     const script = await embeddedJavaScript.prepareRename(document.uri, document.version, model.document, offset);
     if (script) return toRange(document, script);
+    const contextWord = wordAt(document.getText(), offset); const contextReference = model.getReferenceAt(offset); const controllerContext = contextFor(document.uri);
+    if (contextWord && contextReference?.role === "variable-read" && !contextReference.resolvedSymbolId && controllerContext?.complete
+      && (controllerContext.variableSources?.[contextWord.value]?.length ?? 0) > 0) return toRange(document, contextWord);
     const target = symbolAt(model, offset);
     if (target) return toRange(document, target.nameRange);
     await workspaceReady;
@@ -527,6 +625,17 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       changes: { [document.uri]: scriptEdits.map((range) => TextEdit.replace(toRange(document, range), params.newName)) }
     };
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(params.newName)) return null;
+    const contextWord = wordAt(document.getText(), offset); const contextReference = model.getReferenceAt(offset); const controllerContext = contextFor(document.uri);
+    const phpSources = contextWord && contextReference?.role === "variable-read" && !contextReference.resolvedSymbolId && controllerContext?.complete
+      ? controllerContext.variableSources?.[contextWord.value] ?? [] : [];
+    if (contextWord && phpSources.length) {
+      if (Object.hasOwn(controllerContext!.variables, params.newName)) return null;
+      const twigReferences = model.references.filter((reference) => reference.role === "variable-read" && reference.name === contextWord.value && !reference.resolvedSymbolId);
+      if (!twigReferences.length) return null;
+      const changes: Record<string, TextEdit[]> = { [document.uri]: twigReferences.map((reference) => TextEdit.replace(toRange(document, reference), params.newName)) };
+      for (const source of phpSources) (changes[source.uri] ??= []).push(TextEdit.replace({ start: { line: source.line, character: source.character }, end: { line: source.line, character: source.character + contextWord.value.length } }, params.newName));
+      return { changes };
+    }
     const target = symbolAt(model, offset);
     await workspaceReady;
     const workspace = workspaceFor();
@@ -735,6 +844,20 @@ function resolveRelativeTemplate(fromUri: string, reference: string): string | n
   try { return new URL(reference, fromUri).toString(); } catch { return null; }
 }
 
+function workspacePathForUri(uri: string): string | undefined {
+  try {
+    if (uri.startsWith("file:")) return fileURLToPath(uri);
+    if (uri.startsWith("vscode-remote:")) return decodeURIComponent(new URL(uri).pathname).replaceAll("\\", "/");
+  } catch { /* Unsupported workspace URI. */ }
+  return undefined;
+}
+
+function workspaceUriForPath(rootUri: string, rootPath: string, file: string): string {
+  if (rootUri.startsWith("file:")) return pathToFileURL(file).toString();
+  const suffix = path.relative(rootPath, file).split(path.sep).map(encodeURIComponent).join("/");
+  return `${rootUri.replace(/\/?$/, "/")}${suffix}`;
+}
+
 function resolveWorkspaceTemplate(fromUri: string, reference: string, folders: string[], indexed: Map<string, string>, roots?: string[], namespaces: TemplateNamespaces = {}): string | null {
   if (!fromUri.startsWith("file:")) return resolveRelativeTemplate(fromUri, reference);
   const fromPath = fileURLToPath(fromUri);
@@ -816,6 +939,7 @@ async function readProjectCompletionMetadata(folders: string[]): Promise<LoadedP
       if ((await stat(file)).size > maxMetadataBytes) continue;
       const value = JSON.parse(await readFile(file, "utf8"));
       const workspaceRoot = fileURLToPath(uri);
+      const folderTypes: LoadedProjectMetadata["types"] = {};
       if (typeof value?.projectRoot === "string" && path.resolve(value.projectRoot) !== path.resolve(workspaceRoot)) continue;
       const rawEntries = [
         ...(Array.isArray(value?.completions) ? value.completions : []),
@@ -838,10 +962,12 @@ async function readProjectCompletionMetadata(folders: string[]): Promise<LoadedP
       }
       if (isRecord(value?.types)) for (const [typeName, rawType] of Object.entries(value.types).slice(0, maxEntries)) {
         if (!isRecord(rawType) || !Array.isArray(rawType.members)) continue;
-        types[typeName] = { name: typeof rawType.name === "string" ? rawType.name : typeName, members: rawType.members.slice(0, maxEntries).flatMap((member) => {
+        const loadedType = { name: typeof rawType.name === "string" ? rawType.name : typeName, members: rawType.members.slice(0, maxEntries).flatMap((member) => {
           if (!isRecord(member) || typeof member.name !== "string" || !["property", "method"].includes(String(member.kind))) return [];
           return [{ name: member.name, kind: member.kind as "property" | "method", type: typeof member.type === "string" ? member.type : undefined, signature: typeof member.signature === "string" ? member.signature : undefined, documentation: typeof member.documentation === "string" ? member.documentation : undefined }];
         }) };
+        types[typeName] = loadedType;
+        folderTypes[typeName] = loadedType;
       }
       if (Array.isArray(value?.contexts)) for (const entry of value.contexts.slice(0, maxEntries)) {
         if (!isRecord(entry) || typeof entry.template !== "string" || typeof entry.complete !== "boolean") continue;
@@ -851,7 +977,17 @@ async function readProjectCompletionMetadata(folders: string[]): Promise<LoadedP
         } else if (isRecord(entry.variables)) {
           for (const [name, type] of Object.entries(entry.variables).slice(0, maxEntries)) if (typeof type === "string") variables[name] = type;
         }
-        contexts.push({ template: entry.template, complete: entry.complete, variables });
+        const sources: LoadedControllerContext["sources"] = [];
+        if (Array.isArray(entry.sources)) for (const source of entry.sources.slice(0, maxEntries)) {
+          if (!isRecord(source) || typeof source.controller !== "string" || typeof source.path !== "string") continue;
+          try {
+            const sourcePath = source.path.startsWith("file:") ? fileURLToPath(source.path) : path.resolve(workspaceRoot, source.path);
+            const relative = path.relative(workspaceRoot, sourcePath);
+            if (relative.startsWith("..") || path.isAbsolute(relative)) continue;
+            sources.push({ controller: source.controller, uri: pathToFileURL(sourcePath).toString(), line: typeof source.line === "number" && source.line >= 0 ? Math.floor(source.line) : 0, character: 0 });
+          } catch { /* malformed context origins are ignored */ }
+        }
+        contexts.push({ projectRootUri: uri, template: entry.template, complete: entry.complete, variables, sources, types: folderTypes });
       }
       if (isRecord(value?.references)) {
         for (const [metadataKey, kind] of [
@@ -916,7 +1052,7 @@ async function readProjectCompletionMetadata(folders: string[]): Promise<LoadedP
     references[kind] = references[kind].filter((entry, index, all) => all.findIndex((item) => item.name === entry.name) === index);
   }
   if (symfonyVersion && !packageVersions["symfony/twig-bridge"]) packageVersions["symfony/twig-bridge"] = symfonyVersion;
-  return { completions, globals: [...new Set(globals)], globalTypes, types, contexts, catalogComplete, twigVersion, symfonyVersion, packages: [...new Set(packages)], packageVersions, references, referenceCatalogsComplete };
+  return { completions, globals: [...new Set(globals)], globalTypes, types, contexts: mergeProjectContexts(contexts), catalogComplete, twigVersion, symfonyVersion, packages: [...new Set(packages)], packageVersions, references, referenceCatalogsComplete };
 }
 
 async function readComposerEnvironment(folders: string[]): Promise<ComposerEnvironment> {

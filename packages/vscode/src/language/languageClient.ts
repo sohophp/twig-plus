@@ -24,7 +24,7 @@ export async function startTwigLanguageClient(context: vscode.ExtensionContext):
   };
   const output = getTwigPlusOutput();
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: "file", language: "twig" }, { scheme: "untitled", language: "twig" }],
+    documentSelector: [{ scheme: "file", language: "twig" }, { scheme: "vscode-remote", language: "twig" }, { scheme: "untitled", language: "twig" }],
     outputChannel: output,
     synchronize: {
       configurationSection: ["twigPlus"],
@@ -53,7 +53,43 @@ export async function startTwigLanguageClient(context: vscode.ExtensionContext):
     status = event.newState === State.Running ? "running" : event.newState === State.Starting ? "starting" : "stopped";
   }));
   context.subscriptions.push({ dispose: () => { if (client?.isRunning()) void client.stop(); client = null; } });
-  try { await client.start(); status = "running"; }
+  try {
+    await client.start(); status = "running";
+    let refreshTimer: NodeJS.Timeout | undefined;
+    let refreshAttempts = 0;
+    const refreshPhpContexts = async (): Promise<boolean> => {
+      if (!client?.isRunning() || !(await vscode.commands.getCommands(true)).includes("phpCompanion.provideTwigInterop")) return false;
+      let received = false;
+      for (const folder of vscode.workspace.workspaceFolders ?? []) {
+        const payload = await vscode.commands.executeCommand<unknown>("phpCompanion.provideTwigInterop", folder.uri);
+        if (payload) { received = true; await client.sendNotification("twigPlus/updatePhpContexts", payload); }
+      }
+      return received;
+    };
+    context.subscriptions.push(vscode.commands.registerCommand("twigPlus._refreshPhpContexts", refreshPhpContexts));
+    context.subscriptions.push(vscode.commands.registerCommand("twigPlus.provideSymfonyRouteRename", async (request: unknown): Promise<unknown> => {
+      if (!client?.isRunning()) return { complete: false, edits: [] };
+      try { return await client.sendRequest("twigPlus/symfonyRouteRenameEdits", request); }
+      catch { return { complete: false, edits: [] }; }
+    }));
+    const scheduleRefresh = (): void => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshAttempts = 0;
+      const run = (): void => {
+        refreshTimer = setTimeout(() => {
+          refreshTimer = undefined;
+          void refreshPhpContexts().then((received) => {
+            refreshAttempts += 1;
+            if ((!received || refreshAttempts < 2) && refreshAttempts < 30 && client?.isRunning()) run();
+          });
+        }, refreshAttempts === 0 ? 150 : 2_000);
+      };
+      run();
+    };
+    const phpWatcher = vscode.workspace.createFileSystemWatcher("**/*.php");
+    context.subscriptions.push(phpWatcher, phpWatcher.onDidCreate(scheduleRefresh), phpWatcher.onDidChange(scheduleRefresh), phpWatcher.onDidDelete(scheduleRefresh), { dispose: () => { if (refreshTimer) clearTimeout(refreshTimer); } });
+    scheduleRefresh();
+  }
   catch (error) { status = "failed"; throw error; }
 }
 

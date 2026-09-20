@@ -10,6 +10,7 @@
 ## 1.2.x 实用性推进
 
 - Embedded JavaScript Definition、安全 Rename 与 Semantic Tokens 已覆盖当前 script 内可完整映射的局部标识符；Twig 占位、unsupported MIME、外部和跨 script 内容保持安全跳过。
+- PHP Companion interop 的完整字面量 Controller context 已支持受限跨语言变量 Rename；协议测试覆盖 Prepare、同一模板多引用、PHP 键编辑和冲突拒绝，真实双 VSIX Extension Host 已验证跨文件一次应用及 Undo/Redo 往返。
 - 扩展当前 route、translation、asset、form、security、fragment、importmap 索引，增加 controller variable 类型上下文。
 - 已完成 LSP 结构化 Quick Fix：嵌套 closing 逆栈原子补齐，unexpected tag 与 empty output 精确删除；不为 unresolved name 或项目元数据诊断猜测修改。
 

@@ -21,6 +21,18 @@ describe("Twig completion contexts", () => {
       .toEqual(["header", "invalidate"]);
     expect(resolveProjectMembers(["missing"], {}, types)).toEqual([]);
   });
+  it("offers only members shared by every alternative of a controller Union", () => {
+    const types = {
+      "App\\User": { name: "App\\User", members: [{ name: "name", kind: "property" as const, type: "string", sources: [{ uri: "file:///User.php", line: 3, character: 8 }] }, { name: "userOnly", kind: "method" as const }] },
+      "App\\Admin": { name: "App\\Admin", members: [{ name: "name", kind: "property" as const, type: "string", sources: [{ uri: "file:///Admin.php", line: 4, character: 6 }] }, { name: "adminOnly", kind: "method" as const }] }
+    };
+    const members = resolveProjectMembers(["actor"], { actor: "App\\User|App\\Admin" }, types);
+    expect(members.map((entry) => entry.name)).toEqual(["name"]);
+    expect(members[0]?.sources).toEqual([
+      { uri: "file:///User.php", line: 3, character: 8 },
+      { uri: "file:///Admin.php", line: 4, character: 6 }
+    ]);
+  });
   it("offers tests inside if tag expressions", () => {
     const source = "{% if user is def %}";
     const document = TextDocument.create("file:///completion.html.twig", "twig", 1, source);

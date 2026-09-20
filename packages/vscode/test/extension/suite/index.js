@@ -36,7 +36,8 @@ async function run() {
     testTemplatePathCompletion,
     testTemplateReferenceDefinitions,
     testBlockDefinition,
-    testMacroDefinitions
+    testMacroDefinitions,
+    ...(process.env.TWIG_PLUS_PHP_INTEROP === "1" ? [testPhpControllerContextRename] : [])
   ];
 
   const report = { vscodeVersion: vscode.version, expected: tests.length, passed: 0, tests: [] };
@@ -98,9 +99,9 @@ async function testToggleIndividuallyWrappedTwigComments() {
   await vscode.commands.executeCommand("twigPlus.toggleLineComment");
   assert.strictEqual(document.getText(), expected);
   await vscode.commands.executeCommand("undo");
-  assert.strictEqual(document.getText(), source);
+  await waitFor(() => document.getText() === source);
   await vscode.commands.executeCommand("redo");
-  assert.strictEqual(document.getText(), expected);
+  await waitFor(() => document.getText() === expected);
 }
 
 async function openHomeDocument() {
@@ -424,6 +425,48 @@ async function testEmbeddedJavaScriptRename() {
   await waitFor(() => document.getText() === source);
   await vscode.commands.executeCommand("redo");
   await waitFor(() => document.getText() === renamed);
+}
+
+async function testPhpControllerContextRename() {
+  const controller = await openWorkspaceDocument("src", "InteropController.php");
+  await vscode.window.showTextDocument(controller);
+  const commandsDeadline = Date.now() + 10_000;
+  while (Date.now() < commandsDeadline && !(await vscode.commands.getCommands(true)).includes("phpCompanion.provideTwigInterop")) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok((await vscode.commands.getCommands(true)).includes("phpCompanion.provideTwigInterop"), "PHP Companion interop command should be registered");
+  let payload;
+  const payloadDeadline = Date.now() + 10_000;
+  while (Date.now() < payloadDeadline) {
+    payload = await vscode.commands.executeCommand("phpCompanion.provideTwigInterop", vscode.workspace.workspaceFolders[0].uri);
+    if (payload?.contexts?.some((context) => context.variables?.some((variable) => variable.name === "customer" && variable.sources?.length))) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(payload?.contexts?.length, "PHP Companion should expose indexed controller contexts with key locations");
+  assert.strictEqual(await vscode.commands.executeCommand("twigPlus._refreshPhpContexts"), true, "TwigPlus should accept the current PHP Companion context payload");
+  const template = await openWorkspaceDocument("templates", "interop.html.twig");
+  await vscode.window.showTextDocument(template);
+  const offset = template.getText().indexOf("customer") + 2;
+  let edit;
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    try {
+      edit = await vscode.commands.executeCommand("vscode.executeDocumentRenameProvider", template.uri, template.positionAt(offset), "account");
+      if (edit instanceof vscode.WorkspaceEdit && edit.entries().length === 2) break;
+    } catch { /* Both language servers may still be indexing. */ }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(edit instanceof vscode.WorkspaceEdit, "PHP/Twig context Rename should return a workspace edit");
+  assert.strictEqual(edit.get(template.uri).length, 2, "PHP/Twig context Rename should update both Twig references");
+  assert.strictEqual(edit.get(controller.uri).length, 1, "PHP/Twig context Rename should update the PHP render key");
+  assert.ok(await vscode.workspace.applyEdit(edit), "PHP/Twig context Rename should apply atomically");
+  assert.strictEqual(template.getText().match(/account/g)?.length, 2);
+  assert.ok(controller.getText().includes("'account' => $customer"));
+  await vscode.window.showTextDocument(controller);
+  await vscode.commands.executeCommand("workbench.action.files.revert");
+  await vscode.window.showTextDocument(template);
+  await vscode.commands.executeCommand("workbench.action.files.revert");
+  await waitFor(() => template.getText().includes("customer.name") && controller.getText().includes("'customer' => $customer"), 10_000);
 }
 
 async function testEmbeddedJavaScriptSemanticTokens() {

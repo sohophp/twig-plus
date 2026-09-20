@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added optional PHP Companion interop v1 consumption with bounded startup/change retries, live typed Controller contexts, public PHP member catalogs, context-variable navigation back to Controller sources, and exact PHP member Definition locations.
+- Merge multiple Controller sources per workspace/template, retain type alternatives and origins, and expose only members shared by every Union alternative.
+- Keep disk metadata and generic Twig features available when the PHP provider is absent, not ready, disconnected, or protocol-incompatible.
+- Provide PHP Companion with a bounded, complete set of exact Twig `path()` and `url()` route-name edits so Symfony route Rename can remain one atomic cross-language operation.
+
 ## 1.3.0 - 2026-07-15
 
 - Added TypeScript-powered Go to Definition for local declarations and import aliases inside supported embedded JavaScript, with source-map-safe Twig ranges and isolated script scopes.

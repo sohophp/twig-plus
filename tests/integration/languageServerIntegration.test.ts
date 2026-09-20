@@ -300,6 +300,65 @@ describe("bundled TwigPlus language server", () => {
     expect(missing.result).toBeNull();
   });
 
+  it("merges typed controller contexts and navigates a Twig variable to its PHP source", async () => {
+    temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "twig-plus-context-"));
+    const metadataDirectory = path.join(temporaryDirectory, ".twig-plus");
+    const templateDirectory = path.join(temporaryDirectory, "templates", "site");
+    const sourceDirectory = path.join(temporaryDirectory, "src");
+    await mkdir(metadataDirectory, { recursive: true });
+    await mkdir(templateDirectory, { recursive: true });
+    await mkdir(sourceDirectory, { recursive: true });
+    const firstController = path.join(sourceDirectory, "FirstController.php");
+    const secondController = path.join(sourceDirectory, "SecondController.php");
+    await writeFile(firstController, "<?php\nfinal class FirstController {}\n", "utf8");
+    await writeFile(secondController, "<?php\nfinal class SecondController {}\n", "utf8");
+    await writeFile(path.join(metadataDirectory, "symfony-metadata.json"), JSON.stringify({
+      schemaVersion: 4, providerId: "integration", projectRoot: temporaryDirectory, generatedAt: 0,
+      completions: [], symbols: {}, templates: [], blocks: [], macros: [], references: {},
+      types: {
+        "App\\User": { name: "App\\User", members: [{ name: "name", kind: "property", type: "string" }, { name: "userOnly", kind: "method" }] },
+        "App\\Admin": { name: "App\\Admin", members: [{ name: "name", kind: "property", type: "string" }, { name: "adminOnly", kind: "method" }] }
+      },
+      contexts: [
+        { template: "templates/site/page.html.twig", complete: true, variables: { actor: "App\\User" }, sources: [{ controller: "FirstController::show", path: "src/FirstController.php", line: 1 }] },
+        { template: "templates/site/page.html.twig", complete: true, variables: { actor: "App\\Admin" }, sources: [{ controller: "SecondController::show", path: "src/SecondController.php", line: 1 }] }
+      ]
+    }), "utf8");
+    const templateFile = path.join(templateDirectory, "page.html.twig");
+    const source = "{{ liveOnly.name }} {{ liveOnly.name }}";
+    await writeFile(templateFile, source, "utf8");
+    const rootUri = pathToFileURL(temporaryDirectory).toString();
+    const uri = pathToFileURL(templateFile).toString();
+    const client = startClient();
+    await client.request("initialize", { processId: process.pid, rootUri, capabilities: {}, workspaceFolders: [{ uri: rootUri, name: "fixture" }] });
+    client.notify("initialized", {});
+    client.notify("twigPlus/updatePhpContexts", {
+      hello: { protocolVersion: 1, providerId: "php-companion", projectId: rootUri, snapshotVersion: "1", capabilities: ["controller-contexts", "php-symbols"] },
+      contexts: [{ template: "templates/site/page.html.twig", complete: true, variables: [{ name: "liveOnly", type: { kind: "named", name: "App\\Live" }, optional: false, sources: [{ uri: pathToFileURL(firstController).toString(), start: 9, end: 17, line: 1, character: 3, snapshotVersion: "1" }] }], sources: [{ symbol: "FirstController::live", location: { uri: pathToFileURL(firstController).toString(), start: 0, end: 1, line: 1, snapshotVersion: "1" } }] }],
+      types: { "App\\Live": { name: "App\\Live", members: [{ name: "name", kind: "property", type: { kind: "primitive", name: "string" }, location: { uri: pathToFileURL(firstController).toString(), start: 0, end: 1, line: 7, character: 4, snapshotVersion: "1" } }] } }
+    });
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const completion = await client.request("textDocument/completion", { textDocument: { uri }, position: positionAt(source, source.indexOf("name") + 2) });
+    expect(completion.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "name" })]));
+    const definition = await client.request("textDocument/definition", { textDocument: { uri }, position: positionAt(source, source.indexOf("liveOnly") + 2) });
+    expect(definition.result).toMatchObject({ uri: pathToFileURL(firstController).toString(), range: { start: { line: 1, character: 0 } } });
+    const memberDefinition = await client.request("textDocument/definition", { textDocument: { uri }, position: positionAt(source, source.indexOf("name") + 2) });
+    expect(memberDefinition.result).toEqual([expect.objectContaining({
+      uri: pathToFileURL(firstController).toString(),
+      range: { start: { line: 7, character: 4 }, end: { line: 7, character: 8 } }
+    })]);
+    const renamePosition = positionAt(source, source.indexOf("liveOnly") + 2);
+    const prepared = await client.request("textDocument/prepareRename", { textDocument: { uri }, position: renamePosition });
+    expect(prepared.result).toMatchObject({ start: { line: 0, character: 3 }, end: { line: 0, character: 11 } });
+    const renamed = await client.request("textDocument/rename", { textDocument: { uri }, position: renamePosition, newName: "account" });
+    expect(renamed.result.changes[uri]).toHaveLength(2);
+    expect(renamed.result.changes[pathToFileURL(firstController).toString()]).toEqual([expect.objectContaining({
+      range: { start: { line: 1, character: 3 }, end: { line: 1, character: 11 } }, newText: "account"
+    })]);
+    const collision = await client.request("textDocument/rename", { textDocument: { uri }, position: renamePosition, newName: "liveOnly" });
+    expect(collision.result).toBeNull();
+  });
+
   it("provides package-aware Symfony metadata v3 references without executing project code", async () => {
     temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "twig-plus-symfony-"));
     const metadataDirectory = path.join(temporaryDirectory, ".twig-plus");
