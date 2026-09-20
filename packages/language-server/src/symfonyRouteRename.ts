@@ -27,6 +27,7 @@ export async function collectSymfonyRouteRenameEdits(
     catch { return { complete: false, edits: [] }; }
     for (const entry of entries) {
       if (cancelled()) return { complete: false, edits: [] };
+      if (entry.isSymbolicLink()) return { complete: false, edits: [] };
       if (entry.isDirectory()) {
         if (!EXCLUDED_DIRECTORIES.has(entry.name)) directories.push(path.join(directory, entry.name));
       } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".twig")) {

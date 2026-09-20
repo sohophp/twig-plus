@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -29,6 +29,14 @@ describe("Symfony route rename bridge", () => {
     await writeFile(path.join(root, "one.twig"), "{{ path('admin.home') }}");
     expect(await collectSymfonyRouteRenameEdits(root, "admin.home", new Map(), () => false, { maxFiles: 0, maxFileBytes: 100 }))
       .toEqual({ complete: false, edits: [] });
+  });
+
+  it("refuses to claim completeness when the project contains a symbolic link", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "twig-plus-route-rename-link-")); roots.push(root);
+    const external = await mkdtemp(path.join(tmpdir(), "twig-plus-route-rename-external-")); roots.push(external);
+    await writeFile(path.join(external, "linked.twig"), "{{ path('admin.home') }}");
+    await symlink(external, path.join(root, "linked-templates"));
+    expect(await collectSymfonyRouteRenameEdits(root, "admin.home")).toEqual({ complete: false, edits: [] });
   });
 
   it("uses the caller's remote URI mapping", async () => {
