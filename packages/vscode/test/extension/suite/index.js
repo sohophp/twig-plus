@@ -37,6 +37,7 @@ async function run() {
     testTemplateReferenceDefinitions,
     testBlockDefinition,
     testMacroDefinitions,
+    ...(process.env.TWIG_PLUS_PHP_INTEROP === "1" ? [] : [testPhpContextAutomaticRefresh]),
     ...(process.env.TWIG_PLUS_PHP_INTEROP === "1" ? [testPhpControllerContextRename] : [])
   ];
 
@@ -446,6 +447,29 @@ async function testPhpControllerContextRename() {
   assert.strictEqual(await vscode.commands.executeCommand("twigPlus._refreshPhpContexts"), true, "TwigPlus should accept the current PHP Companion context payload");
   const template = await openWorkspaceDocument("templates", "interop.html.twig");
   await vscode.window.showTextDocument(template);
+  const completionLabels = async () => {
+    const result = await vscode.commands.executeCommand("vscode.executeCompletionItemProvider", template.uri, new vscode.Position(0, 3));
+    return result?.items?.map((item) => typeof item.label === "string" ? item.label : item.label.label) ?? [];
+  };
+  assert.ok((await completionLabels()).includes("customer"), "Controller variable should appear in root completion");
+  const keyOffset = controller.getText().indexOf("'customer' =>");
+  assert.ok(keyOffset >= 0, "Controller fixture should contain the render key");
+  const keyEdit = new vscode.WorkspaceEdit();
+  keyEdit.replace(controller.uri, new vscode.Range(controller.positionAt(keyOffset + 1), controller.positionAt(keyOffset + 9)), "shopper");
+  assert.ok(await vscode.workspace.applyEdit(keyEdit), "Unsaved PHP edit should apply");
+  const completionDeadline = Date.now() + 10_000;
+  while (Date.now() < completionDeadline && !(await completionLabels()).includes("shopper")) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok((await completionLabels()).includes("shopper"), "Unsaved PHP edit should refresh Twig completion automatically");
+  await vscode.window.showTextDocument(controller);
+  await vscode.commands.executeCommand("workbench.action.files.revert");
+  const restoreDeadline = Date.now() + 10_000;
+  while (Date.now() < restoreDeadline && !(await completionLabels()).includes("customer")) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok((await completionLabels()).includes("customer"), "Reverting PHP should restore Twig completion automatically");
+  await vscode.window.showTextDocument(template);
   const offset = template.getText().indexOf("customer") + 2;
   let edit;
   const deadline = Date.now() + 10_000;
@@ -467,6 +491,44 @@ async function testPhpControllerContextRename() {
   await vscode.window.showTextDocument(template);
   await vscode.commands.executeCommand("workbench.action.files.revert");
   await waitFor(() => template.getText().includes("customer.name") && controller.getText().includes("'customer' => $customer"), 10_000);
+}
+
+async function testPhpContextAutomaticRefresh() {
+  const root = vscode.workspace.workspaceFolders[0].uri.toString();
+  const version = "1";
+  let variable = "beforeEdit";
+  const provider = vscode.commands.registerCommand("phpCompanion.provideTwigInterop", async () => ({
+    hello: { protocolVersion: 1, providerId: "php-companion", projectId: root, snapshotVersion: version,
+      capabilities: ["controller-contexts", "php-symbols"] },
+    contexts: [{ template: "templates/interop.html.twig", complete: true,
+      variables: [{ name: variable, type: { kind: "primitive", name: "string" }, sources: [] }], sources: [] }],
+    types: {}
+  }));
+  const controller = await openWorkspaceDocument("src", "InteropController.php");
+  const template = await openWorkspaceDocument("templates", "interop.html.twig");
+  const labels = async () => {
+    const completion = await vscode.commands.executeCommand("vscode.executeCompletionItemProvider", template.uri, new vscode.Position(0, 3));
+    return completion?.items?.map((item) => typeof item.label === "string" ? item.label : item.label.label) ?? [];
+  };
+  try {
+    assert.strictEqual(await vscode.commands.executeCommand("twigPlus._refreshPhpContexts"), true);
+    assert.ok((await labels()).includes("beforeEdit"), "Initial Controller context should reach Twig completion");
+    variable = "afterEdit";
+    const edit = new vscode.WorkspaceEdit();
+    edit.insert(controller.uri, controller.positionAt(controller.getText().length), "\n// refresh Twig context\n");
+    assert.ok(await vscode.workspace.applyEdit(edit));
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline && !(await labels()).includes("afterEdit")) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const refreshed = await labels();
+    assert.ok(refreshed.includes("afterEdit"), "Unsaved PHP edit should refresh Twig completion");
+    assert.ok(!refreshed.includes("beforeEdit"), "Old Controller variable should be removed");
+  } finally {
+    provider.dispose();
+    await vscode.window.showTextDocument(controller);
+    await vscode.commands.executeCommand("workbench.action.files.revert");
+  }
 }
 
 async function testEmbeddedJavaScriptSemanticTokens() {

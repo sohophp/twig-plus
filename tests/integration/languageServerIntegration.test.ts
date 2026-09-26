@@ -332,12 +332,15 @@ describe("bundled TwigPlus language server", () => {
     const client = startClient();
     await client.request("initialize", { processId: process.pid, rootUri, capabilities: {}, workspaceFolders: [{ uri: rootUri, name: "fixture" }] });
     client.notify("initialized", {});
-    client.notify("twigPlus/updatePhpContexts", {
+    const initialContext = {
       hello: { protocolVersion: 1, providerId: "php-companion", projectId: rootUri, snapshotVersion: "1", capabilities: ["controller-contexts", "php-symbols"] },
       contexts: [{ template: "templates/site/page.html.twig", complete: true, variables: [{ name: "liveOnly", type: { kind: "named", name: "App\\Live" }, optional: false, sources: [{ uri: pathToFileURL(firstController).toString(), start: 9, end: 17, line: 1, character: 3, snapshotVersion: "1" }] }], sources: [{ symbol: "FirstController::live", location: { uri: pathToFileURL(firstController).toString(), start: 0, end: 1, line: 1, snapshotVersion: "1" } }] }],
       types: { "App\\Live": { name: "App\\Live", members: [{ name: "name", kind: "property", type: { kind: "primitive", name: "string" }, location: { uri: pathToFileURL(firstController).toString(), start: 0, end: 1, line: 7, character: 4, snapshotVersion: "1" } }] } }
-    });
+    };
+    client.notify("twigPlus/updatePhpContexts", initialContext);
     client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const rootCompletion = await client.request("textDocument/completion", { textDocument: { uri }, position: positionAt(source, source.indexOf("liveOnly") + 2) });
+    expect(rootCompletion.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "liveOnly" })]));
     const completion = await client.request("textDocument/completion", { textDocument: { uri }, position: positionAt(source, source.indexOf("name") + 2) });
     expect(completion.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "name" })]));
     const definition = await client.request("textDocument/definition", { textDocument: { uri }, position: positionAt(source, source.indexOf("liveOnly") + 2) });
@@ -357,6 +360,23 @@ describe("bundled TwigPlus language server", () => {
     })]);
     const collision = await client.request("textDocument/rename", { textDocument: { uri }, position: renamePosition, newName: "liveOnly" });
     expect(collision.result).toBeNull();
+
+    const nextContext = (snapshotVersion: string) => ({
+      hello: { protocolVersion: 1, providerId: "php-companion", projectId: rootUri, snapshotVersion, capabilities: ["controller-contexts", "php-symbols"] },
+      contexts: [{ template: "templates/site/page.html.twig", complete: true,
+        variables: [{ name: "liveNext", type: { kind: "primitive", name: "string" }, sources: [] }], sources: [] }],
+      types: {}
+    });
+    client.notify("twigPlus/updatePhpContexts", initialContext);
+    const unchanged = await client.request("textDocument/completion", { textDocument: { uri }, position: renamePosition });
+    expect(unchanged.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "liveOnly" })]));
+    client.notify("twigPlus/updatePhpContexts", nextContext("1"));
+    const refreshed = await client.request("textDocument/completion", { textDocument: { uri }, position: renamePosition });
+    expect(refreshed.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "liveNext" })]));
+    expect(refreshed.result).not.toEqual(expect.arrayContaining([expect.objectContaining({ label: "liveOnly" })]));
+    client.notify("twigPlus/updatePhpContexts", nextContext("2"));
+    const nextVersion = await client.request("textDocument/completion", { textDocument: { uri }, position: renamePosition });
+    expect(nextVersion.result).toEqual(refreshed.result);
   });
 
   it("provides package-aware Symfony metadata v3 references without executing project code", async () => {

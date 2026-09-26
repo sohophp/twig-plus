@@ -2,9 +2,11 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { LanguageClient, State, TransportKind, type LanguageClientOptions, type ServerOptions } from "vscode-languageclient/node";
 import { getTwigPlusOutput } from "../output";
+import { PhpContextRefresh } from "./phpContextRefresh";
 
 let client: LanguageClient | null = null;
 let status: "stopped" | "starting" | "running" | "failed" = "stopped";
+let phpContextRefresh: PhpContextRefresh | null = null;
 
 interface FormatProgress {
   requestId: string;
@@ -55,45 +57,38 @@ export async function startTwigLanguageClient(context: vscode.ExtensionContext):
   context.subscriptions.push({ dispose: () => { if (client?.isRunning()) void client.stop(); client = null; } });
   try {
     await client.start(); status = "running";
-    let refreshTimer: NodeJS.Timeout | undefined;
-    let refreshAttempts = 0;
-    const refreshPhpContexts = async (): Promise<boolean> => {
-      if (!client?.isRunning() || !(await vscode.commands.getCommands(true)).includes("phpCompanion.provideTwigInterop")) return false;
-      let received = false;
-      for (const folder of vscode.workspace.workspaceFolders ?? []) {
-        const payload = await vscode.commands.executeCommand<unknown>("phpCompanion.provideTwigInterop", folder.uri);
-        if (payload) { received = true; await client.sendNotification("twigPlus/updatePhpContexts", payload); }
-      }
-      return received;
-    };
-    context.subscriptions.push(vscode.commands.registerCommand("twigPlus._refreshPhpContexts", refreshPhpContexts));
+    const refresh = new PhpContextRefresh({
+      isRunning: () => Boolean(client?.isRunning()),
+      roots: () => (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.toString()),
+      isAvailable: async () => (await vscode.commands.getCommands(true)).includes("phpCompanion.provideTwigInterop"),
+      provide: async (root) => vscode.commands.executeCommand("phpCompanion.provideTwigInterop", vscode.Uri.parse(root)),
+      publish: async (payload) => client!.sendNotification("twigPlus/updatePhpContexts", payload)
+    });
+    phpContextRefresh = refresh;
+    context.subscriptions.push({ dispose: () => { refresh.dispose(); if (phpContextRefresh === refresh) phpContextRefresh = null; } });
+    context.subscriptions.push(vscode.commands.registerCommand("twigPlus._refreshPhpContexts", () => refresh.refreshNow()));
     context.subscriptions.push(vscode.commands.registerCommand("twigPlus.provideSymfonyRouteRename", async (request: unknown): Promise<unknown> => {
       if (!client?.isRunning()) return { complete: false, edits: [] };
       try { return await client.sendRequest("twigPlus/symfonyRouteRenameEdits", request); }
       catch { return { complete: false, edits: [] }; }
     }));
-    const scheduleRefresh = (): void => {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshAttempts = 0;
-      const run = (): void => {
-        refreshTimer = setTimeout(() => {
-          refreshTimer = undefined;
-          void refreshPhpContexts().then((received) => {
-            refreshAttempts += 1;
-            if ((!received || refreshAttempts < 2) && refreshAttempts < 30 && client?.isRunning()) run();
-          });
-        }, refreshAttempts === 0 ? 150 : 2_000);
-      };
-      run();
-    };
+    const scheduleRefresh = (delayMs = 150): void => refresh.schedule(delayMs);
     const phpWatcher = vscode.workspace.createFileSystemWatcher("**/*.php");
-    context.subscriptions.push(phpWatcher, phpWatcher.onDidCreate(scheduleRefresh), phpWatcher.onDidChange(scheduleRefresh), phpWatcher.onDidDelete(scheduleRefresh), { dispose: () => { if (refreshTimer) clearTimeout(refreshTimer); } });
+    const refreshPhpDocument = (document: vscode.TextDocument): void => {
+      if (document.languageId === "php" && ["file", "vscode-remote"].includes(document.uri.scheme)) scheduleRefresh(300);
+    };
+    context.subscriptions.push(phpWatcher, phpWatcher.onDidCreate(() => scheduleRefresh()), phpWatcher.onDidChange(() => scheduleRefresh()), phpWatcher.onDidDelete(() => scheduleRefresh()),
+      vscode.workspace.onDidOpenTextDocument(refreshPhpDocument),
+      vscode.workspace.onDidChangeTextDocument((event) => refreshPhpDocument(event.document)),
+      vscode.workspace.onDidCloseTextDocument(refreshPhpDocument),
+      { dispose: () => refresh.dispose() });
     scheduleRefresh();
   }
   catch (error) { status = "failed"; throw error; }
 }
 
 export async function stopTwigLanguageClient(): Promise<void> {
+  phpContextRefresh?.dispose(); phpContextRefresh = null;
   if (client?.isRunning()) await client.stop();
   client = null;
   status = "stopped";

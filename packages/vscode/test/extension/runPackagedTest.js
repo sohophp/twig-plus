@@ -22,12 +22,20 @@ async function main() {
     execFileSync("unzip", ["-q", path.join(artifactDirectory, vsix), "-d", temporaryDirectory]);
     const extensionDevelopmentPath = path.join(temporaryDirectory, "extension");
     const phpCompanionVsix = process.env.PHP_COMPANION_VSIX;
-    let extensionDevelopmentPaths = extensionDevelopmentPath;
+    const phpCompanionSymfonyVsix = process.env.PHP_COMPANION_SYMFONY_VSIX;
+    if (phpCompanionSymfonyVsix && !phpCompanionVsix) throw new Error("PHP_COMPANION_SYMFONY_VSIX requires PHP_COMPANION_VSIX.");
+    const extensionDevelopmentPaths = [extensionDevelopmentPath];
     if (phpCompanionVsix) {
       const phpCompanionDirectory = path.join(temporaryDirectory, "php-companion");
       fs.mkdirSync(phpCompanionDirectory, { recursive: true });
       execFileSync("unzip", ["-q", path.resolve(phpCompanionVsix), "-d", phpCompanionDirectory]);
-      extensionDevelopmentPaths = [extensionDevelopmentPath, path.join(phpCompanionDirectory, "extension")];
+      extensionDevelopmentPaths.push(path.join(phpCompanionDirectory, "extension"));
+    }
+    if (phpCompanionSymfonyVsix) {
+      const symfonyDirectory = path.join(temporaryDirectory, "php-companion-symfony");
+      fs.mkdirSync(symfonyDirectory, { recursive: true });
+      execFileSync("unzip", ["-q", path.resolve(phpCompanionSymfonyVsix), "-d", symfonyDirectory]);
+      extensionDevelopmentPaths.push(path.join(symfonyDirectory, "extension"));
     }
     const extensionTestsPath = path.join(packageRoot, "test", "extension", "suite", "index.js");
     const reportPath = path.join(temporaryDirectory, "ui-report.json");
@@ -38,7 +46,7 @@ async function main() {
     const profileRoot = path.join(temporaryDirectory, "vscode-profile");
     await runTests({
       ...(vscodeExecutablePath ? { vscodeExecutablePath } : { version: "1.90.2" }),
-      extensionDevelopmentPath: extensionDevelopmentPaths,
+      extensionDevelopmentPath: extensionDevelopmentPaths.length === 1 ? extensionDevelopmentPaths[0] : extensionDevelopmentPaths,
       extensionTestsPath,
       extensionTestsEnv: { TWIG_PLUS_UI_REPORT: reportPath, ...(phpCompanionVsix ? { TWIG_PLUS_PHP_INTEROP: "1" } : {}) },
       launchArgs: [

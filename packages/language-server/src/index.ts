@@ -6,6 +6,7 @@ import {
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { readdir, readFile, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { analyzeHybridDiagnostics, collectHybridSelectionRanges, collectTemplateCompletionCandidates, createDocumentModel, createWorkspaceModel, DEFAULT_TEMPLATE_ROOTS, getHybridTokenContextAtOffset, getTemplateReferenceMatch, getTwigCallable, getTwigDiagnosticCode, getTwigOperator, getTwigTag, parseDocument, resolveTemplateWorkspacePath, type DocumentModel, type SemanticSymbol, type TemplateNamespaces, type TemplateUriResolver } from "@twig-plus/parser";
@@ -16,7 +17,7 @@ import { collectSymfonyReferences, getSymfonyReferenceAtOffset, getSymfonyRefere
 import { readStaticSymfonyReferences } from "./staticSymfonyIndex";
 import { parseTwigExtensionGlobals } from "./staticTwigGlobals";
 import { getTwigStructuralQuickFixes } from "./twigCodeActions";
-import { mergeProjectContexts, type LoadedControllerContext } from "./projectContexts";
+import { changedContextDocuments, mergeProjectContexts, ProjectContextIndex, type LoadedControllerContext } from "./projectContexts";
 import { collectSymfonyRouteRenameEdits } from "./symfonyRouteRename";
 
 export interface TwigPlusServerOptions {
@@ -146,8 +147,10 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   const folderSettings = new Map<string, TwigPlusSettings>();
   let diskContexts: LoadedControllerContext[] = [];
   const liveContextsByRoot = new Map<string, LoadedControllerContext[]>();
+  const livePayloadFingerprints = new Map<string, string>();
   let diskTypes: LoadedProjectMetadata["types"] = {};
   const liveTypesByRoot = new Map<string, LoadedProjectMetadata["types"]>();
+  let contextIndex = new ProjectContextIndex([]);
   let supportsConfiguration = false;
   let workspaceModelCache: ReturnType<typeof createWorkspaceModel> | null = null;
   let templateNamespaces: TemplateNamespaces = {};
@@ -162,7 +165,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   const permitsSymfonyReference = (kind: SymfonyReferenceKind, mode: "auto" | "on" | "off") =>
     mode === "on" || (mode === "auto" && completionRegistry.permits("symfony-bridge") && completionRegistry.hasAnyPackage(requiredSymfonyPackages(kind)));
   const twigVersionFor = (uri: string) => settingsFor(uri).twig?.version ?? projectMetadata.twigVersion ?? composerTwigVersion;
-  const contextFor = (uri: string) => projectMetadata.contexts.find((item) => uri.startsWith(item.projectRootUri + "/") && uri.replaceAll("\\", "/").endsWith(item.template.replaceAll("\\", "/")));
+  const contextFor = (uri: string) => contextIndex.get(uri);
 
   const modelFor = (document: TextDocument): DocumentModel | null => {
     if (document.getText().length > MAX_DOCUMENT_LENGTH) return null;
@@ -203,6 +206,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     diskContexts = projectMetadata.contexts;
     diskTypes = projectMetadata.types;
     projectMetadata.contexts = mergeProjectContexts([...diskContexts, ...[...liveContextsByRoot.values()].flat()]);
+    contextIndex = new ProjectContextIndex(projectMetadata.contexts);
     projectMetadata.types = Object.assign({}, diskTypes, ...liveTypesByRoot.values());
     completionRegistry.replaceProject(projectMetadata.completions);
     const composer = await readComposerEnvironment(workspaceFolders);
@@ -288,13 +292,26 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     for (const document of documents.all()) scheduleDiagnostics(document, 0);
   });
   connection.onNotification("twigPlus/updatePhpContexts", (payload: unknown) => {
+    if (!isRecord(payload) || !isRecord(payload.hello) || typeof payload.hello.projectId !== "string"
+      || !workspaceFolders.includes(payload.hello.projectId)) return;
+    const fingerprint = `${typeof payload.hello.snapshotVersion === "string" ? payload.hello.snapshotVersion : ""}:${createHash("sha256").update(JSON.stringify(payload)).digest("hex")}`;
+    if (livePayloadFingerprints.get(payload.hello.projectId) === fingerprint) return;
     const loaded = interopPayload(payload, workspaceFolders); if (!loaded) return;
+    const previousIndex = contextIndex;
+    const previousTypes = JSON.stringify(liveTypesByRoot.get(loaded.projectRoot));
     liveContextsByRoot.set(loaded.projectRoot, loaded.contexts);
     liveTypesByRoot.set(loaded.projectRoot, loaded.types);
+    livePayloadFingerprints.set(loaded.projectRoot, fingerprint);
     projectMetadata.contexts = mergeProjectContexts([...diskContexts, ...[...liveContextsByRoot.values()].flat()]);
+    contextIndex = new ProjectContextIndex(projectMetadata.contexts);
     projectMetadata.types = Object.assign({}, diskTypes, ...liveTypesByRoot.values());
-    cache.clear();
-    for (const document of documents.all()) scheduleDiagnostics(document, 0);
+    const typesChanged = previousTypes !== JSON.stringify(loaded.types);
+    const open = documents.all();
+    for (const uri of changedContextDocuments(previousIndex, contextIndex, loaded.projectRoot, open.map((document) => document.uri), typesChanged)) {
+      const document = documents.get(uri); if (!document) continue;
+      cache.delete(uri);
+      scheduleDiagnostics(document, 0);
+    }
   });
   connection.onRequest("twigPlus/symfonyRouteRenameEdits", async (params: unknown, cancellation) => {
     if (!isRecord(params) || typeof params.rootUri !== "string" || typeof params.oldName !== "string"
@@ -488,9 +505,12 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const globalSymbols = projectMetadata.globals.filter((name) => name.toLowerCase().includes(expressionPrefix)).map((name) => ({
       label: name, detail: "Project Twig global", sortText: `010_${name.toLowerCase()}`, kind: CompletionItemKind.Variable
     }));
+    const contextSymbols = Object.keys(contextFor(document.uri)?.variables ?? {}).filter((name) => name.toLowerCase().includes(expressionPrefix)).map((name) => ({
+      label: name, detail: "Controller variable", sortText: `001_${name.toLowerCase()}`, kind: CompletionItemKind.Variable
+    }));
     const symfonyGlobals = completionRegistry.permits("symfony-bridge") && "app".includes(expressionPrefix)
       ? [{ label: "app", detail: "Symfony Twig global", sortText: "005_app", kind: CompletionItemKind.Variable }] : [];
-    const result = [...catalog, ...symbols, ...symfonyGlobals, ...globalSymbols].filter((item, index, all) => all.findIndex((candidate) => candidate.label === item.label) === index);
+    const result = [...catalog, ...symbols, ...contextSymbols, ...symfonyGlobals, ...globalSymbols].filter((item, index, all) => all.findIndex((candidate) => candidate.label === item.label) === index);
     connection.console.info(`[completion] twig ${result.length} items ${(performance.now() - completionStarted).toFixed(1)}ms`);
     return result;
   });
