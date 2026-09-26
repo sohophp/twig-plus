@@ -1,4 +1,6 @@
 {
+  "phpCompanion.languageServer.enabled": true,
+  "phpCompanion.indexing.mode": "experimental",
     "[twig]": {
         "editor.defaultFormatter": "sohophp.twig-plus",
         "editor.quickSuggestions": {

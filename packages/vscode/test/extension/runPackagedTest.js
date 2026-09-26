@@ -21,6 +21,22 @@ async function main() {
   try {
     execFileSync("unzip", ["-q", path.join(artifactDirectory, vsix), "-d", temporaryDirectory]);
     const extensionDevelopmentPath = path.join(temporaryDirectory, "extension");
+    const phpCompanionVsix = process.env.PHP_COMPANION_VSIX;
+    const phpCompanionSymfonyVsix = process.env.PHP_COMPANION_SYMFONY_VSIX;
+    if (phpCompanionSymfonyVsix && !phpCompanionVsix) throw new Error("PHP_COMPANION_SYMFONY_VSIX requires PHP_COMPANION_VSIX.");
+    const extensionDevelopmentPaths = [extensionDevelopmentPath];
+    if (phpCompanionVsix) {
+      const phpCompanionDirectory = path.join(temporaryDirectory, "php-companion");
+      fs.mkdirSync(phpCompanionDirectory, { recursive: true });
+      execFileSync("unzip", ["-q", path.resolve(phpCompanionVsix), "-d", phpCompanionDirectory]);
+      extensionDevelopmentPaths.push(path.join(phpCompanionDirectory, "extension"));
+    }
+    if (phpCompanionSymfonyVsix) {
+      const symfonyDirectory = path.join(temporaryDirectory, "php-companion-symfony");
+      fs.mkdirSync(symfonyDirectory, { recursive: true });
+      execFileSync("unzip", ["-q", path.resolve(phpCompanionSymfonyVsix), "-d", symfonyDirectory]);
+      extensionDevelopmentPaths.push(path.join(symfonyDirectory, "extension"));
+    }
     const extensionTestsPath = path.join(packageRoot, "test", "extension", "suite", "index.js");
     const reportPath = path.join(temporaryDirectory, "ui-report.json");
     const resultsDirectory = path.join(packageRoot, ".vscode-test-results");
@@ -30,9 +46,9 @@ async function main() {
     const profileRoot = path.join(temporaryDirectory, "vscode-profile");
     await runTests({
       ...(vscodeExecutablePath ? { vscodeExecutablePath } : { version: "1.90.2" }),
-      extensionDevelopmentPath,
+      extensionDevelopmentPath: extensionDevelopmentPaths.length === 1 ? extensionDevelopmentPaths[0] : extensionDevelopmentPaths,
       extensionTestsPath,
-      extensionTestsEnv: { TWIG_PLUS_UI_REPORT: reportPath },
+      extensionTestsEnv: { TWIG_PLUS_UI_REPORT: reportPath, ...(phpCompanionVsix ? { TWIG_PLUS_PHP_INTEROP: "1" } : {}) },
       launchArgs: [
         `--folder-uri=${pathToFileURL(workspacePath).href}`, "--disable-extensions",
         "--disable-gpu", "--disable-workspace-trust", "--skip-welcome", "--skip-release-notes",
@@ -76,10 +92,10 @@ function assertGraphicalSession() {
   if (!display && !process.env.WAYLAND_DISPLAY) {
     throw new Error("No graphical display is available. Run this test under xvfb-run on headless Linux.");
   }
-  const localDisplay = display?.match(/^:(\d+)(?:\.\d+)?$/)?.[1];
-  if (localDisplay && !fs.existsSync(`/tmp/.X11-unix/X${localDisplay}`)) {
-    throw new Error(`DISPLAY=${display} has no X11 socket. Check /tmp/.X11-unix and the Xvfb process.`);
-  }
+  // WSLg exposes /tmp/.X11-unix as a mount-backed symlink while xvfb-run may
+  // publish its local display through the abstract Unix socket namespace.
+  // DISPLAY is the portable launch contract; Electron reports connection
+  // failure authoritatively if the server is not reachable.
 }
 
 function getExistingVsCodeCliPath(packageRoot) {

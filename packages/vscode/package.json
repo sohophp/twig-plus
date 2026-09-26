@@ -2,7 +2,7 @@
   "name": "twig-plus",
   "displayName": "TwigPlus",
   "description": "Twig formatter and editor tooling for VSCode.",
-  "version": "1.3.7",
+  "version": "1.3.8",
   "publisher": "sohophp",
   "icon": "assets/logo.png",
   "license": "MIT",
@@ -33,7 +33,8 @@
     "onLanguage:twig",
     "onCommand:twigPlus.applyRecommendedSettings",
     "onCommand:twigPlus.toggleLineComment",
-    "onCommand:twigPlus.showStatus"
+    "onCommand:twigPlus.showStatus",
+    "onCommand:twigPlus.provideSymfonyRouteRename"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -312,13 +313,13 @@
   },
   "scripts": {
     "build": "node scripts/clean-dist.js && tsc -p tsconfig.json && esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --external:prettier --external:vscode-html-languageservice --external:vscode-languageserver-textdocument --outfile=dist/extension.js && esbuild ../language-server/src/index.ts --bundle --platform=node --format=cjs --external:prettier --external:typescript --outfile=dist/server.js",
-    "test": "vitest run test",
+    "test": "vitest run --dir test",
     "vscode:test": "npm run build && node ./test/extension/runTest.js",
     "vscode:test:min": "npm run build && node ./test/extension/runTest.js 1.90.2",
     "vscode:test:current": "npm run build && node ./test/extension/runTest.js stable",
     "vscode:test:packaged": "node ./test/extension/runPackagedTest.js",
     "prepare-release": "node ./scripts/prepare-release.js",
-    "vscode:prepublish": "npm run prepare-release",
+    "vscode:prepublish": "npm run build && npm run prepare-release",
     "vsce:ls": "npx @vscode/vsce ls --tree",
     "package:vsix": "node ./scripts/package-vsix.js",
     "publish:marketplace": "npx @vscode/vsce publish --no-dependencies"

@@ -6,6 +6,7 @@ It provides:
 
 - incremental document synchronization with versioned AST/semantic caches
 - scope-aware completion, definition, references, and rename
+- bounded PHP/Twig controller-context variable Rename from exact PHP Companion source ranges
 - cross-template macro, import, template, and inherited-block navigation
 - structural and optional unresolved-name diagnostics
 - document symbols and AST/CST-backed selection ranges

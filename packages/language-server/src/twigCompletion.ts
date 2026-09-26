@@ -10,13 +10,33 @@ export const SYMFONY_APP_MEMBERS = [
   "token", "user", "request", "session", "environment", "debug", "locale", "enabled_locales", "flashes",
   "current_route", "current_route_parameters"
 ] as const;
-export interface ProjectTypeMember { name: string; kind: "property" | "method"; type?: string; signature?: string; documentation?: string; }
+export interface ProjectTypeMember { name: string; kind: "property" | "method"; type?: string; signature?: string; documentation?: string; sources?: Array<{ uri: string; line: number; character: number; length?: number }>; }
 export type ProjectTypeIndex = Record<string, { name: string; members: ProjectTypeMember[] }>;
 
 export function resolveProjectMembers(path: string[], globalTypes: Record<string, string>, types: ProjectTypeIndex): ProjectTypeMember[] {
-  let type: string | undefined = globalTypes[path[0]];
-  for (const segment of path.slice(1)) type = type ? types[type]?.members.find((entry) => entry.name === segment)?.type : undefined;
-  return type ? types[type]?.members ?? [] : [];
+  let current = splitTypes(globalTypes[path[0]]);
+  for (const segment of path.slice(1)) {
+    const methodCall = segment.endsWith("()");
+    const name = methodCall ? segment.slice(0, -2) : segment;
+    const members = current.map((type) => types[type]?.members.find((entry) => entry.name === name && (!methodCall || entry.kind === "method")));
+    if (!members.length || members.some((member) => !member?.type)) return [];
+    current = [...new Set(members.flatMap((member) => splitTypes(member!.type)))];
+  }
+  if (!current.length || current.some((type) => !types[type])) return [];
+  const catalogs = current.map((type) => types[type]!.members);
+  return catalogs[0]!.flatMap((member): ProjectTypeMember[] => {
+    const matches = catalogs.map((catalog) => catalog.find((candidate) => candidate.name === member.name && candidate.kind === member.kind));
+    if (matches.some((candidate) => !candidate)) return [];
+    const memberTypes = matches.flatMap((candidate) => splitTypes(candidate!.type));
+    const signatures = [...new Set(matches.map((candidate) => candidate!.signature).filter((value): value is string => Boolean(value)))];
+    const sources = [...new Map(matches.flatMap((candidate) => candidate!.sources ?? []).map((source) => [`${source.uri}:${source.line}:${source.character}`, source])).values()];
+    return [{ ...member, type: memberTypes.length ? [...new Set(memberTypes)].join("|") : undefined, signature: signatures.length === 1 ? signatures[0] : undefined, sources }];
+  });
+}
+
+function splitTypes(type: string | undefined): string[] {
+  if (!type || type === "mixed") return [];
+  return type.split("|").map((item) => item.trim()).filter((item) => item && item !== "null");
 }
 
 export function getTwigExpressionPrefix(source: string, offset: number): string {
@@ -24,7 +44,7 @@ export function getTwigExpressionPrefix(source: string, offset: number): string 
 }
 
 export function getTwigMemberContext(source: string, offset: number): { path: string[]; prefix: string; start: number } | null {
-  const match = source.slice(0, offset).match(/\b([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\.([A-Za-z_][A-Za-z0-9_]*)?$/);
+  const match = source.slice(0, offset).match(/\b([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*(?:\(\))?)*)\.([A-Za-z_][A-Za-z0-9_]*)?$/);
   if (!match) return null;
   const prefix = match[2] ?? "";
   return { path: match[1].split("."), prefix, start: offset - prefix.length };
