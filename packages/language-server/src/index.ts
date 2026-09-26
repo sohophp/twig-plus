@@ -68,9 +68,11 @@ function interopPayload(value: unknown, workspaceFolders: string[]): { projectRo
   const contexts = value.contexts.slice(0, 10_000).flatMap((entry): LoadedControllerContext[] => {
     if (!isRecord(entry) || typeof entry.template !== "string" || typeof entry.complete !== "boolean" || !Array.isArray(entry.variables) || !Array.isArray(entry.sources)) return [];
     const variables: Record<string, string> = {};
+    const optionalVariables: string[] = [];
     const variableSources: NonNullable<LoadedControllerContext["variableSources"]> = {};
     for (const variable of entry.variables.slice(0, 10_000)) if (isRecord(variable) && typeof variable.name === "string") {
       variables[variable.name] = interopTypeName(variable.type);
+      if (variable.optional === true) optionalVariables.push(variable.name);
       if (Array.isArray(variable.sources)) variableSources[variable.name] = variable.sources.slice(0, 10_000).flatMap((source) => isRecord(source)
         && typeof source.uri === "string" && typeof source.line === "number" && typeof source.character === "number"
         ? [{ uri: source.uri, line: Math.max(0, Math.floor(source.line)), character: Math.max(0, Math.floor(source.character)) }] : []);
@@ -80,7 +82,8 @@ function interopPayload(value: unknown, workspaceFolders: string[]): { projectRo
       return location && typeof source.symbol === "string" && typeof location.uri === "string" && typeof location.line === "number"
         ? [{ controller: source.symbol, uri: location.uri, line: Math.max(0, Math.floor(location.line)), character: 0 }] : [];
     });
-    return [{ projectRootUri: projectRoot, template: entry.template, complete: entry.complete, variables, ...(Object.keys(variableSources).length ? { variableSources } : {}), sources }];
+    return [{ projectRootUri: projectRoot, template: entry.template, complete: entry.complete, variables,
+      ...(optionalVariables.length ? { optionalVariables } : {}), ...(Object.keys(variableSources).length ? { variableSources } : {}), sources }];
   });
   const types: LoadedProjectMetadata["types"] = {};
   for (const [name, entry] of Object.entries(value.types).slice(0, 250)) {
@@ -88,7 +91,8 @@ function interopPayload(value: unknown, workspaceFolders: string[]): { projectRo
     types[name] = { name, members: entry.members.slice(0, 10_000).flatMap((member) => {
       if (!isRecord(member) || typeof member.name !== "string" || (member.kind !== "property" && member.kind !== "method")) return [];
       const location = isRecord(member.location) && typeof member.location.uri === "string" && typeof member.location.line === "number"
-        ? [{ uri: member.location.uri, line: Math.max(0, Math.floor(member.location.line)), character: typeof member.location.character === "number" ? Math.max(0, Math.floor(member.location.character)) : 0 }]
+        ? [{ uri: member.location.uri, line: Math.max(0, Math.floor(member.location.line)), character: typeof member.location.character === "number" ? Math.max(0, Math.floor(member.location.character)) : 0,
+          length: typeof member.location.start === "number" && typeof member.location.end === "number" ? Math.max(0, Math.floor(member.location.end - member.location.start)) : undefined }]
         : undefined;
       return [{ name: member.name, kind: member.kind, type: interopTypeName(member.type), signature: typeof member.signature === "string" ? member.signature : undefined, sources: location }];
     }) };
@@ -505,8 +509,10 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const globalSymbols = projectMetadata.globals.filter((name) => name.toLowerCase().includes(expressionPrefix)).map((name) => ({
       label: name, detail: "Project Twig global", sortText: `010_${name.toLowerCase()}`, kind: CompletionItemKind.Variable
     }));
-    const contextSymbols = Object.keys(contextFor(document.uri)?.variables ?? {}).filter((name) => name.toLowerCase().includes(expressionPrefix)).map((name) => ({
-      label: name, detail: "Controller variable", sortText: `001_${name.toLowerCase()}`, kind: CompletionItemKind.Variable
+    const controllerContext = contextFor(document.uri);
+    const contextSymbols = Object.keys(controllerContext?.variables ?? {}).filter((name) => name.toLowerCase().includes(expressionPrefix)).map((name) => ({
+      label: name, detail: `Controller variable${controllerContext?.optionalVariables?.includes(name) ? " (optional)" : ""}: ${controllerContext?.variables[name] ?? "mixed"}`,
+      sortText: `001_${name.toLowerCase()}`, kind: CompletionItemKind.Variable
     }));
     const symfonyGlobals = completionRegistry.permits("symfony-bridge") && "app".includes(expressionPrefix)
       ? [{ label: "app", detail: "Symfony Twig global", sortText: "005_app", kind: CompletionItemKind.Variable }] : [];
@@ -539,6 +545,20 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       const signature = signatureForSymbol(symbol);
       return { contents: { kind: MarkupKind.Markdown, value: `\`\`\`twig\n${signature}\n\`\`\`\nTwig ${symbol.kind}` }, range: toRange(document, word) };
     }
+    const controllerContext = contextFor(document.uri);
+    const memberContext = getTwigMemberContext(document.getText(), word.end);
+    const member = memberContext && memberContext.prefix === word.value && controllerContext
+      ? resolveProjectMembers(memberContext.path, { ...projectMetadata.globalTypes, ...controllerContext.variables }, controllerContext.types ?? projectMetadata.types)
+        .find((item) => item.name === word.value) : undefined;
+    if (member) {
+      const signature = member.signature ? `${member.signature}${member.type && member.type !== "unknown" ? `: ${member.type}` : ""}`
+        : `${member.name}: ${member.type ?? "mixed"}`;
+      return { contents: { kind: MarkupKind.Markdown, value: `\`\`\`twig\n${signature}\n\`\`\`\nController ${member.kind}` }, range: toRange(document, word) };
+    }
+    if (Object.hasOwn(controllerContext?.variables ?? {}, word.value)) {
+      const optional = controllerContext?.optionalVariables?.includes(word.value) ? " (optional)" : "";
+      return { contents: { kind: MarkupKind.Markdown, value: `\`\`\`twig\n${word.value}: ${controllerContext!.variables[word.value]}\n\`\`\`\nController variable${optional}` }, range: toRange(document, word) };
+    }
     const entry = getTwigCatalogEntry(word.value, completionRegistry, undefined, twigVersionFor(document.uri)); if (!entry) return null;
     const heading = entry.signature ?? entry.name;
     return { contents: { kind: MarkupKind.Markdown, value: [`\`\`\`twig\n${heading}\n\`\`\``, entry.detail, entry.documentation].filter(Boolean).join("\n\n") }, range: toRange(document, word) };
@@ -550,6 +570,13 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     const script = await embeddedJavaScript.getSignatureHelp(document.uri, document.version, model.document, offset);
     if (script) return { signatures: [{ label: script.label, documentation: script.documentation, parameters: script.parameters.map((label) => ({ label })) }], activeSignature: 0, activeParameter: script.activeParameter };
     const call = callAt(document.getText(), offset); if (!call) return null;
+    const memberContext = getTwigMemberContext(document.getText(), call.start + call.name.length);
+    const controllerContext = contextFor(document.uri);
+    const projectMethod = memberContext && memberContext.prefix === call.name && controllerContext
+      ? resolveProjectMembers(memberContext.path, { ...projectMetadata.globalTypes, ...controllerContext.variables }, controllerContext.types ?? projectMetadata.types)
+        .find((item) => item.name === call.name && item.kind === "method" && item.signature) : undefined;
+    if (projectMethod?.signature) return { signatures: [{ label: projectMethod.signature, parameters: parametersFromSignature(projectMethod.signature).map((label) => ({ label })) }],
+      activeSignature: 0, activeParameter: Math.min(call.activeParameter, Math.max(0, parametersFromSignature(projectMethod.signature).length - 1)) };
     const visible = model.getVisibleSymbolsAt(offset).find((item) => item.name === call.name && item.kind === "macro");
     const entry = getTwigCatalogEntry(call.name, completionRegistry, ["function", "filter", "test"], twigVersionFor(document.uri));
     let label = visible ? signatureForSymbol(visible) : entry?.signature;
@@ -595,7 +622,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       : undefined;
     if (projectMember?.sources?.length) return projectMember.sources.map((source) => ({
       uri: source.uri,
-      range: { start: { line: source.line, character: source.character }, end: { line: source.line, character: source.character + contextWord!.value.length } }
+      range: { start: { line: source.line, character: source.character }, end: { line: source.line, character: source.character + (source.length ?? contextWord!.value.length) } }
     }));
     const contextSource = contextWord && Object.hasOwn(controllerContext?.variables ?? {}, contextWord.value)
       ? controllerContext?.sources[0] : undefined;

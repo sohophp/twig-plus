@@ -2,7 +2,7 @@
   "name": "twig-plus",
   "displayName": "TwigPlus",
   "description": "Twig formatter and editor tooling for VSCode.",
-  "version": "1.3.7",
+  "version": "1.3.8",
   "publisher": "sohophp",
   "icon": "assets/logo.png",
   "license": "MIT",
@@ -319,7 +319,7 @@
     "vscode:test:current": "npm run build && node ./test/extension/runTest.js stable",
     "vscode:test:packaged": "node ./test/extension/runPackagedTest.js",
     "prepare-release": "node ./scripts/prepare-release.js",
-    "vscode:prepublish": "npm run prepare-release",
+    "vscode:prepublish": "npm run build && npm run prepare-release",
     "vsce:ls": "npx @vscode/vsce ls --tree",
     "package:vsix": "node ./scripts/package-vsix.js",
     "publish:marketplace": "npx @vscode/vsce publish --no-dependencies"

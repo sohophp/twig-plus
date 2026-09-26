@@ -38,7 +38,7 @@ async function run() {
     testBlockDefinition,
     testMacroDefinitions,
     ...(process.env.TWIG_PLUS_PHP_INTEROP === "1" ? [] : [testPhpContextAutomaticRefresh]),
-    ...(process.env.TWIG_PLUS_PHP_INTEROP === "1" ? [testPhpControllerContextRename] : [])
+    ...(process.env.TWIG_PLUS_PHP_INTEROP === "1" ? [testPhpControllerContextRename, testPhpRenderValueTypes] : [])
   ];
 
   const report = { vscodeVersion: vscode.version, expected: tests.length, passed: 0, tests: [] };
@@ -491,6 +491,47 @@ async function testPhpControllerContextRename() {
   await vscode.window.showTextDocument(template);
   await vscode.commands.executeCommand("workbench.action.files.revert");
   await waitFor(() => template.getText().includes("customer.name") && controller.getText().includes("'customer' => $customer"), 10_000);
+}
+
+async function testPhpRenderValueTypes() {
+  const controller = await openWorkspaceDocument("src", "RenderTypeController.php");
+  await vscode.window.showTextDocument(controller);
+  const projectRoot = vscode.workspace.workspaceFolders[0].uri;
+  let payload;
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    payload = await vscode.commands.executeCommand("phpCompanion.provideTwigInterop", projectRoot);
+    const variable = payload?.contexts?.find((context) => context.template === "templates/render-types.html.twig")
+      ?.variables?.find((entry) => entry.name === "person");
+    if (variable?.type?.name === "App\\RenderCustomer" && payload?.types?.["App\\RenderCustomer"]?.members?.length) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  const context = payload?.contexts?.find((entry) => entry.template === "templates/render-types.html.twig");
+  assert.strictEqual(context?.variables?.find((entry) => entry.name === "person")?.type?.name, "App\\RenderCustomer",
+    "SoPHP should infer the local value passed to render()");
+  assert.ok(payload.types["App\\RenderCustomer"].members.some((entry) => entry.name === "getName" && entry.kind === "method"),
+    "SoPHP should expose the public PHP method");
+  assert.ok(payload.types["App\\RenderCustomer"].members.some((entry) => entry.name === "name" && entry.kind === "property"),
+    "SoPHP should expose the Twig getter alias");
+  assert.strictEqual(await vscode.commands.executeCommand("twigPlus._refreshPhpContexts"), true);
+  const template = await openWorkspaceDocument("templates", "render-types.html.twig");
+  await vscode.window.showTextDocument(template);
+  const source = template.getText();
+  const methodCompletion = await getCompletionLabels(template, template.positionAt(source.indexOf("getNa") + 5));
+  assert.ok(methodCompletion.includes("getName"), "TwigPlus should complete the PHP method");
+  const chainedCompletion = await getCompletionLabels(template, template.positionAt(source.indexOf(".na") + 3));
+  assert.ok(chainedCompletion.includes("name"), "TwigPlus should complete a method return member");
+  const methodOffset = source.indexOf("getName()") + 2;
+  const hover = await vscode.commands.executeCommand("vscode.executeHoverProvider", template.uri, template.positionAt(methodOffset));
+  assert.ok(hover?.some((entry) => entry.contents?.some((content) => String(content.value ?? content).includes("getName(): string"))),
+    "TwigPlus hover should show the PHP method return type");
+  const signature = await vscode.commands.executeCommand("vscode.executeSignatureHelpProvider", template.uri,
+    template.positionAt(source.indexOf("getName()") + "getName(".length), "(");
+  assert.ok(signature?.signatures?.some((entry) => entry.label === "getName()"), "TwigPlus should show the PHP method signature");
+  const definition = await getSingleDefinition(template, template.positionAt(methodOffset));
+  const customer = await openWorkspaceDocument("src", "RenderCustomer.php");
+  assert.strictEqual(definition.uri.toString(), customer.uri.toString(), "TwigPlus should navigate to the PHP method");
+  assert.strictEqual(customer.getText(definition.range), "getName", "definition range should select the PHP method name");
 }
 
 async function testPhpContextAutomaticRefresh() {

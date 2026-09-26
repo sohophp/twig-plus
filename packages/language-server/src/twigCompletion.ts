@@ -10,13 +10,15 @@ export const SYMFONY_APP_MEMBERS = [
   "token", "user", "request", "session", "environment", "debug", "locale", "enabled_locales", "flashes",
   "current_route", "current_route_parameters"
 ] as const;
-export interface ProjectTypeMember { name: string; kind: "property" | "method"; type?: string; signature?: string; documentation?: string; sources?: Array<{ uri: string; line: number; character: number }>; }
+export interface ProjectTypeMember { name: string; kind: "property" | "method"; type?: string; signature?: string; documentation?: string; sources?: Array<{ uri: string; line: number; character: number; length?: number }>; }
 export type ProjectTypeIndex = Record<string, { name: string; members: ProjectTypeMember[] }>;
 
 export function resolveProjectMembers(path: string[], globalTypes: Record<string, string>, types: ProjectTypeIndex): ProjectTypeMember[] {
   let current = splitTypes(globalTypes[path[0]]);
   for (const segment of path.slice(1)) {
-    const members = current.map((type) => types[type]?.members.find((entry) => entry.name === segment));
+    const methodCall = segment.endsWith("()");
+    const name = methodCall ? segment.slice(0, -2) : segment;
+    const members = current.map((type) => types[type]?.members.find((entry) => entry.name === name && (!methodCall || entry.kind === "method")));
     if (!members.length || members.some((member) => !member?.type)) return [];
     current = [...new Set(members.flatMap((member) => splitTypes(member!.type)))];
   }
@@ -42,7 +44,7 @@ export function getTwigExpressionPrefix(source: string, offset: number): string 
 }
 
 export function getTwigMemberContext(source: string, offset: number): { path: string[]; prefix: string; start: number } | null {
-  const match = source.slice(0, offset).match(/\b([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\.([A-Za-z_][A-Za-z0-9_]*)?$/);
+  const match = source.slice(0, offset).match(/\b([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*(?:\(\))?)*)\.([A-Za-z_][A-Za-z0-9_]*)?$/);
   if (!match) return null;
   const prefix = match[2] ?? "";
   return { path: match[1].split("."), prefix, start: offset - prefix.length };

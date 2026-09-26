@@ -335,7 +335,7 @@ describe("bundled TwigPlus language server", () => {
     const initialContext = {
       hello: { protocolVersion: 1, providerId: "php-companion", projectId: rootUri, snapshotVersion: "1", capabilities: ["controller-contexts", "php-symbols"] },
       contexts: [{ template: "templates/site/page.html.twig", complete: true, variables: [{ name: "liveOnly", type: { kind: "named", name: "App\\Live" }, optional: false, sources: [{ uri: pathToFileURL(firstController).toString(), start: 9, end: 17, line: 1, character: 3, snapshotVersion: "1" }] }], sources: [{ symbol: "FirstController::live", location: { uri: pathToFileURL(firstController).toString(), start: 0, end: 1, line: 1, snapshotVersion: "1" } }] }],
-      types: { "App\\Live": { name: "App\\Live", members: [{ name: "name", kind: "property", type: { kind: "primitive", name: "string" }, location: { uri: pathToFileURL(firstController).toString(), start: 0, end: 1, line: 7, character: 4, snapshotVersion: "1" } }] } }
+      types: { "App\\Live": { name: "App\\Live", members: [{ name: "name", kind: "property", type: { kind: "primitive", name: "string" }, location: { uri: pathToFileURL(firstController).toString(), start: 0, end: 4, line: 7, character: 4, snapshotVersion: "1" } }] } }
     };
     client.notify("twigPlus/updatePhpContexts", initialContext);
     client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
@@ -377,6 +377,49 @@ describe("bundled TwigPlus language server", () => {
     client.notify("twigPlus/updatePhpContexts", nextContext("2"));
     const nextVersion = await client.request("textDocument/completion", { textDocument: { uri }, position: renamePosition });
     expect(nextVersion.result).toEqual(refreshed.result);
+  });
+
+  it("completes, hovers, and navigates methods from a rendered Controller object", async () => {
+    temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "twig-plus-render-types-"));
+    const templateDirectory = path.join(temporaryDirectory, "templates");
+    await mkdir(templateDirectory);
+    const template = path.join(templateDirectory, "view.html.twig");
+    const source = "{{ customer.getNa }} {{ customer.getProfile().na }} {{ customer.getName() }}";
+    await writeFile(template, source);
+    const rootUri = pathToFileURL(temporaryDirectory).toString();
+    const uri = pathToFileURL(template).toString();
+    const phpUri = pathToFileURL(path.join(temporaryDirectory, "User.php")).toString();
+    const client = startClient();
+    await client.request("initialize", { processId: process.pid, rootUri, capabilities: {}, workspaceFolders: [{ uri: rootUri, name: "fixture" }] });
+    client.notify("initialized", {});
+    client.notify("twigPlus/updatePhpContexts", {
+      hello: { protocolVersion: 1, providerId: "php-companion", projectId: rootUri, snapshotVersion: "1", capabilities: ["controller-contexts", "php-symbols"] },
+      contexts: [{ template: "templates/view.html.twig", complete: true, variables: [{ name: "customer", optional: true,
+        type: { kind: "named", name: "App\\User" }, sources: [] }], sources: [{ symbol: "Controller::show", location: { uri: phpUri, start: 0, end: 1, line: 1, snapshotVersion: "1" } }] }],
+      types: {
+        "App\\User": { name: "App\\User", members: [
+          { name: "name", kind: "property", type: { kind: "primitive", name: "string" }, location: { uri: phpUri, start: 0, end: 7, line: 3, character: 4 } },
+          { name: "getName", kind: "method", type: { kind: "primitive", name: "string" }, signature: "getName()", location: { uri: phpUri, start: 0, end: 7, line: 3, character: 4 } },
+          { name: "getProfile", kind: "method", type: { kind: "named", name: "App\\Profile" }, signature: "getProfile()", location: { uri: phpUri, start: 0, end: 10, line: 4, character: 4 } }
+        ] },
+        "App\\Profile": { name: "App\\Profile", members: [{ name: "name", kind: "property", type: { kind: "primitive", name: "string" }, location: { uri: phpUri, start: 0, end: 4, line: 8, character: 4 } }] }
+      }
+    });
+    client.notify("textDocument/didOpen", { textDocument: { uri, languageId: "twig", version: 1, text: source } });
+    const root = await client.request("textDocument/completion", { textDocument: { uri }, position: positionAt(source, source.indexOf("customer") + 2) });
+    expect(root.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "customer", detail: expect.stringContaining("optional") })]));
+    const method = await client.request("textDocument/completion", { textDocument: { uri }, position: positionAt(source, source.indexOf("getNa") + 5) });
+    expect(method.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "getName", kind: 2 })]));
+    const chained = await client.request("textDocument/completion", { textDocument: { uri }, position: positionAt(source, source.indexOf(".na") + 3) });
+    expect(chained.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "name" })]));
+    const callOffset = source.indexOf("getName()") + "getName(".length;
+    const signature = await client.request("textDocument/signatureHelp", { textDocument: { uri }, position: positionAt(source, callOffset) });
+    expect(signature.result?.signatures?.[0]?.label).toBe("getName()");
+    const methodOffset = source.indexOf("getName()") + 2;
+    const hover = await client.request("textDocument/hover", { textDocument: { uri }, position: positionAt(source, methodOffset) });
+    expect(hover.result?.contents?.value).toContain("getName()");
+    const definition = await client.request("textDocument/definition", { textDocument: { uri }, position: positionAt(source, methodOffset) });
+    expect(definition.result).toEqual([{ uri: phpUri, range: { start: { line: 3, character: 4 }, end: { line: 3, character: 11 } } }]);
   });
 
   it("provides package-aware Symfony metadata v3 references without executing project code", async () => {

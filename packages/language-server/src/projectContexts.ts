@@ -5,9 +5,10 @@ export interface LoadedControllerContext {
   template: string;
   complete: boolean;
   variables: Record<string, string>;
+  optionalVariables?: string[];
   variableSources?: Record<string, LoadedControllerVariableSource[]>;
   sources: LoadedControllerSource[];
-  types?: Record<string, { name: string; members: Array<{ name: string; kind: "property" | "method"; type?: string; signature?: string; documentation?: string; sources?: Array<{ uri: string; line: number; character: number }> }> }>;
+  types?: Record<string, { name: string; members: Array<{ name: string; kind: "property" | "method"; type?: string; signature?: string; documentation?: string; sources?: Array<{ uri: string; line: number; character: number; length?: number }> }> }>;
 }
 
 /** Resolves a template only inside its workspace root, preferring the longest matching path. */
@@ -73,12 +74,14 @@ export function mergeProjectContexts(contexts: LoadedControllerContext[]): Loade
   return [...groups.values()].map((entries) => {
     const names = [...new Set(entries.flatMap((entry) => Object.keys(entry.variables)))].sort();
     const variables = Object.fromEntries(names.map((name) => [name, mergeTypeNames(entries.flatMap((entry) => name in entry.variables ? [entry.variables[name]!] : []))]));
+    const optionalVariables = names.filter((name) => entries.some((entry) => !Object.hasOwn(entry.variables, name) || entry.optionalVariables?.includes(name)));
     const variableSources = Object.fromEntries(names.flatMap((name) => {
       const sources = [...new Map(entries.flatMap((entry) => entry.variableSources?.[name] ?? []).map((source) => [`${source.uri}:${source.line}:${source.character}`, source])).values()];
       return sources.length ? [[name, sources] as const] : [];
     }));
     const sources = [...new Map(entries.flatMap((entry) => entry.sources).map((source) => [`${source.controller}:${source.uri}:${source.line}:${source.character}`, source])).values()];
     const types = Object.assign({}, ...entries.map((entry) => entry.types ?? {}));
-    return { projectRootUri: entries[0]!.projectRootUri, template: entries[0]!.template, complete: entries.every((entry) => entry.complete), variables, ...(Object.keys(variableSources).length ? { variableSources } : {}), sources, types };
+    return { projectRootUri: entries[0]!.projectRootUri, template: entries[0]!.template, complete: entries.every((entry) => entry.complete), variables,
+      ...(optionalVariables.length ? { optionalVariables } : {}), ...(Object.keys(variableSources).length ? { variableSources } : {}), sources, types };
   });
 }

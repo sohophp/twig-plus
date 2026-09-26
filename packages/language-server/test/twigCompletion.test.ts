@@ -9,6 +9,8 @@ describe("Twig completion contexts", () => {
     expect(getTwigMemberContext("{{ dump(app.", 12)).toEqual({ path: ["app"], prefix: "", start: 12 });
     expect(getTwigMemberContext("{{ app.cur", 10)).toEqual({ path: ["app"], prefix: "cur", start: 7 });
     expect(getTwigMemberContext("{{ legacyApp.navigation.he", 26)).toEqual({ path: ["legacyApp", "navigation"], prefix: "he", start: 24 });
+    const chained = "{{ user.getProfile().na";
+    expect(getTwigMemberContext(chained, chained.length)).toEqual({ path: ["user", "getProfile()"], prefix: "na", start: chained.length - 2 });
     expect(SYMFONY_APP_MEMBERS).toEqual(expect.arrayContaining(["user", "request", "current_route"]));
   });
 
@@ -20,6 +22,15 @@ describe("Twig completion contexts", () => {
     expect(resolveProjectMembers(["legacyApp", "navigation"], { legacyApp: "App\\Entity\\App" }, types).map((entry) => entry.name))
       .toEqual(["header", "invalidate"]);
     expect(resolveProjectMembers(["missing"], {}, types)).toEqual([]);
+  });
+  it("follows an explicit method return before completing its members", () => {
+    const types = {
+      "App\\User": { name: "App\\User", members: [{ name: "getProfile", kind: "method" as const, type: "App\\Profile", signature: "getProfile()" }] },
+      "App\\Profile": { name: "App\\Profile", members: [{ name: "name", kind: "property" as const, type: "string" }] }
+    };
+    expect(resolveProjectMembers(["user"], { user: "App\\User" }, types).map((entry) => entry.name)).toContain("getProfile");
+    expect(resolveProjectMembers(["user", "getProfile()"], { user: "App\\User" }, types).map((entry) => entry.name)).toEqual(["name"]);
+    expect(resolveProjectMembers(["user", "missing()"], { user: "App\\User" }, types)).toEqual([]);
   });
   it("offers only members shared by every alternative of a controller Union", () => {
     const types = {
