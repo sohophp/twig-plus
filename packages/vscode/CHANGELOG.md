@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.3.11 - 2026-11-20
+
+- Resize the packaged extension icon to meet the Visual Studio Marketplace upload limit.
+
 ## 1.3.10 - 2026-11-20
 
 - Keep conditional HTML attributes together when wrapping long tags. Formatting a Twig form field now preserves adjacent `required` and `pattern` conditions across repeated passes.
