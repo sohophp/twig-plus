@@ -77,6 +77,40 @@ describe("parseHybridDocument", () => {
     expect(ranges.at(-1)).toEqual({ start: 0, end: source.length });
   });
 
+  it("expands a for-else marker through its own branch before the enclosing loop", () => {
+    const source = [
+      "{% for article in posts %}",
+      "  {% if article.image %}<img src=\"{{ article.image }}\">{% else %}No image{% endif %}",
+      "  <p>Article</p>",
+      "{% else %}",
+      "  <p>Fallback</p>",
+      "{% endfor %}"
+    ].join("\n");
+    const document = parseHybridDocument(source);
+    const outerElse = source.lastIndexOf("{% else %}");
+    const selections = collectHybridSelectionRanges(document, outerElse + 5)
+      .map((range) => source.slice(range.start, range.end));
+    expect(selections).toContain("{% else %}\n  <p>Fallback</p>");
+    expect(selections).toContain(source);
+    expect(selections.indexOf("{% else %}\n  <p>Fallback</p>"))
+      .toBeLessThan(selections.indexOf(source));
+    const firstBranchSelections = collectHybridSelectionRanges(document, source.indexOf("<p>Article") + 4)
+      .map((range) => source.slice(range.start, range.end));
+    expect(firstBranchSelections).toContain(
+      "{% if article.image %}<img src=\"{{ article.image }}\">{% else %}No image{% endif %}\n  <p>Article</p>"
+    );
+  });
+
+  it("keeps selection ranges nested at expression token boundaries", () => {
+    const source = "{{ (banner.image) }}";
+    const ranges = collectHybridSelectionRanges(parseHybridDocument(source), source.indexOf("banner"));
+    for (let index = 1; index < ranges.length; index += 1) {
+      expect(ranges[index].start).toBeLessThanOrEqual(ranges[index - 1].start);
+      expect(ranges[index].end).toBeGreaterThanOrEqual(ranges[index - 1].end);
+    }
+    expect(ranges.map((range) => source.slice(range.start, range.end))).toContain(source);
+  });
+
   it("does not misclassify Twig tags as HTML tags during editor queries", () => {
     const source = `{% if user %}<div class="">{{ user }}</div>{% endif %}`;
     const document = parseHybridDocument(source);

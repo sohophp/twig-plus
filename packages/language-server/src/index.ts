@@ -75,7 +75,9 @@ function interopPayload(value: unknown, workspaceFolders: string[]): { projectRo
       if (variable.optional === true) optionalVariables.push(variable.name);
       if (Array.isArray(variable.sources)) variableSources[variable.name] = variable.sources.slice(0, 10_000).flatMap((source) => isRecord(source)
         && typeof source.uri === "string" && typeof source.line === "number" && typeof source.character === "number"
-        ? [{ uri: source.uri, line: Math.max(0, Math.floor(source.line)), character: Math.max(0, Math.floor(source.character)) }] : []);
+        ? [{ uri: source.uri, line: Math.max(0, Math.floor(source.line)), character: Math.max(0, Math.floor(source.character)),
+          ...(typeof source.start === "number" && typeof source.end === "number" && source.end > source.start
+            ? { length: Math.floor(source.end - source.start) } : {}) }] : []);
     }
     const sources = entry.sources.slice(0, 10_000).flatMap((source): LoadedControllerContext["sources"] => {
       const location = isRecord(source) && isRecord(source.location) ? source.location : null;
@@ -157,7 +159,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   let contextIndex = new ProjectContextIndex([]);
   let supportsConfiguration = false;
   let workspaceModelCache: ReturnType<typeof createWorkspaceModel> | null = null;
-  let templateNamespaces: TemplateNamespaces = {};
+  let templateNamespacesByRoot = new Map<string, TemplateNamespaces>();
   let indexGeneration = 0;
   let formatRequestSequence = 0;
   const activeFormatRequests = new Map<string, AbortController>();
@@ -170,6 +172,25 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     mode === "on" || (mode === "auto" && completionRegistry.permits("symfony-bridge") && completionRegistry.hasAnyPackage(requiredSymfonyPackages(kind)));
   const twigVersionFor = (uri: string) => settingsFor(uri).twig?.version ?? projectMetadata.twigVersion ?? composerTwigVersion;
   const contextFor = (uri: string) => contextIndex.get(uri);
+  const namespaceFor = (uri: string): TemplateNamespaces => templateNamespacesByRoot.get(workspaceRootFor(uri, workspaceFolders) ?? "") ?? {};
+  const rebuildContextIndex = () => {
+    const previous = contextIndex;
+    const templatesByRoot = new Map(workspaceFolders.map((rootUri) => [rootUri, [] as string[]]));
+    for (const uri of indexedDocuments.keys()) {
+      const root = workspaceRootFor(uri, workspaceFolders);
+      if (!root) continue;
+      try { templatesByRoot.get(root)!.push(decodeURIComponent(uri.slice(root.replace(/\/$/, "").length + 1))); }
+      catch { /* Invalid encoded template URI. */ }
+    }
+    contextIndex = new ProjectContextIndex(projectMetadata.contexts, workspaceFolders.map((rootUri) => ({
+      rootUri, templates: templatesByRoot.get(rootUri)!, roots: settingsFor(rootUri).templates?.roots,
+      namespaces: templateNamespacesByRoot.get(rootUri)
+    })));
+    for (const document of documents.all()) if (JSON.stringify(previous.get(document.uri)) !== JSON.stringify(contextIndex.get(document.uri))) {
+      cache.delete(document.uri);
+      scheduleDiagnostics(document, 0);
+    }
+  };
 
   const modelFor = (document: TextDocument): DocumentModel | null => {
     if (document.getText().length > MAX_DOCUMENT_LENGTH) return null;
@@ -189,18 +210,18 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
   };
   const workspaceFor = () => workspaceModelCache ??= createWorkspaceModel(
     [...indexedDocuments.entries()].map(([uri, source]) => ({ uri, source })),
-    options.resolveTemplate ?? ((from, reference) => resolveWorkspaceTemplate(from, reference, workspaceFolders, indexedDocuments, settingsFor(from).templates?.roots, templateNamespaces))
+    options.resolveTemplate ?? ((from, reference) => resolveWorkspaceTemplate(from, reference, workspaceFolders, indexedDocuments, settingsFor(from).templates?.roots, namespaceFor(from)))
   );
   const refreshIndex = async () => {
     const generation = ++indexGeneration;
     const discoveredNamespaces = await readSymfonyTemplateNamespaces(workspaceFolders);
     const disk = await readWorkspaceIndex(workspaceFolders, (folder) => [
       ...(settingsFor(folder).templates?.roots?.length ? settingsFor(folder).templates!.roots! : DEFAULT_TEMPLATE_ROOTS),
-      ...Object.values(discoveredNamespaces).flat()
+      ...Object.values(discoveredNamespaces.get(folder) ?? {}).flat()
     ]);
     if (generation !== indexGeneration) return;
     indexedDocuments.clear();
-    templateNamespaces = discoveredNamespaces;
+    templateNamespacesByRoot = discoveredNamespaces;
     for (const [uri, source] of disk) indexedDocuments.set(uri, source);
     for (const document of documents.all()) {
       if (document.getText().length <= MAX_DOCUMENT_LENGTH) indexedDocuments.set(document.uri, document.getText());
@@ -210,7 +231,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     diskContexts = projectMetadata.contexts;
     diskTypes = projectMetadata.types;
     projectMetadata.contexts = mergeProjectContexts([...diskContexts, ...[...liveContextsByRoot.values()].flat()]);
-    contextIndex = new ProjectContextIndex(projectMetadata.contexts);
+    rebuildContextIndex();
     projectMetadata.types = Object.assign({}, diskTypes, ...liveTypesByRoot.values());
     completionRegistry.replaceProject(projectMetadata.completions);
     const composer = await readComposerEnvironment(workspaceFolders);
@@ -234,13 +255,14 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       if (!uri.startsWith("file:")) { indexedDocuments.delete(uri); continue; }
       try {
         const file = fileURLToPath(uri);
-        if (!isInTemplateRoots(file, workspaceFolders, settingsFor(uri).templates?.roots)) { indexedDocuments.delete(uri); continue; }
+        if (!isInTemplateRoots(file, workspaceFolders, [...(settingsFor(uri).templates?.roots ?? DEFAULT_TEMPLATE_ROOTS), ...Object.values(namespaceFor(uri)).flat()])) { indexedDocuments.delete(uri); continue; }
         if ((await stat(file)).size <= MAX_INDEXED_FILE_BYTES) indexedDocuments.set(uri, await readFile(file, "utf8"));
         else indexedDocuments.delete(uri);
       }
       catch { indexedDocuments.delete(uri); }
     }
     workspaceModelCache = null;
+    rebuildContextIndex();
   };
   const scheduleWorkspace = (task: () => Promise<void>) => {
     workspaceQueue = workspaceQueue
@@ -307,7 +329,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     liveTypesByRoot.set(loaded.projectRoot, loaded.types);
     livePayloadFingerprints.set(loaded.projectRoot, fingerprint);
     projectMetadata.contexts = mergeProjectContexts([...diskContexts, ...[...liveContextsByRoot.values()].flat()]);
-    contextIndex = new ProjectContextIndex(projectMetadata.contexts);
+    rebuildContextIndex();
     projectMetadata.types = Object.assign({}, diskTypes, ...liveTypesByRoot.values());
     const typesChanged = previousTypes !== JSON.stringify(loaded.types);
     const open = documents.all();
@@ -353,7 +375,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       document.version,
       model.document
     );
-    const syntaxDiagnostics = analyzeHybridDiagnostics(model.document, workspaceContext.paths, workspaceContext.current, roots, templateNamespaces);
+    const syntaxDiagnostics = analyzeHybridDiagnostics(model.document, workspaceContext.paths, workspaceContext.current, roots, namespaceFor(document.uri));
     const symfonyMode = documentSettings.symfony?.reference ?? "auto";
     const symfonyDiagnostics = collectSymfonyReferences(document.getText()).filter((reference) =>
       projectMetadata.referenceCatalogsComplete.has(reference.kind)
@@ -425,8 +447,8 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     }));
   }
   republishDiagnostics = () => { for (const document of documents.all()) scheduleDiagnostics(document, 0); };
-  documents.onDidOpen((event) => { updateOpenDocumentIndex(event.document, indexedDocuments); workspaceModelCache = null; scheduleDiagnostics(event.document, 0); void refreshResourceSettings(event.document); });
-  documents.onDidChangeContent((event) => { cache.delete(event.document.uri); embeddedJavaScript.delete(event.document.uri); updateOpenDocumentIndex(event.document, indexedDocuments); workspaceModelCache = null; scheduleDiagnostics(event.document); });
+  documents.onDidOpen((event) => { const existed = indexedDocuments.has(event.document.uri); updateOpenDocumentIndex(event.document, indexedDocuments); if (!existed) rebuildContextIndex(); workspaceModelCache = null; scheduleDiagnostics(event.document, 0); void refreshResourceSettings(event.document); });
+  documents.onDidChangeContent((event) => { cache.delete(event.document.uri); embeddedJavaScript.delete(event.document.uri); const existed = indexedDocuments.has(event.document.uri); updateOpenDocumentIndex(event.document, indexedDocuments); if (existed !== indexedDocuments.has(event.document.uri)) rebuildContextIndex(); workspaceModelCache = null; scheduleDiagnostics(event.document); });
   documents.onDidClose((event) => {
     cache.delete(event.document.uri); embeddedJavaScript.delete(event.document.uri);
     const timer = diagnosticTimers.get(event.document.uri); if (timer) clearTimeout(timer);
@@ -464,7 +486,7 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
       const workspaceContext = getWorkspaceContext(document.uri, workspaceFolders, indexedDocuments);
       const documentSettings = settingsFor(document.uri);
       const roots = documentSettings.templates?.roots?.length ? documentSettings.templates.roots : DEFAULT_TEMPLATE_ROOTS;
-      const candidates = collectTemplateCompletionCandidates(workspaceContext.paths, templateMatch.prefix, workspaceContext.current, roots, templateNamespaces);
+      const candidates = collectTemplateCompletionCandidates(workspaceContext.paths, templateMatch.prefix, workspaceContext.current, roots, namespaceFor(document.uri));
       const range = { start: document.positionAt(offset - templateMatch.prefix.length), end: params.position };
       const result = candidates.map((label) => ({ label, detail: "Twig template", kind: CompletionItemKind.File, textEdit: TextEdit.replace(range, label) }));
       connection.console.info(`[completion] template ${result.length} items ${(performance.now() - completionStarted).toFixed(1)}ms`);
@@ -615,17 +637,34 @@ export function startLanguageServer(options: TwigPlusServerOptions = {}): void {
     }
     const contextWord = wordAt(document.getText(), offset);
     const controllerContext = contextFor(document.uri);
-    const memberContext = contextWord && getTwigMemberContext(document.getText(), contextWord.end);
-    const projectMember = memberContext && controllerContext
+    const contextReference = model.getReferenceAt(offset);
+    const memberContext = contextWord && (contextReference?.role === "member" || contextReference?.role === "function-call") && contextReference.name === contextWord.value
+      ? getTwigMemberContext(document.getText(), contextWord.end) : null;
+    // A member token alone does not prove that its receiver is the PHP context
+    // variable: local Twig declarations may shadow the same root name.
+    const receiverReference = memberContext
+      ? model.getReferenceAt(memberContext.start - memberContext.path.join(".").length - 1) : null;
+    const projectMember = memberContext && controllerContext && receiverReference?.role === "variable-read"
+      && !receiverReference.resolvedSymbolId
       ? resolveProjectMembers(memberContext.path, { ...projectMetadata.globalTypes, ...controllerContext.variables }, controllerContext.types ?? projectMetadata.types)
-        .find((member) => member.name === contextWord.value)
+        .find((member) => member.name === contextWord?.value)
       : undefined;
     if (projectMember?.sources?.length) return projectMember.sources.map((source) => ({
       uri: source.uri,
       range: { start: { line: source.line, character: source.character }, end: { line: source.line, character: source.character + (source.length ?? contextWord!.value.length) } }
     }));
-    const contextSource = contextWord && Object.hasOwn(controllerContext?.variables ?? {}, contextWord.value)
-      ? controllerContext?.sources[0] : undefined;
+    const contextVariable = contextWord && contextReference?.role === "variable-read" && !contextReference.resolvedSymbolId
+      && Object.hasOwn(controllerContext?.variables ?? {}, contextWord.value) ? contextWord.value : undefined;
+    const variableSources = contextVariable ? controllerContext?.variableSources?.[contextVariable] ?? [] : [];
+    if (variableSources.length) {
+      const definitions = variableSources.map((source) => ({
+        uri: source.uri,
+        range: { start: { line: source.line, character: source.character },
+          end: { line: source.line, character: source.character + (source.length ?? contextVariable!.length) } }
+      }));
+      return definitions.length === 1 ? definitions[0]! : definitions;
+    }
+    const contextSource = contextVariable ? controllerContext?.sources[0] : undefined;
     if (contextSource) return {
       uri: contextSource.uri,
       range: { start: { line: contextSource.line, character: contextSource.character }, end: { line: contextSource.line, character: contextSource.character } }
@@ -891,6 +930,11 @@ function resolveRelativeTemplate(fromUri: string, reference: string): string | n
   try { return new URL(reference, fromUri).toString(); } catch { return null; }
 }
 
+function workspaceRootFor(uri: string, folders: string[]): string | undefined {
+  return folders.filter((folder) => uri === folder || uri.startsWith(`${folder.replace(/\/$/, "")}/`))
+    .sort((a, b) => b.length - a.length)[0];
+}
+
 function workspacePathForUri(uri: string): string | undefined {
   try {
     if (uri.startsWith("file:")) return fileURLToPath(uri);
@@ -908,10 +952,10 @@ function workspaceUriForPath(rootUri: string, rootPath: string, file: string): s
 function resolveWorkspaceTemplate(fromUri: string, reference: string, folders: string[], indexed: Map<string, string>, roots?: string[], namespaces: TemplateNamespaces = {}): string | null {
   if (!fromUri.startsWith("file:")) return resolveRelativeTemplate(fromUri, reference);
   const fromPath = fileURLToPath(fromUri);
-  for (const folderUri of folders.filter((uri) => uri.startsWith("file:"))) {
+  for (const folderUri of folders.filter((uri) => uri === workspaceRootFor(fromUri, folders) && uri.startsWith("file:"))) {
     const root = fileURLToPath(folderUri);
     if (!fromPath.startsWith(root + path.sep) && fromPath !== root) continue;
-    const workspacePaths = [...indexed.keys()].filter((uri) => uri.startsWith("file:")).map((uri) => path.relative(root, fileURLToPath(uri)).replaceAll(path.sep, "/")).filter((item) => !item.startsWith(".."));
+    const workspacePaths = [...indexed.keys()].filter((uri) => uri.startsWith("file:") && workspaceRootFor(uri, folders) === folderUri).map((uri) => path.relative(root, fileURLToPath(uri)).replaceAll(path.sep, "/")).filter((item) => !item.startsWith(".."));
     const current = path.relative(root, fromPath).replaceAll(path.sep, "/");
     const resolved = resolveTemplateWorkspacePath(workspacePaths, reference, current, roots?.length ? roots : DEFAULT_TEMPLATE_ROOTS, namespaces);
     return resolved ? pathToFileURL(path.join(root, resolved)).toString() : null;
@@ -920,10 +964,12 @@ function resolveWorkspaceTemplate(fromUri: string, reference: string, folders: s
 }
 
 const SYMFONY_TWIG_CONFIGS = ["config/packages/twig.yaml", "config/packages/twig.yml", "config/symfony/packages/twig.yaml", "config/symfony/packages/twig.yml"];
-async function readSymfonyTemplateNamespaces(folders: string[]): Promise<TemplateNamespaces> {
-  const result: TemplateNamespaces = {};
+async function readSymfonyTemplateNamespaces(folders: string[]): Promise<Map<string, TemplateNamespaces>> {
+  const byRoot = new Map<string, TemplateNamespaces>();
   for (const folderUri of folders.filter((item) => item.startsWith("file:"))) {
     const workspaceRoot = fileURLToPath(folderUri);
+    const result: TemplateNamespaces = {};
+    byRoot.set(folderUri, result);
     for (const relativeConfig of SYMFONY_TWIG_CONFIGS) {
       try {
         const configFile = path.join(workspaceRoot, relativeConfig);
@@ -940,8 +986,8 @@ async function readSymfonyTemplateNamespaces(folders: string[]): Promise<Templat
       } catch { /* conventional Symfony Twig config is optional */ }
     }
   }
-  for (const [namespace, roots] of Object.entries(result)) result[namespace] = [...new Set(roots)];
-  return result;
+  for (const result of byRoot.values()) for (const [namespace, roots] of Object.entries(result)) result[namespace] = [...new Set(roots)];
+  return byRoot;
 }
 
 async function readWorkspaceIndex(folders: string[], rootsFor?: (folderUri: string) => string[] | undefined): Promise<Map<string, string>> {
@@ -1189,11 +1235,11 @@ async function runWithConcurrency<T>(items: T[], limit: number, run: (item: T) =
 function getWorkspaceContext(uri: string, folders: string[], indexed: Map<string, string>): { paths: string[]; current?: string } {
   if (!uri.startsWith("file:")) return { paths: [] };
   const file = fileURLToPath(uri);
-  for (const folderUri of folders.filter((item) => item.startsWith("file:"))) {
+  for (const folderUri of folders.filter((item) => item === workspaceRootFor(uri, folders) && item.startsWith("file:"))) {
     const root = fileURLToPath(folderUri);
     if (!file.startsWith(root + path.sep) && file !== root) continue;
     return {
-      paths: [...indexed.keys()].filter((item) => item.startsWith("file:")).map((item) => path.relative(root, fileURLToPath(item)).replaceAll(path.sep, "/")).filter((item) => !item.startsWith("..")),
+      paths: [...indexed.keys()].filter((item) => item.startsWith("file:") && workspaceRootFor(item, folders) === folderUri).map((item) => path.relative(root, fileURLToPath(item)).replaceAll(path.sep, "/")).filter((item) => !item.startsWith("..")),
       current: path.relative(root, file).replaceAll(path.sep, "/")
     };
   }

@@ -114,6 +114,20 @@ describe("vscode integration helpers", () => {
     ).toContain("<span>{{ user.name }}</span>");
   });
 
+  it("expands a for-else marker to its branch and then the whole loop", () => {
+    const source = [
+      "{% for article in solutionPage.solutionBlogPosts %}",
+      "  <p>{{ article.title }}</p>",
+      "{% else %}",
+      "  <p>Fallback</p>",
+      "{% endfor %}"
+    ].join("\n");
+    const selections = getSelectionRangesForIntegration(source, source.indexOf("{% else %}") + 5);
+    const branch = "{% else %}\n  <p>Fallback</p>";
+    expect(selections).toContain(branch);
+    expect(selections.indexOf(branch)).toBeLessThan(selections.indexOf(source));
+  });
+
   it("resolves same-directory template references for local includes", () => {
     expect(
       resolveTemplatePathForIntegration(
