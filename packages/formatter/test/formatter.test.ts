@@ -46,6 +46,17 @@ describe("formatTwigDocument fixtures", () => {
     expect(actual).toBe(`<div>\n  <p>First\n  <p>Second\n  <div>Block</div>\n</div>\n{% include 'footer.twig' %}\n<side>\n  <div>Feedback</div>\n</side>`);
   });
 
+  it("wraps ordinary attributes without splitting adjacent Twig conditionals", async () => {
+    const tail = 'value="{{ item.value }}"{% if item.required %} required{% endif %}{% if item.pattern %} pattern="{{ item.pattern }}"{% endif %}';
+    const source = `<input class="form-ctrl" name="field" ${tail}>`;
+    const expected = `<input\n  class="form-ctrl"\n  name="field"\n  ${tail}>`;
+    let formatted = source;
+    for (let pass = 0; pass < 3; pass++) {
+      formatted = await formatTwig(formatted, getDefaultOptions());
+      expect(formatted).toBe(expected);
+    }
+  });
+
   for (const fixtureName of fixtureNames) {
     it(fixtureName, async () => {
       const input = readFixture("input", fixtureName);

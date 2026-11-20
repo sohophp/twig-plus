@@ -958,6 +958,13 @@ function splitAttributes(source: string): string[] {
       continue;
     }
 
+    // Keep dynamic attribute lists together, including any adjoining literal.
+    // Inserting a newline inside a conditional would change its rendered text.
+    if (char === "{" && ["%", "{", "#"].includes(source[index + 1])) {
+      current += source.slice(index);
+      break;
+    }
+
     if (/\s/.test(char)) {
       if (current) {
         attributes.push(current);
