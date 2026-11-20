@@ -448,7 +448,7 @@ function toRelativePath(fromDir: string, toPath: string): string {
   return relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
 }
 
-function sortWorkspaceTemplatePaths(
+export function sortWorkspaceTemplatePaths(
   paths: string[],
   templateRoots: string[] = DEFAULT_TEMPLATE_ROOTS
 ): string[] {

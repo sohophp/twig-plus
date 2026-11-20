@@ -8,6 +8,8 @@ async function run() {
 
   const tests = [
     testTwigPlusCommandsRegistered,
+    testForElseExpandSelection,
+    testExpressionBoundaryExpandSelection,
     testToggleIndividuallyWrappedTwigComments,
     testTwigDelimiterTyping,
     testTypingTwigTagOffersBlock,
@@ -78,6 +80,47 @@ async function testTwigPlusCommandsRegistered() {
   assert.ok(commands.includes("twigPlus.toggleLineComment"), "Twig line comment command should be registered");
 }
 
+async function testForElseExpandSelection() {
+  const source = [
+    "{% for article in solutionPage.solutionBlogPosts %}",
+    "  <p>{{ article.title }}</p>",
+    "{% else %}",
+    "  <p>Fallback</p>",
+    "{% endfor %}"
+  ].join("\n");
+  const branch = "{% else %}\n  <p>Fallback</p>";
+  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
+  const editor = await vscode.window.showTextDocument(document);
+  const position = document.positionAt(source.indexOf("{% else %}") + 5);
+  editor.selection = new vscode.Selection(position, position);
+  const selections = [];
+  for (let index = 0; index < 15; index += 1) {
+    await vscode.commands.executeCommand("editor.action.smartSelect.expand");
+    selections.push(document.getText(editor.selection));
+    if (selections.at(-1) === source) break;
+  }
+  assert.ok(selections.includes(branch), "Expand Selection should select the for-else branch");
+  assert.ok(selections.includes(source), "Expand Selection should reach the enclosing for block");
+  assert.ok(selections.indexOf(branch) < selections.indexOf(source));
+}
+
+async function testExpressionBoundaryExpandSelection() {
+  const source = "{{ (banner.image) }}";
+  const document = await vscode.workspace.openTextDocument({ language: "twig", content: source });
+  const editor = await vscode.window.showTextDocument(document);
+  const position = document.positionAt(source.indexOf("banner"));
+  editor.selection = new vscode.Selection(position, position);
+  let reachedExpression = false;
+  for (let index = 0; index < 8; index += 1) {
+    await vscode.commands.executeCommand("editor.action.smartSelect.expand");
+    if (document.getText(editor.selection) === source) {
+      reachedExpression = true;
+      break;
+    }
+  }
+  assert.ok(reachedExpression, "Expand Selection should work at a Twig expression boundary");
+}
+
 async function testToggleIndividuallyWrappedTwigComments() {
   const source = [
     '{# <style id="rootStyle"> #}',
@@ -114,6 +157,9 @@ async function openHomeDocument() {
   const extension = vscode.extensions.getExtension("sohophp.twig-plus");
   assert.ok(extension, "TwigPlus extension should be available");
   await extension.activate();
+  // Activation starts the language client in the background. This command is
+  // registered after the client's language providers are ready.
+  await waitFor(async () => (await vscode.commands.getCommands()).includes("twigPlus._refreshPhpContexts"), 10_000);
 }
 
 async function testDeleteInsideTwigTag() {
@@ -967,7 +1013,7 @@ function applyTextEdits(document, edits) {
 
 async function waitFor(predicate, timeout = 3000) {
   const started = Date.now();
-  while (!predicate()) {
+  while (!(await predicate())) {
     if (Date.now() - started > timeout) throw new Error("timed out waiting for editor update");
     await new Promise((resolve) => setTimeout(resolve, 10));
   }

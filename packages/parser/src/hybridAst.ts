@@ -431,12 +431,33 @@ export function collectHybridSelectionRanges(document: HybridDocument, offset: n
     if (offset >= structure.openEnd && offset <= structure.closeStart) {
       const body = trimRange(document.source, { start: structure.openEnd, end: structure.closeStart }); if (body) candidates.push(body);
     }
+    if (structure.kind === "TwigControlBlock" && structure.branches.length > 0) {
+      const firstEnd = structure.branches[0].markerStart;
+      if (offset >= structure.openEnd && offset < firstEnd) {
+        const firstBody = trimRange(document.source, { start: structure.openEnd, end: firstEnd });
+        if (firstBody) candidates.push(firstBody);
+      }
+      for (const branch of structure.branches) {
+        if (offset < branch.markerStart || offset >= branch.end) continue;
+        if (offset >= branch.start) {
+          const branchBody = trimRange(document.source, { start: branch.start, end: branch.end });
+          if (branchBody) candidates.push(branchBody);
+        }
+        const markedBranch = trimRange(document.source, { start: branch.markerStart, end: branch.end });
+        if (markedBranch) candidates.push(markedBranch);
+      }
+    }
     candidates.push(structure);
   }
   candidates.push({ start: 0, end: document.end });
-  return candidates.filter((range, index, all) => range.start <= offset && range.end >= offset && all.findIndex((item) => item.start === range.start && item.end === range.end) === index)
-    .sort((left, right) => (left.end - left.start) - (right.end - right.start))
-    .filter((range, index, all) => index === 0 || (range.start <= all[index - 1].start && range.end >= all[index - 1].end));
+  const ordered = candidates.filter((range, index, all) => range.start <= offset && range.end >= offset && all.findIndex((item) => item.start === range.start && item.end === range.end) === index)
+    .sort((left, right) => (left.end - left.start) - (right.end - right.start));
+  const nested: SourceRange[] = [];
+  for (const range of ordered) {
+    const previous = nested.at(-1);
+    if (!previous || (range.start <= previous.start && range.end >= previous.end)) nested.push(range);
+  }
+  return nested;
 }
 
 function findTwigNodeAtOffset(document: HybridDocument, offset: number): TwigNode | null {

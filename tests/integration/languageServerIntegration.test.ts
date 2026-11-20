@@ -344,7 +344,7 @@ describe("bundled TwigPlus language server", () => {
     const completion = await client.request("textDocument/completion", { textDocument: { uri }, position: positionAt(source, source.indexOf("name") + 2) });
     expect(completion.result).toEqual(expect.arrayContaining([expect.objectContaining({ label: "name" })]));
     const definition = await client.request("textDocument/definition", { textDocument: { uri }, position: positionAt(source, source.indexOf("liveOnly") + 2) });
-    expect(definition.result).toMatchObject({ uri: pathToFileURL(firstController).toString(), range: { start: { line: 1, character: 0 } } });
+    expect(definition.result).toEqual({ uri: pathToFileURL(firstController).toString(), range: { start: { line: 1, character: 3 }, end: { line: 1, character: 11 } } });
     const memberDefinition = await client.request("textDocument/definition", { textDocument: { uri }, position: positionAt(source, source.indexOf("name") + 2) });
     expect(memberDefinition.result).toEqual([expect.objectContaining({
       uri: pathToFileURL(firstController).toString(),
