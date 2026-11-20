@@ -6,6 +6,7 @@
 
 - Navigate from Twig variables to precise PHP controller `render()` keys while respecting local Twig scopes and semantic reference roles.
 - Resolve PHP controller context for namespaced Twig templates, including configured roots and Symfony bundle aliases. Refresh affected contexts when template mappings or files change, and isolate nested workspace roots.
+- Expand Selection now includes Twig control-flow branches and handles cursor positions at expression boundaries.
 
 ## 1.3.11 - 2026-11-20
 

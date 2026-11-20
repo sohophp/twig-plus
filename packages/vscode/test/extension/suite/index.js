@@ -157,6 +157,9 @@ async function openHomeDocument() {
   const extension = vscode.extensions.getExtension("sohophp.twig-plus");
   assert.ok(extension, "TwigPlus extension should be available");
   await extension.activate();
+  // Activation starts the language client in the background. This command is
+  // registered after the client's language providers are ready.
+  await waitFor(async () => (await vscode.commands.getCommands()).includes("twigPlus._refreshPhpContexts"), 10_000);
 }
 
 async function testDeleteInsideTwigTag() {
@@ -1010,7 +1013,7 @@ function applyTextEdits(document, edits) {
 
 async function waitFor(predicate, timeout = 3000) {
   const started = Date.now();
-  while (!predicate()) {
+  while (!(await predicate())) {
     if (Date.now() - started > timeout) throw new Error("timed out waiting for editor update");
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
