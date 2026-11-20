@@ -8,6 +8,11 @@ const outputDirectory = path.join(workspaceRoot, "artifacts", "vsix");
 const manifest = require(path.join(packageRoot, "package.json"));
 const outputPath = path.join(outputDirectory, `${manifest.name}-${manifest.version}.vsix`);
 
+const iconSize = fs.statSync(path.join(packageRoot, manifest.icon)).size;
+if (iconSize > 1024 * 1024) {
+  throw new Error(`Marketplace icon exceeds 1024 KB: ${manifest.icon} (${iconSize} bytes).`);
+}
+
 fs.mkdirSync(outputDirectory, { recursive: true });
 
 const command = process.platform === "win32" ? "npx.cmd" : "npx";
