@@ -230,16 +230,8 @@
         "twigPlus.symfony.reference": {
           "type": "string",
           "scope": "resource",
-          "enum": [
-            "auto",
-            "on",
-            "off"
-          ],
-          "enumDescriptions": [
-            "Enable when Symfony Twig Bundle or Bridge is detected in static Composer/metadata files.",
-            "Enable Symfony reference features for this resource.",
-            "Disable Symfony reference features."
-          ],
+          "enum": ["auto", "on", "off"],
+          "enumDescriptions": ["Enable when Symfony Twig Bundle or Bridge is detected in static Composer/metadata files.", "Enable Symfony reference features for this resource.", "Disable Symfony reference features."],
           "default": "auto",
           "description": "Enable package-aware Symfony route, asset, and translation references from static metadata. TwigPlus never executes workspace PHP."
         },
@@ -253,11 +245,7 @@
         "twigPlus.diagnostics.unresolvedNameMode": {
           "type": "string",
           "scope": "resource",
-          "enum": [
-            "safe",
-            "strict",
-            "off"
-          ],
+          "enum": ["safe", "strict", "off"],
           "default": "safe",
           "description": "Control unresolved Twig diagnostics. Safe only reports application names when authoritative project metadata is available; strict reports every unknown name; off disables these diagnostics."
         },
@@ -280,16 +268,8 @@
         "twigPlus.editing.htmlTagClosing": {
           "type": "string",
           "scope": "resource",
-          "enum": [
-            "onType",
-            "onEnter",
-            "off"
-          ],
-          "enumDescriptions": [
-            "Atomically type > and its closing tag when the Hybrid model proves the opening tag is safe.",
-            "Only expand a complete opening tag when Enter is pressed.",
-            "Disable TwigPlus HTML tag closing."
-          ],
+          "enum": ["onType", "onEnter", "off"],
+          "enumDescriptions": ["Atomically type > and its closing tag when the Hybrid model proves the opening tag is safe.", "Only expand a complete opening tag when Enter is pressed.", "Disable TwigPlus HTML tag closing."],
           "default": "onType",
           "description": "Choose how TwigPlus closes complete non-void HTML tags. On-type handling immediately delegates to native typing unless a single atomic closing edit is provably safe."
         },
