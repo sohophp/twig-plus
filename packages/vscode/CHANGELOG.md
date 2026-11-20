@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.3.10 - 2026-11-20
+
+- Keep conditional HTML attributes together when wrapping long tags. Formatting a Twig form field now preserves adjacent `required` and `pattern` conditions across repeated passes.
+
 ## 1.3.8 - 2026-09-26
 
 - Recognize typed values passed through Symfony Controller `render()` when SoPHP Core and Symfony provide live context facts. Twig templates now complete PHP methods and no-argument method chains, display return types and optional variables, show method signatures, and navigate to precise PHP declarations.

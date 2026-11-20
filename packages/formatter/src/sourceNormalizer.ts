@@ -170,6 +170,9 @@ interface HtmlAttributeToken {
 }
 
 function normalizeHtmlOpeningTag(tag: string): string {
+  // Conditional Twig can supply the separator between two rendered attributes.
+  if (tag.includes("{%") || tag.includes("{#")) return tag;
+
   const parsed = parseHtmlOpeningTag(tag);
   if (!parsed) {
     return tag;
