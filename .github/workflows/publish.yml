@@ -1,0 +1,57 @@
+name: Publish TwigPlus to Marketplace
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "要发布的 GitHub Release 标签，例如 v1.3.11"
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: marketplace
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download and verify the release VSIX
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          version="${TAG#v}"
+          file="twig-plus-${version}.vsix"
+
+          gh release view "$TAG" --repo "$REPO" \
+            --json isDraft,isPrerelease,assets > release.json
+
+          digest=$(jq -er --arg file "$file" '
+            select(.isDraft == false and .isPrerelease == false)
+            | .assets[] | select(.name == $file) | .digest
+            | select(test("^sha256:[0-9a-f]{64}$"))
+          ' release.json)
+
+          gh release download "$TAG" --repo "$REPO" --pattern "$file"
+          printf '%s  %s\n' "${digest#sha256:}" "$file" | sha256sum --check
+
+          unzip -p "$file" extension/package.json | jq -e --arg v "$version" \
+            '.publisher == "sohophp" and .name == "twig-plus" and .version == $v'
+
+          echo "VSIX=$file" >> "$GITHUB_ENV"
+
+      - name: Publish verified VSIX to Marketplace
+        run: npx --yes --package=@vscode/vsce@4.1.1 -- vsce publish --oidc --packagePath "$VSIX"
