@@ -11,6 +11,8 @@ The default behavior is intentionally conservative: TwigPlus should improve `.tw
 
 ## Recommended Setup
 
+For PHP or Symfony projects, we recommend installing TwigPlus through SoPHP Dev Pack. It bundles TwigPlus with SoPHP and SoPHP Symfony for PHP-aware Twig completion and navigation between Symfony controllers and templates. [Get SoPHP Dev Pack on the VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=sohophp.php-companion-open-source-pack)
+
 TwigPlus contributes itself as the default formatter for the `twig` language. For the closest PHPStorm-like workflow, add this to your workspace or user settings:
 
 ```json

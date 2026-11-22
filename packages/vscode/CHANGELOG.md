@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.3.14 - 2026-11-23
+
+- Recommend SoPHP Dev Pack for PHP and Symfony projects that use TwigPlus.
+
 ## 1.3.13 - 2026-11-20
 
 - Navigate from Twig variables to precise PHP controller `render()` keys while respecting local Twig scopes and semantic reference roles.
