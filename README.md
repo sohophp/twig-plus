@@ -2,6 +2,8 @@
 
 TwigPlus 是面向 VS Code 和 LSP 客户端的 Twig 3.x 编辑工具链，目标是在不接管 PHP、HTML、CSS 或 JavaScript 文件的前提下，为 `.twig` 与 `.html.twig` 提供可靠的混合语言编辑体验。
 
+在 VS Code 中开发 PHP 或 Symfony 项目时，推荐通过 SoPHP Dev Pack（SoPHP 开发套件）一起安装 TwigPlus、SoPHP 和 SoPHP Symfony。组合安装后可在 Symfony 控制器和 Twig 模板之间导航，并在模板中使用来自 PHP 的类型信息。[在 VS Code Marketplace 获取 SoPHP Dev Pack](https://marketplace.visualstudio.com/items?itemName=sohophp.php-companion-open-source-pack)
+
 当前稳定能力包括 Twig/HTML/CSS/JavaScript 分层格式化、Twig 与 HTML 补全、内嵌 JavaScript 高亮和 TypeScript 补全、诊断、模板与 block/macro 导航。可选 PHP Companion interop v1 会提供实时 Controller 变量、公共 PHP 类型成员、Controller 来源导航、PHP 成员精确 Definition，以及完整字面量 `render()` context 的受限 PHP/Twig 变量 Rename；协议不可用时继续读取 `.twig-plus/symfony-metadata.json`，通用 Twig 能力不受影响。项目追求可验证的 PHPStorm 等价工作流，不复制 JetBrains 的专有实现。
 
 Hybrid CST/AST 是唯一用户运行模式；普通输入、brace、Backspace 与 Undo/Redo 优先使用 VS Code 原生事务。HTML `>` 只在 Hybrid 能证明单光标 opening tag 安全时形成一次原子 closing edit，其余场景立即委托原生输入。
