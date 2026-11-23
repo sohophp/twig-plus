@@ -1,5 +1,23 @@
 # TwigPlus
 
+[English](#english) · [简体中文](#简体中文)
+
+## English
+
+TwigPlus is a Twig 3.x toolchain for VS Code and LSP clients. It formats mixed Twig, HTML, CSS, and JavaScript and adds completion, diagnostics, and navigation for Twig templates.
+
+### Install and use
+
+For PHP and Symfony projects, use SoPHP Dev Pack to install TwigPlus, SoPHP, and SoPHP Symfony together. The optional PHP integration provides typed Symfony controller variables in Twig, navigation back to PHP declarations, and supported renames across controllers and templates. [Install SoPHP Dev Pack](https://marketplace.visualstudio.com/items?itemName=sohophp.php-companion-open-source-pack)
+
+TwigPlus works with `.twig` and `.html.twig` files. Use **Format Document**, **Go to Definition**, or **TwigPlus: Show Status** in VS Code. Settings, examples, and troubleshooting are documented in the [VS Code extension README](packages/vscode/README.md).
+
+### Develop
+
+TwigPlus separates the parser, formatter, language server, and VS Code adapter. Install the locked dependencies with `npm ci`, run `npm run build`, and use `npm test` to verify changes. The project uses one hybrid CST/AST parser and VS Code native editing transactions for ordinary typing. See the [architecture](docs/architecture.md) and [test guide](docs/testing.md) for the repository layout and development workflow.
+
+## 简体中文
+
 TwigPlus 是面向 VS Code 和 LSP 客户端的 Twig 3.x 编辑工具链，目标是在不接管 PHP、HTML、CSS 或 JavaScript 文件的前提下，为 `.twig` 与 `.html.twig` 提供可靠的混合语言编辑体验。
 
 在 VS Code 中开发 PHP 或 Symfony 项目时，推荐通过 SoPHP Dev Pack（SoPHP 开发套件）一起安装 TwigPlus、SoPHP 和 SoPHP Symfony。组合安装后可在 Symfony 控制器和 Twig 模板之间导航，并在模板中使用来自 PHP 的类型信息。[在 VS Code Marketplace 获取 SoPHP Dev Pack](https://marketplace.visualstudio.com/items?itemName=sohophp.php-companion-open-source-pack)
@@ -8,7 +26,7 @@ TwigPlus 是面向 VS Code 和 LSP 客户端的 Twig 3.x 编辑工具链，目�
 
 Hybrid CST/AST 是唯一用户运行模式；普通输入、brace、Backspace 与 Undo/Redo 优先使用 VS Code 原生事务。HTML `>` 只在 Hybrid 能证明单光标 opening tag 安全时形成一次原子 closing edit，其余场景立即委托原生输入。
 
-## 工作区
+### 工作区
 
 | 包 | 职责 |
 | --- | --- |
@@ -19,7 +37,7 @@ Hybrid CST/AST 是唯一用户运行模式；普通输入、brace、Backspace �
 
 依赖方向固定为 `parser <- formatter <- language-server`，VS Code adapter 只消费这些能力，不复制语义实现。
 
-## 开发与验证
+### 开发与验证
 
 ```bash
 npm install
@@ -32,7 +50,7 @@ npm run vscode:test:packaged --workspace packages/vscode
 
 VSIX 统一输出到 `artifacts/vsix/`。F5 调试前必须先构建，Extension Development Host 使用 `packages/vscode/dist`。
 
-## 编辑原则
+### 编辑原则
 
 - delimiter、引号和括号的成对闭合由 VS Code 原生 language configuration 负责。
 - completion snippet 和 formatter 负责 `{%  %}`、`{{  }}`、`{#  #}` 的空格风格。
@@ -47,7 +65,7 @@ VSIX 统一输出到 `artifacts/vsix/`。F5 调试前必须先构建，Extension
 - 完整、字面量 `render()` context 提供精确 PHP 键范围时，可从直接目标模板中的外部变量发起 Rename；一次编辑覆盖模板内全部未被局部声明遮蔽的引用和所有 Controller 键。动态/不完整 context、缺少来源和名称冲突会拒绝。
 - PHP Companion 重命名 Symfony 路由名时，TwigPlus 会有界扫描项目 Twig 文件，只返回精确 `path()`/`url()` 字面量引用；扫描超限、读取失败或取消时明确返回不完整，PHP Companion 会拒绝整次 Rename。
 
-## 文档
+### 文档
 
 - [产品与功能状态](docs/product.md)
 - [架构与所有权](docs/architecture.md)
@@ -59,8 +77,8 @@ VSIX 统一输出到 `artifacts/vsix/`。F5 调试前必须先构建，Extension
 - [VS Code 发布](docs/release-vscode.md)
 - [架构决策](docs/decisions/README.md)
 
-公开扩展使用说明和英文简介见 [packages/vscode/README.md](packages/vscode/README.md)。
+VS Code 扩展的双语使用说明见 [packages/vscode/README.md](packages/vscode/README.md)。
 
-## 非目标
+### 非目标
 
 PHPStorm 即时 delimiter 空格改写、TypeScript/custom MIME script 和专有配色仍不在当前范围。

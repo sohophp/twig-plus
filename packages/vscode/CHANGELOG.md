@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.3.15 - 2026-11-23
+
+- Document setup, Symfony interop, and troubleshooting in English and Simplified Chinese.
+
 ## 1.3.14 - 2026-11-23
 
 - Recommend SoPHP Dev Pack for PHP and Symfony projects that use TwigPlus.

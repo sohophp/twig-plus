@@ -1,6 +1,10 @@
 # TwigPlus for VSCode
 
-TwigPlus brings a PHPStorm-like Twig editing workflow to VSCode, focused on three core areas:
+[English](#english) · [简体中文](#简体中文)
+
+## English
+
+TwigPlus brings a PHPStorm-like Twig editing workflow to VSCode, with support for the following features:
 
 - mixed Twig / HTML / CSS / JavaScript formatting
 - Twig tag, filter, function, and template path completion
@@ -9,7 +13,7 @@ TwigPlus brings a PHPStorm-like Twig editing workflow to VSCode, focused on thre
 
 The default behavior is intentionally conservative: TwigPlus should improve `.twig` and `.html.twig` editing without taking over unrelated PHP, JavaScript, CSS, or HTML files.
 
-## Recommended Setup
+### Recommended Setup
 
 For PHP or Symfony projects, we recommend installing TwigPlus through SoPHP Dev Pack. It bundles TwigPlus with SoPHP and SoPHP Symfony for PHP-aware Twig completion and navigation between Symfony controllers and templates. [Get SoPHP Dev Pack on the VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=sohophp.php-companion-open-source-pack)
 
@@ -40,7 +44,7 @@ To inspect the active file and effective TwigPlus settings, run:
 TwigPlus: Show Status
 ```
 
-## Features
+### Features
 
 - Formats Twig files that mix Twig tags, HTML markup, embedded `<script>`, and embedded `<style>`
 - Preserves Twig placeholders while formatting embedded JavaScript and CSS
@@ -66,11 +70,11 @@ TwigPlus: Show Status
 
 Embedded JavaScript uses the active VS Code theme for syntax and TypeScript-classified identifier colors. Syntax errors are reported in the Twig document and cause formatting to preserve the original document. Twig and embedded JavaScript Hover and Signature Help are provided by the bundled language server; richer Symfony/PHP-derived variable types depend on optional project metadata.
 
-TwigPlus can optionally merge project-provided Symfony metadata v3 from `.twig-plus/symfony-metadata.json`. In `auto` mode each reference feature requires Twig Bridge/Bundle and its owning component. Routes, assets, translations, form themes, security attributes, fragment controllers and importmap entrypoints receive package-aware completion; metadata entries with safe workspace-relative source locations also support Hover and navigation. Bounded conventional YAML/XML/XLIFF/JSON, literal-only `importmap.php`, and `public/` assets are indexed statically. Missing or incomplete metadata never blocks generic Twig features, and TwigPlus never loads an autoloader or executes workspace PHP.
+The optional SoPHP integration supplies typed Symfony controller context and PHP member navigation. TwigPlus can also merge project-provided Symfony metadata v3 from `.twig-plus/symfony-metadata.json`. In `auto` mode each reference feature requires Twig Bridge/Bundle and its owning component. Routes, assets, translations, form themes, security attributes, fragment controllers and importmap entrypoints receive package-aware completion; metadata entries with safe workspace-relative source locations also support Hover and navigation. Bounded conventional YAML/XML/XLIFF/JSON, literal-only `importmap.php`, and `public/` assets are indexed statically. Missing or incomplete metadata never blocks generic Twig features, and TwigPlus never loads an autoloader or executes workspace PHP.
 
 Completion and formatting follow the PHPStorm-style spaced delimiter baseline, including `{{  }}`, `{%  %}`, and `{#  #}`. Raw typing uses VS Code's native pairs and may remain compact until completion or formatting. Completion includes context-aware tags, filters, functions, and tests such as `is defined`; malformed embedded code aborts formatting without partial edits.
 
-## Configuration Reference
+### Configuration Reference
 
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -105,7 +109,7 @@ TwigPlus also contributes this language default:
 }
 ```
 
-## Dependencies And Extension Interop
+### Dependencies And Extension Interop
 
 TwigPlus does not require Prettier, PHP CS Fixer, PHP Intelephense, or GitHub Copilot to work.
 
@@ -113,7 +117,6 @@ TwigPlus does not require Prettier, PHP CS Fixer, PHP Intelephense, or GitHub Co
 - PHP CS Fixer affects PHP files, not TwigPlus formatting.
 - PHP Intelephense affects PHP language features, not TwigPlus Twig providers.
 - GitHub Copilot may add suggestions while typing, but it should not replace TwigPlus formatter, completion, or definition providers.
-- Use `TwigPlus: Select Parser Engine` to switch parser modes without editing workspace JSON manually.
 
 To disable GitHub Copilot suggestions only for Twig while keeping Copilot enabled for other languages, add:
 
@@ -136,7 +139,7 @@ GitHub Copilot does not register a Twig formatter, definition provider, or Twig 
 4. Run `Developer: Reload Window` after installing or switching profiles.
 5. If the command is missing, the installed extension package is stale; reinstall the latest VSIX or run from source with `F5`.
 
-## Development And Verification
+### Development And Verification
 
 Use the Extension Development Host when testing local changes:
 
@@ -156,16 +159,18 @@ npm run vscode:test --workspace packages/vscode
 npm run package:vsix --workspace packages/vscode
 ```
 
-## Known Limitations
+### Known Limitations
 
 - TwigPlus aims to be close to PHPStorm for common Twig editing, not a byte-for-byte clone of every PHPStorm formatter decision.
 - HTML schema-aware features such as required attributes and required subtags are intentionally deferred.
 - Advanced PHPStorm-specific closed-source behavior is approximated from observable behavior and JetBrains IntelliJ Community platform behavior where available.
 - Immediate rewriting of `{%` to `{%  %}` is intentionally deferred because a second asynchronous edit conflicts with rapid typing, IME, Backspace, and the undo stack.
 
-## 中文说明
+## 简体中文
 
-TwigPlus 是一个面向 VSCode 的 Twig 扩展，目标是尽量接近 PHPStorm 中常用的 Twig 编辑体验。当前重点是三件事：
+TwigPlus 是面向 VS Code 的 Twig 扩展，为 `.twig` 和 `.html.twig` 文件提供混合语言格式化、补全、诊断和导航。
+
+### 功能
 
 - Twig / HTML / CSS / JavaScript 混合格式化
 - Twig tag、filter、function、模板路径补全
@@ -173,7 +178,11 @@ TwigPlus 是一个面向 VSCode 的 Twig 扩展，目标是尽量接近 PHPStorm
 - 当前 `<script>` 内局部 JavaScript 标识符的 Definition、安全 Rename 与 Semantic Tokens
 - 由 LSP 提供的嵌套 closing 原子补齐及明确无效 Twig 结构 Quick Fix
 
-推荐配置：
+### 安装与配置
+
+开发 PHP 或 Symfony 项目时，推荐通过 SoPHP Dev Pack（SoPHP 开发套件）一起安装 TwigPlus、SoPHP 和 SoPHP Symfony。启用集成后，Twig 可使用 Symfony 控制器提供的类型，并跳转到经验证的 PHP 声明和控制器源码。[在 VS Code Marketplace 获取 SoPHP Dev Pack](https://marketplace.visualstudio.com/items?itemName=sohophp.php-companion-open-source-pack)
+
+可在用户或工作区设置中指定 Twig 的默认格式化器。
 
 ```json
 {
@@ -194,7 +203,9 @@ TwigPlus: Apply Recommended Twig Settings
 这个命令会把推荐配置写入当前 workspace。扩展安装时不会静默修改你的全局 VSCode 设置。
 该命令不会修改 `editor.formatOnSave`；如需保存时格式化，请自行显式开启。
 
-如果怀疑扩展没有生效，先执行：
+### 排查扩展是否生效
+
+打开 Twig 文件后，在命令面板运行以下命令。
 
 ```text
 TwigPlus: Show Status
@@ -214,3 +225,20 @@ TwigPlus 不依赖 Prettier、PHP CS Fixer、PHP Intelephense 或 GitHub Copilot
   }
 }
 ```
+
+
+### Symfony 和 Twig 配置
+
+| 设置 | 用途 |
+| --- | --- |
+| `twigPlus.twig.version` | 覆盖从项目元数据或 `composer.lock` 检测的 Twig 3.x 版本 |
+| `twigPlus.symfony.reference` | 用 `auto`、`on` 或 `off` 控制静态 Symfony 引用，默认 `auto` |
+| `twigPlus.diagnostics.unresolvedNameMode` | 用 `safe`、`strict` 或 `off` 调整未解析名称诊断，默认 `safe` |
+| `twigPlus.diagnostics.globals` | 声明宿主应用提供的 Twig 全局变量 |
+| `twigPlus.format.htmlAttributeWrap` | 设置 HTML 属性的换行策略，默认 `auto` |
+
+静态 Symfony 引用包括路由、资源、翻译、表单、安全属性、片段和导入映射。默认模式会根据 Twig Bridge、Twig Bundle 及对应组件的依赖情况启用支持。项目也可以提供 `.twig-plus/symfony-metadata.json` 补充元数据。
+
+### 开发与验证
+
+在仓库中运行 `npm ci` 和 `npm run build` 后，按 F5 打开扩展开发宿主。可运行 `npm test` 验证项目，或运行 `npm run package:vsix --workspace packages/vscode` 构建扩展包。更多设置和开发说明见[项目文档](https://github.com/sohophp/twig-plus#readme)。
